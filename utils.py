@@ -190,61 +190,33 @@ def percentage_loss(a, b): # percentage loss (a = true, b = predicted)
 # PHYSICS_LS = 64 # 128 physics latent size [ph] 64 <- 64 -> 40μ
 # PHYSICS_LS = 128 #128 -> 50μ
 # PHYSICS_LS = 256 # -> 70μ
-PHYSICS_LS = 16 # turbosmall
+# PHYSICS_LS = 16 # turbosmall
+
+PHYSICS_LS, PTSH, INPUTH, HEADH = 64, 64, 128, 128 #baseline
 
 class PtsEncoder(Module): # positional encoding for the input vector
-    def __init__(self):
+    def __init__(self, ni=2, nh=PTSH, no=PHYSICS_LS):
         super(PtsEncoder, self).__init__()
-        self.pts_encoder = Sequential(
-            # Linear(2, 16), ActF(),
-            # Linear(16, PHYSICS_LS), ActF(), # full
-
-            # Linear(2, 32), ActF(),
-            # Linear(32, 32), ActF(), 
-            # Linear(32, PHYSICS_LS), ActF(), 
-
-            # Linear(2, 128), ActF(),
-            # Linear(128, 128), ActF(),
-            # Linear(128, PHYSICS_LS), ActF(),  # full
-
-            # Linear(2, 64), ActF(), # 1 layer
-            # Linear(64, PHYSICS_LS), ActF(), #
-
-            # Linear(2, 16), ActF(), # 1 layer small
-            # Linear(16, PHYSICS_LS), ActF(), #
-
-            Linear(2, 16), ActF(), # turbo small
-            Linear(16, PHYSICS_LS), ActF(), #
+        self.pts_enc = Sequential(
+            Linear(ni, nh), ActF(),
+            Linear(nh, no), ActF(),
         )
-    def forward(self, pts): return self.pts_encoder(pts) # pts: (BS, NP, 2) -> (BS, NP, PHYSICS_LS)
+    def forward(self, pts): return self.pts_enc(pts) # pts: (BS, NP, 2) -> (BS, NP, PHYSICS_LS)
 
 class InputNet(Module): # input -> latent physics vector [x -> ph]
-    def __init__(self, x_mean_std=torch.tensor([[0.0]*NIN, [1.0]*NIN], dtype=torch.float32)):
+    def __init__(self, x_mean_std=torch.tensor([[0.0]*NIN, [1.0]*NIN], dtype=torch.float32),
+                 ni=NIN, nh=INPUTH, no=PHYSICS_LS):
         super(InputNet, self).__init__()
         assert x_mean_std.shape == (2, NIN), f"x_mean_std.shape = {x_mean_std.shape}, NIN = {NIN}"
         self.x_mean_std = x_mean_std
-        self.input_net = Sequential(
-            # Linear(NIN, 128), ActF(), # (NIN, 64) <-
-            # Linear(128, 64), ActF(), # (64, 64) <-
-            # Linear(64, PHYSICS_LS), ActF(), 
-
-            # Linear(NIN, 256), ActF(), # (NIN, 256) <-
-            # Linear(256, 128), ActF(), # (256, 128) <-
-            # Linear(128, PHYSICS_LS), Tanh(), # (128, PHYSICS_LS) <-
-
-            # Linear(NIN, 128), ActF(), # 1 layer
-            # Linear(128, PHYSICS_LS), ActF(), 
-
-            # Linear(NIN, 32), ActF(), # 1 layer
-            # Linear(32, PHYSICS_LS), ActF(), 
-
-            Linear(NIN, 16), ActF(), # turbo small
-            Linear(16, PHYSICS_LS), ActF(), 
+        self.phys_enc = Sequential(
+            Linear(ni, nh), ActF(), 
+            Linear(nh, no), ActF(), 
         )
     def forward(self, x): 
         assert x.shape[1] == NIN, f"x.shape[1] = {x.shape[1]}, NIN = {NIN}"
         x = (x - self.x_mean_std[0]) / self.x_mean_std[1] # normalize
-        ph = self.input_net(x)
+        ph = self.phys_enc(x)
         return ph
     def to(self, device):
         super(InputNet, self).to(device)
@@ -252,28 +224,15 @@ class InputNet(Module): # input -> latent physics vector [x -> ph]
         return self
 
 class FHead(Module): # [pt, ph] -> [1] function (flux/Br/Bz/curr density) 
-    def __init__(self, nout=1):
+    def __init__(self, ni=PHYSICS_LS, nh=HEADH, no=1):
         super(FHead, self).__init__()
         self.head = Sequential(
-            # Linear(PHYSICS_LS, 64), ActF(), # full
-            # Linear(64, 32), ActF(),
-            # Linear(32, nout), ActF(),
-
-            # Linear(PHYSICS_LS, 256), ActF(), # full
-            # Linear(256, nout), ActF(), # full
-
-            # Linear(PHYSICS_LS, 128), ActF(), # 1 layer
-            # Linear(128, nout), ActF(),
-
-            # Linear(PHYSICS_LS, 32), ActF(), # 1 layer
-            # Linear(32, nout), ActF(),
-
-            Linear(PHYSICS_LS, 16), ActF(), # turbo small
-            Linear(16, nout), ActF(),
+            Linear(ni, nh), ActF(), # <-
+            Linear(nh, no), ActF(),
         )
-        self.nout = nout # number of outputs
-    def forward(self, v): return self.head(v) if self.nout > 1 else self.head(v).squeeze(-1)
-    
+        self.no = no # number of outputs
+    def forward(self, v): return self.head(v) if self.no > 1 else self.head(v).squeeze(-1)
+
 class LCFSHead(Module): # physics -> LCFS [ph -> LCFS]
     def __init__(self):
         super(LCFSHead, self).__init__()
@@ -401,7 +360,7 @@ def test_network_io(verbose=True):
     n_points = 5 # number of points to sample
     # single sample
     x, pts = (torch.rand(1, NIN), torch.rand(1, n_points, 2)) # x: (1, NIN), pts: (1, n_points, 2)
-    fn = FullNet(InputNet(),PtsEncoder(),FHead(3),FHead(1),LCFSHead())
+    fn = FullNet(InputNet(),PtsEncoder(),FHead(no=3),FHead(no=1),LCFSHead())
     rt_net = LiuqeRTNet(fn.input_net,fn.pts_enc,fn.rt_head)
     rt, iy, lcfs = fn(x, pts)
     r, z = pts[0,:,0], pts[0,:,1] # r, z: (n_points,)
@@ -477,6 +436,18 @@ def convert_to_onnx_static(net:LiuqeRTNet, npts=N_CTRL_PTS, save_dir=[SAVE_DIR])
         assert os.path.exists(onnx_net_path), f"ONNX model not saved to {onnx_net_path}"
         print(f'ONNX model saved to {onnx_net_path}')
     return
+
+def save_weights_to_mat(net:LiuqeRTNet, save_dir=[SAVE_DIR]):
+    weights = {}
+    weights['x_mean_std'] = net.input_net.x_mean_std.cpu().numpy()  # save normalization parameters
+    for net in [net.input_net, net.pts_enc, net.rt_head]:
+        for name, param in net.named_parameters():
+            w = param.data.cpu().numpy()
+            n = name.replace('.', '_')
+            # print(f"Parameter: {n}: {w.shape}, {w.dtype}")
+            weights[n] = w
+    for sd in save_dir:
+        savemat(f'{sd}/weights.mat', weights)
 
 # function to load the dataset
 def load_ds(ds_path):

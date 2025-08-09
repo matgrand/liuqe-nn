@@ -1,4 +1,4 @@
-
+    
 try
 
     %% current best speeds:
@@ -11,7 +11,7 @@ try
     % 25 -> 20 / 20+-10 / tot 27 static [much faster]
     clear; close all;
     % PLOT = false;
-    PLOT = false; % set to true to plot results
+    PLOT = true; % set to true to plot results
     n_ctrl_pts = 25; % number of control points
     N = 1000; % number of iterations for inference time test
 
@@ -21,11 +21,18 @@ try
     % model_path = [pwd '/data/3011842/net.onnx'];
     % model_path = [pwd '/data/3048577/net.onnx']; % 256 EMB SIZE
     % model_path = [pwd '/data/3048577/net.onnx']; % 256 EMB SIZE
-%     model_path = [pwd '/data/local/net.onnx']; % 256 EMB SIZE
-		model_path = '/home/grandin/repos/liuqe-ml/data/3057800/net.onnx'; % extremely small
+    model_path = [pwd '/data/local/net.onnx']; 
+	% model_path = '/home/grandin/repos/liuqe-ml/data/3057800/net.onnx'; % extremely small
 
     % first call to load the model
     net_forward_mex(model_path);
+
+
+    % choose the function
+    % net_forward = @(phys, r, z) net_forward_mex(single(phys), single(r), single(z));
+    % net_forward = @(phys, r, z) net_forward2(single(phys), single(r), single(z));
+    net_forward = @(phys, r, z) net_forward2_mex(single(phys), single(r), single(z));
+
 
 
     d = load('dss/demo.mat'); % load demo data (should be in DS_DIR/demo.mat , DS_DIR defined in utils.py)
@@ -44,18 +51,23 @@ try
     r = d.pts(rand_i, 1:n_ctrl_pts, 1);
     z = d.pts(rand_i, 1:n_ctrl_pts, 2);
 
-    fprintf('phys size: %d, r size: %d, z size: %d\n', size(phys, 2), size(r, 2), size(z, 2));
+    fprintf('phys size: %s, r size: %s, z size: %s\n', ...
+        mat2str(size(phys)), mat2str(size(r)), mat2str(size(z)));
 
-    [Fx, Br, Bz] = net_forward_mex(single(phys), single(r), single(z));
-    fprintf('Output types: Fx [%s], Br [%s], Bz [%s]\n', ...
-        class(Fx), class(Br), class(Bz));
+    [Fx, Br, Bz] = net_forward(single(phys), single(r), single(z));
+    fprintf('Output: Fx %s [%s], Br %s [%s], Bz %s [%s]\n', ...
+        mat2str(size(Fx)), mat2str(class(Fx)), ...
+        mat2str(size(Br)), mat2str(class(Br)), ...
+        mat2str(size(Bz)), mat2str(class(Bz)));
+
+
     % print first 5 elements of results
-    fprintf('fx_pred -> [ %s ]\n', num2str(Fx(1:min(8,end)), '%+.4f '));
-    fprintf('fx_true -> [ %s ]\n', num2str(d.Fx(rand_i, 1:min(8,end)), '%+.4f '));
-    fprintf('br_pred -> [ %s ]\n', num2str(Br(1:min(8,end)), '%+.4f '));
-    fprintf('br_true -> [ %s ]\n', num2str(d.Br(rand_i, 1:min(8,end)), '%+.4f '));
-    fprintf('bz_pred -> [ %s ]\n', num2str(Bz(1:min(8,end)), '%+.4f '));
-    fprintf('bz_true -> [ %s ]\n', num2str(d.Bz(rand_i, 1:min(8,end)), '%+.4f '));
+    fprintf('fx_pred  -> [ %s ]\n', num2str(Fx(1:min(8,end)), '%+.4f '));
+    fprintf('fx_true  -> [ %s ]\n', num2str(d.Fx(rand_i, 1:min(8,end)), '%+.4f '));
+    fprintf('br_pred  -> [ %s ]\n', num2str(Br(1:min(8,end)), '%+.4f '));
+    fprintf('br_true  -> [ %s ]\n', num2str(d.Br(rand_i, 1:min(8,end)), '%+.4f '));
+    fprintf('bz_pred  -> [ %s ]\n', num2str(Bz(1:min(8,end)), '%+.4f '));
+    fprintf('bz_true  -> [ %s ]\n', num2str(d.Bz(rand_i, 1:min(8,end)), '%+.4f '));
 
     % use timeit to measure inference time
     fprintf('Measuring inference time...\n');
@@ -70,7 +82,8 @@ try
         r = d.pts(rand_i, 1:n, 1);
         z = d.pts(rand_i, 1:n, 2);
         try
-            t1 = timeit(@() net_forward_mex(single(phys), single(r), single(z)));
+            % t1 = timeit(@() net_forward_mex(single(phys), single(r), single(z)));
+            t1 = timeit(@() net_forward(single(phys), single(r), single(z)));
         catch ME
             t1 = NaN; % in case of error, set time to NaN
         end
@@ -99,7 +112,8 @@ try
     for i = 1:N
         ri = rand_idxs(i);
         t1 = tic;
-        [fx, br, bz] = net_forward_mex(single(d.phys(ri, :)), single(d.pts(ri, 1:n_ctrl_pts, 1)), single(d.pts(ri, 1:n_ctrl_pts, 2)));
+        % [fx, br, bz] = net_forward_mex(single(d.phys(ri, :)), single(d.pts(ri, 1:n_ctrl_pts, 1)), single(d.pts(ri, 1:n_ctrl_pts, 2)));
+        [fx, br, bz] = net_forward(single(d.phys(ri, :)), single(d.pts(ri, 1:n_ctrl_pts, 1)), single(d.pts(ri, 1:n_ctrl_pts, 2)));
         times(i) = toc(t1);
     end
     ttot = toc(ttot);
@@ -122,7 +136,9 @@ try
             z = d.pts(rand_i, :, 2);
 
             % net_forward_mex([pwd 'onnx_net_forward/net.onnx']); % to load the model
-            [Fx, Br, Bz] = net_forward_mex(single(phys), single(r), single(z));
+            % [Fx, Br, Bz] = net_forward_mex(single(phys), single(r), single(z));
+            [Fx, Br, Bz] = net_forward(single(phys), single(r), single(z));
+
 
             preds = {Fx, Br, Bz};
             trues = {d.Fx(rand_i, :), d.Br(rand_i, :), d.Bz(rand_i, :)};
@@ -198,7 +214,8 @@ function t = test_speed(vphys, vr, vz, ncp)
     assert(size(vr,1) == n && size(vz,1) == n, ...
         'Input vectors must have the same number of rows.');
     for i = 1:n
-        [fx, br, bz] = net_forward_mex(single(vphys(i,:)), single(vr(i,1:ncp)), single(vz(i,1:ncp)));
+        % [fx, br, bz] = net_forward_mex(single(vphys(i,:)), single(vr(i,1:ncp)), single(vz(i,1:ncp)));
+        [fx, br, bz] = net_forward(single(vphys(i,:)), single(vr(i,1:ncp)), single(vz(i,1:ncp)));
     end
     t = toc(start);
 end

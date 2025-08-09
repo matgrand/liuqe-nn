@@ -63,7 +63,7 @@ def net_forward(phys, r, z):
 # ## Pytorch version
 # PT_NET_DIR = 'data/3009431/'
 # x_mean_std = to_tensor(np.load(f'{PT_NET_DIR}/x_mean_std.npz')['x_mean_std'])
-# m = FullNet(InputNet(x_mean_std), PtsEncoder(), FHead(3), FHead(1), LCFSHead())
+# m = FullNet(InputNet(x_mean_std), PtsEncoder(), FHead(no=3), FHead(no=1), LCFSHead())
 # m = m.to(CPU) # move to CPU
 # m.load_state_dict(torch.load(model_path(FX, save_dir=PT_NET_DIR), weights_only=True, map_location=torch.device(CPU))) # load pretrained model
 # net = LiuqeRTNet(m.input_net, m.pts_enc, m.rt_head) # create LiuqeRTNet
