@@ -19,9 +19,9 @@ function [Fx, Br, Bz] = net_forward2(phys, r, z)
     pts = [r', z'];
     
     % start_pts_net = tic;
-    out1 = pts * net.pts_enc_0_weight' + net.pts_enc_0_bias;
+    out1 = bsxfun(@plus, pts * net.pts_enc_0_weight', net.pts_enc_0_bias);
     act1 = swish(out1, net.pts_enc_1_beta);
-    out2 = act1 * net.pts_enc_2_weight' + net.pts_enc_2_bias;
+    out2 = bsxfun(@plus, act1 * net.pts_enc_2_weight', net.pts_enc_2_bias);
     pts_embs = swish(out2, net.pts_enc_3_beta);
     % elapsed_pts_net = toc(start_pts_net);
     % fprintf('Elapsed time for pts net: %.2f micros\n', elapsed_pts_net * 1e6 / size(pts, 1));
@@ -30,9 +30,9 @@ function [Fx, Br, Bz] = net_forward2(phys, r, z)
     % start_phys_net = tic;   
     phys_norm = (phys - net.x_mean_std(1,:)) ./ net.x_mean_std(2,:);
 
-    out1_phys = phys_norm * net.phys_enc_0_weight' + net.phys_enc_0_bias;
+    out1_phys = bsxfun(@plus, phys_norm * net.phys_enc_0_weight', net.phys_enc_0_bias);
     act1_phys = swish(out1_phys, net.phys_enc_1_beta);
-    out2_phys = act1_phys * net.phys_enc_2_weight' + net.phys_enc_2_bias;
+    out2_phys = bsxfun(@plus, act1_phys * net.phys_enc_2_weight', net.phys_enc_2_bias);
     phys_emb = swish(out2_phys, net.phys_enc_3_beta);
     % elapsed_phys_net = toc(start_phys_net);
     % fprintf('Elapsed time for phys net: %.2f micros\n', elapsed_phys_net * 1e6);
@@ -41,9 +41,9 @@ function [Fx, Br, Bz] = net_forward2(phys, r, z)
     % start_head_net = tic;
     x = phys_emb .* pts_embs;
 
-    out1_head = x * net.head_0_weight' + net.head_0_bias;
+    out1_head = bsxfun(@plus, x * net.head_0_weight', net.head_0_bias);
     act1_head = swish(out1_head, net.head_1_beta);
-    out2_head = act1_head * net.head_2_weight' + net.head_2_bias;
+    out2_head = bsxfun(@plus, act1_head * net.head_2_weight', net.head_2_bias);
     head_emb = swish(out2_head, net.head_3_beta);
 
     % elapsed_head_net = toc(start_head_net);
