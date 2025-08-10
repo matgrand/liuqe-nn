@@ -200,7 +200,8 @@ def percentage_loss(a, b): # percentage loss (a = true, b = predicted)
 # PHYSICS_LS = 256 # -> 70μ
 # PHYSICS_LS = 16 # turbosmall
 
-PHYSICS_LS, PTSH, INPUTH, HEADH = 64, 64, 128, 128 #baseline
+# PHYSICS_LS, PTSH, INPUTH, HEADH = 64, 64, 128, 128 #baseline
+PHYSICS_LS, PTSH, INPUTH, HEADH = 16, 16, 32, 32 # turbosmall 
 
 class PtsEncoder(Module): # positional encoding for the input vector
     def __init__(self, ni=2, nh=PTSH, no=PHYSICS_LS):
