@@ -145,6 +145,7 @@ try
             labels = {'Fx', 'Br', 'Bz'};
             
             fig = figure('Visible', 'off', 'Position', [100, 100, 1000, 1000]);
+%             fig = figure('Visible', 'on', 'Position', [100, 100, 1000, 1000]);
             
             for k = 1:3
                 ftrue = trues{k};
@@ -160,7 +161,7 @@ try
                 title([labels{k} ' true']);
                 xlabel('r'); ylabel('z');
                 axis equal; colorbar;
-                clim([fmin fmax]);
+%                 clim([fmin fmax]);
 
                 % Plot predicted value
                 subplot(3,3,3*(k-1)+2);
@@ -168,7 +169,7 @@ try
                 title([labels{k} ' pred']);
                 xlabel('r'); ylabel('z');
                 axis equal; colorbar;
-                clim([fmin fmax]);
+%                 clim([fmin fmax]);
 
                 % Plot error map
                 subplot(3,3,3*(k-1)+3);
@@ -182,7 +183,7 @@ try
             % save figure
             saveas(gcf, sprintf('test/matlab_%s.png', num2str(i)));
             % close figure
-            close(gcf);
+%             close(gcf);
             fprintf('.');
         end
         fprintf(' Done.\n');

@@ -39,7 +39,7 @@ function [Fx, Br, Bz] = net_forward2(phys, r, z)
 
     %% head net
     % start_head_net = tic;
-    x = phys_emb .* pts_embs;
+    x = bsxfun(@times, phys_emb, pts_embs);
 
     out1_head = bsxfun(@plus, x * net.head_0_weight', net.head_0_bias);
     act1_head = swish(out1_head, net.head_1_beta);
@@ -56,5 +56,8 @@ end
 
 function y = swish(x, beta)
     coder.inline('always');
-    y = x ./ (1 + exp(-beta .* x));
+    % Use bsxfun for element-wise multiplication to ensure
+    % compatibility with older MATLAB versions that don't fully
+    % support implicit broadcasting in codegen.
+    y = x ./ (1 + exp(bsxfun(@times, -beta, x)));
 end
