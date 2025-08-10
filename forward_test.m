@@ -11,7 +11,7 @@ try
     % 25 -> 20 / 20+-10 / tot 27 static [much faster]
     clear; close all;
     PLOT = false;
-    % PLOT = true; % set to true to plot results
+    PLOT = true; % set to true to plot results
     n_ctrl_pts = 25; % number of control points
     N = 1000; % number of iterations for inference time test
 
@@ -29,9 +29,9 @@ try
 
 
     % choose the function
-    net_forward = @(phys, r, z) net_forward_mex(single(phys), single(r), single(z));
+    % net_forward = @(phys, r, z) net_forward_mex(single(phys), single(r), single(z));
     % net_forward = @(phys, r, z) net_forward2(single(phys), single(r), single(z));
-    % net_forward = @(phys, r, z) net_forward2_mex(single(phys), single(r), single(z));
+    net_forward = @(phys, r, z) net_forward2_mex(single(phys), single(r), single(z));
 
 
 
@@ -93,7 +93,7 @@ try
         vr = d.pts(rand_idxs, 1:n, 1);
         vz = d.pts(rand_idxs, 1:n, 2);
         try 
-            t2 = timeit(@() test_speed(vphys, vr, vz, n));
+            t2 = timeit(@() test_speed(net_forward, vphys, vr, vz, n));
         catch ME
             t2 = NaN; % in case of error, set time to NaN
         end
@@ -125,7 +125,7 @@ try
     fprintf('Frequency -> %.1f [μs] | %.1f [Hz]\n', 1e6*ttot/N, N/ttot);
     % assert(false, 'This is a test, please remove this line to continue.');
 
-    n_plots = 5;
+    n_plots = 3;
     rand_idxs =  randi([1, size(d.phys, 1)], 1, n_plots);
     if PLOT
         fprintf('Plotting %d random examples', n_plots);
@@ -208,13 +208,12 @@ catch ME
     end
 end
 
-function t = test_speed(vphys, vr, vz, ncp)
+function t = test_speed(net_forward, vphys, vr, vz, ncp)
     start = tic;
     n = size(vphys, 1);
     assert(size(vr,1) == n && size(vz,1) == n, ...
         'Input vectors must have the same number of rows.');
     for i = 1:n
-        % [fx, br, bz] = net_forward_mex(single(vphys(i,:)), single(vr(i,1:ncp)), single(vz(i,1:ncp)));
         [fx, br, bz] = net_forward(single(vphys(i,:)), single(vr(i,1:ncp)), single(vz(i,1:ncp)));
     end
     t = toc(start);

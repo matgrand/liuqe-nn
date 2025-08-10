@@ -7,8 +7,11 @@ function [Fx, Br, Bz] = net_forward2(phys, r, z)
     persistent net;
     if isempty(net)
         % Ensure you are loading a file where ALL fields are single.
-        net_const = coder.load('model_weights.mat'); 
+        weights_path = 'data/local/weights.mat';
+        fprintf('Loading weights from %s...', weights_path);
+        net_const = coder.load(weights_path); 
         net = coder.const(net_const);
+        fprintf('Success\n');
     end
 
     %% pts net
