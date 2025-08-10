@@ -4,7 +4,7 @@
 #SBATCH --output=jobs/%j.txt
 #SBATCH --partition=allgroups
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=72
+#SBATCH --cpus-per-task=32
 #SBATCH --mem=120G
 #SBATCH --time=23:59:00
 cd $HOME/repos/tcv_eq
