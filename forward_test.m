@@ -10,8 +10,8 @@ try
     % 25 -> 23 / 49+-22 / tot 63 dynamic 
     % 25 -> 20 / 20+-10 / tot 27 static [much faster]
     clear; close all;
-    % PLOT = false;
-    PLOT = true; % set to true to plot results
+    PLOT = false;
+    % PLOT = true; % set to true to plot results
     n_ctrl_pts = 25; % number of control points
     N = 1000; % number of iterations for inference time test
 
