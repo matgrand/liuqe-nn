@@ -30,8 +30,8 @@ try
 
     % choose the function
     % net_forward = @(phys, r, z) net_forward_mex(single(phys), single(r), single(z));
-    % net_forward = @(phys, r, z) net_forward2(single(phys), single(r), single(z));
-    net_forward = @(phys, r, z) net_forward2_mex(single(phys), single(r), single(z));
+    net_forward = @(phys, r, z) net_forward2(single(phys), single(r), single(z));
+    % net_forward = @(phys, r, z) net_forward2_mex(single(phys), single(r), single(z));
 
 
 
