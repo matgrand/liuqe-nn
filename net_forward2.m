@@ -7,7 +7,8 @@ function [Fx, Br, Bz] = net_forward2(phys, r, z)
     persistent net;
     if isempty(net)
         % Ensure you are loading a file where ALL fields are single.
-        weights_path = 'data/local/weights.mat';
+        % weights_path = 'data/local/weights.mat';
+        weights_path = 'data/3066835/weights.mat';
         fprintf('Loading weights from %s...', weights_path);
         net_const = coder.load(weights_path); 
         net = coder.const(net_const);
@@ -53,7 +54,7 @@ function [Fx, Br, Bz] = net_forward2(phys, r, z)
     Bz = head_emb(:, 3)';
 end
 
-% --- Define the Activation Function (Swish) with CORRECTED TYPE ---
 function y = swish(x, beta)
+    coder.inline('always');
     y = x ./ (1 + exp(-beta .* x));
 end
