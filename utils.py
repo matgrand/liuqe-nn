@@ -30,6 +30,8 @@ MPS = torch.device('mps')
 DEV = CPU
 try: 
     JOBID = os.environ["SLURM_JOB_ID"] # get job id from slurm, when training on cluster
+    NCORES = int(os.environ.get("SLURM_CPUS_PER_TASK", 1)) # number of cores per task
+    print(f"Running on SLURM_JOB_ID: {JOBID}, NCORES: {NCORES}")
     if torch.cuda.is_available():
         DEV = CUDA
         GPU_MEM, _ = torch.cuda.mem_get_info()
@@ -173,10 +175,16 @@ if not LOCAL: # Redefine the print function to always flush
 def to_tensor(x, device=torch.device(CPU)): return torch.tensor(x, dtype=torch.float32, device=device)
 
 # custom trainable swish activation function
+# class ActF(Module): # swish
+#     def __init__(self): 
+#         super(ActF, self).__init__()
+#         self.beta = torch.nn.Parameter(torch.tensor(1.0), requires_grad=True)
+#     def forward(self, x): return x*torch.sigmoid(self.beta*x)
 class ActF(Module): # swish
-    def __init__(self): 
+    def __init__(self, no=1): 
         super(ActF, self).__init__()
-        self.beta = torch.nn.Parameter(torch.tensor(1.0), requires_grad=True)
+        if no == 1: self.beta = torch.nn.Parameter(torch.tensor(1.0), requires_grad=True)
+        else: self.beta = torch.nn.Parameter(torch.ones(no), requires_grad=True) # n is the number of outputs
     def forward(self, x): return x*torch.sigmoid(self.beta*x)
 
 def percentage_loss(a, b): # percentage loss (a = true, b = predicted)
@@ -198,8 +206,8 @@ class PtsEncoder(Module): # positional encoding for the input vector
     def __init__(self, ni=2, nh=PTSH, no=PHYSICS_LS):
         super(PtsEncoder, self).__init__()
         self.pts_enc = Sequential(
-            Linear(ni, nh), ActF(),
-            Linear(nh, no), ActF(),
+            Linear(ni, nh), ActF(nh),
+            Linear(nh, no), ActF(no),
         )
     def forward(self, pts): return self.pts_enc(pts) # pts: (BS, NP, 2) -> (BS, NP, PHYSICS_LS)
 
@@ -210,8 +218,8 @@ class InputNet(Module): # input -> latent physics vector [x -> ph]
         assert x_mean_std.shape == (2, NIN), f"x_mean_std.shape = {x_mean_std.shape}, NIN = {NIN}"
         self.x_mean_std = x_mean_std
         self.phys_enc = Sequential(
-            Linear(ni, nh), ActF(), 
-            Linear(nh, no), ActF(), 
+            Linear(ni, nh), ActF(nh), 
+            Linear(nh, no), ActF(no), 
         )
     def forward(self, x): 
         assert x.shape[1] == NIN, f"x.shape[1] = {x.shape[1]}, NIN = {NIN}"
@@ -227,8 +235,8 @@ class FHead(Module): # [pt, ph] -> [1] function (flux/Br/Bz/curr density)
     def __init__(self, ni=PHYSICS_LS, nh=HEADH, no=1):
         super(FHead, self).__init__()
         self.head = Sequential(
-            Linear(ni, nh), ActF(), # <-
-            Linear(nh, no), ActF(),
+            Linear(ni, nh), ActF(nh), # <-
+            Linear(nh, no), ActF(no),
         )
         self.no = no # number of outputs
     def forward(self, v): return self.head(v) if self.no > 1 else self.head(v).squeeze(-1)
@@ -251,8 +259,8 @@ class LCFSHead(Module): # physics -> LCFS [ph -> LCFS]
             # Linear(PHYSICS_LS, 16), ActF(), # 1 layer
             # Linear(16, NLCFS*2), ActF(),
 
-            Linear(PHYSICS_LS, 2), ActF(), # unused
-            Linear(2, NLCFS*2), ActF(), 
+            Linear(PHYSICS_LS, 2), ActF(2), # unused
+            Linear(2, NLCFS*2), ActF(NLCFS*2), 
         )
     def forward(self, ph): return self.lcfs(ph)
 
@@ -444,7 +452,7 @@ def save_weights_to_mat(net:LiuqeRTNet, save_dir=[SAVE_DIR]):
         for name, param in net.named_parameters():
             w = param.data.cpu().numpy()
             n = name.replace('.', '_')
-            # print(f"Parameter: {n}: {w.shape}, {w.dtype}")
+            print(f"Parameter: {n}: {w.shape}, {w.dtype}")
             weights[n] = w
     for sd in save_dir:
         savemat(f'{sd}/weights.mat', weights)
