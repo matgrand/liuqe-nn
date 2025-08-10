@@ -31,7 +31,6 @@ DEV = CPU
 try: 
     JOBID = os.environ["SLURM_JOB_ID"] # get job id from slurm, when training on cluster
     NCORES = int(os.environ.get("SLURM_CPUS_PER_TASK", 1)) # number of cores per task
-    print(f"Running on SLURM_JOB_ID: {JOBID}, NCORES: {NCORES}")
     if torch.cuda.is_available():
         DEV = CUDA
         GPU_MEM, _ = torch.cuda.mem_get_info()
@@ -42,6 +41,7 @@ except:
         GPU_MEM = 16 * 1024**3  # 16 GB in bytes
     JOBID = "local"
     LOCAL = True
+    NCORES = os.cpu_count() or 1
 print(f"Running JOBID: {JOBID}, on {DEV}, GPU_MEM: {GPU_MEM/1e9:.2f} GB" if DEV != CPU else f"Running JOBID: {JOBID}, on cpu")
 SAVE_DIR = f"data/{JOBID}"
 
