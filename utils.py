@@ -458,6 +458,7 @@ def save_weights_to_mat(net:LiuqeRTNet, save_dir=[SAVE_DIR]):
             weights[n] = w
     for sd in save_dir:
         savemat(f'{sd}/weights.mat', weights)
+        print(f"Weights saved to {sd}/weights.mat")
 
 # function to load the dataset
 def load_ds(ds_path):

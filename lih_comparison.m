@@ -22,9 +22,9 @@ addpath(genpath([pwd '/data']));
 % ONNX_NET_PATH = '/home/grandin/repos/liuqe-ml/data/3048577/net.onnx'; %bigger 
 % ONNX_NET_PATH = '/home/grandin/repos/liuqe-ml/data/3060130/net.onnx'; % small one
 % ONNX_NET_PATH = '/home/grandin/repos/liuqe-ml/data/3057800/net.onnx'; % extremely small one
-ONNX_NET_PATH = '/home/grandin/repos/liuqe-ml/data/3063623/net.onnx'; % new ds
+% ONNX_NET_PATH = '/home/grandin/repos/liuqe-ml/data/3063623/net.onnx'; % new ds
+% net_forward_mex(ONNX_NET_PATH); % first call to load the model
 
-net_forward_mex(ONNX_NET_PATH); % first call to load the model
 TIME_INTERV = [0.4, 0.9]; % time interval
 
 % dummy control points
@@ -123,7 +123,8 @@ function [Fx, Br, Bz] = net_forward_lx(LX, r, z)
         phys_i = phys(:, i);
         r_i = r(:);
         z_i = z(:);
-        [Fxi, Bri, Bzi] = net_forward_mex(single(phys_i), single(r_i), single(z_i));
+        % [Fxi, Bri, Bzi] = net_forward_mex(single(phys_i), single(r_i), single(z_i));
+        [Fxi, Bri, Bzi] = net_forward2_mex(single(phys_i)', single(r_i)', single(z_i)');
         Fx(i,:) = Fxi; Br(i,:) = Bri; Bz(i,:) = Bzi;
     end
 end
