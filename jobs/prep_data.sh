@@ -5,7 +5,7 @@
 #SBATCH --partition=allgroups
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
-#SBATCH --mem=120G
+#SBATCH --mem=150G
 #SBATCH --time=23:59:00
 cd $HOME/repos/tcv_eq
 
