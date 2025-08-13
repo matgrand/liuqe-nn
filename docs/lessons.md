@@ -57,3 +57,32 @@ Main data structures:
 ## Hybrid
 - to run shape controller (`shapectrl` for where the net is actually used), first `main_shape_ctrl`, then `test_closed_shape`
 
+
+
+
+- fbt per filtrare corrent =e di plamsa
+- Iy Ip mask to filter current too concentarted
+- to filter blips: "blips" "neab"
+- `/home/admele/Code/hunt_for_blips.m`
+
+
+
+
+## Random
+
+### LOGBOOK
+- call sql works only from lac
+- ``
+- Topic SL o PDJ
+
+
+
+### Other
+- `liuqeplot`
+- `tcv_polview -cvt` 
+
+
+
+Read/watch hybrid branches: allen/shapectrl, cheiss/dcontrol
+for examples on integration with full controller
+like block SCDalgo_shapectrl.slx

@@ -30,6 +30,7 @@ MPS = torch.device('mps')
 DEV = CPU
 try: 
     JOBID = os.environ["SLURM_JOB_ID"] # get job id from slurm, when training on cluster
+    NCORES = int(os.environ.get("SLURM_CPUS_PER_TASK", 1)) # number of cores per task
     if torch.cuda.is_available():
         DEV = CUDA
         GPU_MEM, _ = torch.cuda.mem_get_info()
@@ -40,6 +41,7 @@ except:
         GPU_MEM = 16 * 1024**3  # 16 GB in bytes
     JOBID = "local"
     LOCAL = True
+    NCORES = os.cpu_count() or 1
 print(f"Running JOBID: {JOBID}, on {DEV}, GPU_MEM: {GPU_MEM/1e9:.2f} GB" if DEV != CPU else f"Running JOBID: {JOBID}, on cpu")
 SAVE_DIR = f"data/{JOBID}"
 
@@ -87,7 +89,8 @@ DTYPE = 'float32'
 
 from scipy.interpolate import RegularGridInterpolator
 # INTERP_METHOD = 'linear' # fast, but less accurate
-INTERP_METHOD = 'quintic' # slowest, but most accurate
+# INTERP_METHOD = 'quintic' # slowest, but most accurate
+INTERP_METHOD = 'cubic' # slower, close accuracy to quintic, but little bit faster than quintic
 if INTERP_METHOD == 'linear': print('Warning: using linear interpolation, which is fast but less accurate')
 
 # DS_DIR = 'dss/ds' # where the final dataset will be stored
@@ -139,8 +142,10 @@ vi, vo = np.hstack([vri, vzi]), np.hstack([vro, vzo])
 VESS = np.vstack([v, v[0]])[::-1]
 VESSI = np.vstack([vi, vi[0]])
 VESSO = np.vstack([vo, vo[0]])
-_vess_corners_idxs = [92, 101, 140, 165, 201, 211, 220, 338, 372, 411, 420]
-VESS_CORNERS = VESS[_vess_corners_idxs]  # corners of the vessel, used for plotting
+# _vess_corners_idxs = [92, 101, 140, 165, 201, 211, 220, 338, 372, 411, 420]
+# VESS_CORNERS = VESS[_vess_corners_idxs]  # corners of the vessel, used for plotting
+_vess_corners_idxs = [39,40,41,42,52,53,54,55,76,77,78,79,80,81,82,83,172,173,174,175,176,177,178,179,200,201,202,203,213,214,215,216]
+VESS_CORNERS = VESSI[_vess_corners_idxs]  # corners of the vessel, used for plotting
 
 def inpoly(pts, poly=VESS_CORNERS):
     pts_shape = pts.shape
@@ -170,10 +175,16 @@ if not LOCAL: # Redefine the print function to always flush
 def to_tensor(x, device=torch.device(CPU)): return torch.tensor(x, dtype=torch.float32, device=device)
 
 # custom trainable swish activation function
+# class ActF(Module): # swish
+#     def __init__(self): 
+#         super(ActF, self).__init__()
+#         self.beta = torch.nn.Parameter(torch.tensor(1.0), requires_grad=True)
+#     def forward(self, x): return x*torch.sigmoid(self.beta*x)
 class ActF(Module): # swish
-    def __init__(self): 
+    def __init__(self, no=1): 
         super(ActF, self).__init__()
-        self.beta = torch.nn.Parameter(torch.tensor(1.0), requires_grad=True)
+        if no == 1: self.beta = torch.nn.Parameter(torch.tensor(1.0), requires_grad=True)
+        else: self.beta = torch.nn.Parameter(torch.ones(no), requires_grad=True) # n is the number of outputs
     def forward(self, x): return x*torch.sigmoid(self.beta*x)
 
 def percentage_loss(a, b): # percentage loss (a = true, b = predicted)
@@ -184,57 +195,38 @@ def percentage_loss(a, b): # percentage loss (a = true, b = predicted)
     err = torch.abs(a - b) / span.unsqueeze(-1)  # calculate the error as a percentage of the span
     return torch.mean(err)  # return the mean error for each batch 
 
-PHYSICS_LS = 64 # 128 physics latent size [ph] 64 <- 64 -> 40μ
+# PHYSICS_LS = 64 # 128 physics latent size [ph] 64 <- 64 -> 40μ
 # PHYSICS_LS = 128 #128 -> 50μ
 # PHYSICS_LS = 256 # -> 70μ
+# PHYSICS_LS = 16 # turbosmall
+
+# PHYSICS_LS, PTSH, INPUTH, HEADH = 64, 64, 128, 128 # baseline
+PHYSICS_LS, PTSH, INPUTH, HEADH = 32, 32, 48, 48 # small 
+# PHYSICS_LS, PTSH, INPUTH, HEADH = 16, 16, 32, 32 # turbosmall 
 
 class PtsEncoder(Module): # positional encoding for the input vector
-    def __init__(self):
+    def __init__(self, ni=2, nh=PTSH, no=PHYSICS_LS):
         super(PtsEncoder, self).__init__()
-        self.pts_encoder = Sequential(
-            # Linear(2, 16), ActF(),
-            # Linear(16, PHYSICS_LS), ActF(), # full
-
-            # Linear(2, 32), ActF(),
-            # Linear(32, 32), ActF(), 
-            # Linear(32, PHYSICS_LS), ActF(), 
-
-            # Linear(2, 128), ActF(),
-            # Linear(128, 128), ActF(),
-            # Linear(128, PHYSICS_LS), ActF(),  # full
-
-            Linear(2, 64), ActF(), # 1 layer
-            Linear(64, PHYSICS_LS), ActF(), #
-
-            # Linear(2, 16), ActF(), # 1 layer small
-            # Linear(16, PHYSICS_LS), ActF(), #
+        self.pts_enc = Sequential(
+            Linear(ni, nh), ActF(nh),
+            Linear(nh, no), ActF(no),
         )
-    def forward(self, pts): return self.pts_encoder(pts) # pts: (BS, NP, 2) -> (BS, NP, PHYSICS_LS)
+    def forward(self, pts): return self.pts_enc(pts) # pts: (BS, NP, 2) -> (BS, NP, PHYSICS_LS)
 
 class InputNet(Module): # input -> latent physics vector [x -> ph]
-    def __init__(self, x_mean_std=torch.tensor([[0.0]*NIN, [1.0]*NIN], dtype=torch.float32)):
+    def __init__(self, x_mean_std=torch.tensor([[0.0]*NIN, [1.0]*NIN], dtype=torch.float32),
+                 ni=NIN, nh=INPUTH, no=PHYSICS_LS):
         super(InputNet, self).__init__()
         assert x_mean_std.shape == (2, NIN), f"x_mean_std.shape = {x_mean_std.shape}, NIN = {NIN}"
         self.x_mean_std = x_mean_std
-        self.input_net = Sequential(
-            # Linear(NIN, 128), ActF(), # (NIN, 64) <-
-            # Linear(128, 64), ActF(), # (64, 64) <-
-            # Linear(64, PHYSICS_LS), ActF(), 
-
-            # Linear(NIN, 256), ActF(), # (NIN, 256) <-
-            # Linear(256, 128), ActF(), # (256, 128) <-
-            # Linear(128, PHYSICS_LS), Tanh(), # (128, PHYSICS_LS) <-
-
-            Linear(NIN, 128), ActF(), # 1 layer
-            Linear(128, PHYSICS_LS), ActF(), 
-
-            # Linear(NIN, 32), ActF(), # 1 layer
-            # Linear(32, PHYSICS_LS), ActF(), 
+        self.phys_enc = Sequential(
+            Linear(ni, nh), ActF(nh), 
+            Linear(nh, no), ActF(no), 
         )
     def forward(self, x): 
         assert x.shape[1] == NIN, f"x.shape[1] = {x.shape[1]}, NIN = {NIN}"
         x = (x - self.x_mean_std[0]) / self.x_mean_std[1] # normalize
-        ph = self.input_net(x)
+        ph = self.phys_enc(x)
         return ph
     def to(self, device):
         super(InputNet, self).to(device)
@@ -242,25 +234,15 @@ class InputNet(Module): # input -> latent physics vector [x -> ph]
         return self
 
 class FHead(Module): # [pt, ph] -> [1] function (flux/Br/Bz/curr density) 
-    def __init__(self, nout=1):
+    def __init__(self, ni=PHYSICS_LS, nh=HEADH, no=1):
         super(FHead, self).__init__()
         self.head = Sequential(
-            # Linear(PHYSICS_LS, 64), ActF(), # full
-            # Linear(64, 32), ActF(),
-            # Linear(32, nout), ActF(),
-
-            # Linear(PHYSICS_LS, 256), ActF(), # full
-            # Linear(256, nout), ActF(), # full
-
-            Linear(PHYSICS_LS, 128), ActF(), # 1 layer
-            Linear(128, nout), ActF(),
-
-            # Linear(PHYSICS_LS, 32), ActF(), # 1 layer
-            # Linear(32, nout), ActF(),
+            Linear(ni, nh), ActF(nh), # <-
+            Linear(nh, no), ActF(no),
         )
-        self.nout = nout # number of outputs
-    def forward(self, v): return self.head(v) if self.nout > 1 else self.head(v).squeeze(-1)
-    
+        self.no = no # number of outputs
+    def forward(self, v): return self.head(v) if self.no > 1 else self.head(v).squeeze(-1)
+
 class LCFSHead(Module): # physics -> LCFS [ph -> LCFS]
     def __init__(self):
         super(LCFSHead, self).__init__()
@@ -273,11 +255,14 @@ class LCFSHead(Module): # physics -> LCFS [ph -> LCFS]
             # Linear(128, 64), ActF(),
             # Linear(64, NLCFS*2), ActF(),  # output is (NLCFS*2) for r and z coordinates
 
-            Linear(PHYSICS_LS, 64), ActF(), # 1 layer
-            Linear(64, NLCFS*2), ActF(),
+            # Linear(PHYSICS_LS, 64), ActF(), # 1 layer
+            # Linear(64, NLCFS*2), ActF(),
     
             # Linear(PHYSICS_LS, 16), ActF(), # 1 layer
             # Linear(16, NLCFS*2), ActF(),
+
+            Linear(PHYSICS_LS, 2), ActF(2), # unused
+            Linear(2, NLCFS*2), ActF(NLCFS*2), 
         )
     def forward(self, ph): return self.lcfs(ph)
 
@@ -385,7 +370,7 @@ def test_network_io(verbose=True):
     n_points = 5 # number of points to sample
     # single sample
     x, pts = (torch.rand(1, NIN), torch.rand(1, n_points, 2)) # x: (1, NIN), pts: (1, n_points, 2)
-    fn = FullNet(InputNet(),PtsEncoder(),FHead(3),FHead(1),LCFSHead())
+    fn = FullNet(InputNet(),PtsEncoder(),FHead(no=3),FHead(no=1),LCFSHead())
     rt_net = LiuqeRTNet(fn.input_net,fn.pts_enc,fn.rt_head)
     rt, iy, lcfs = fn(x, pts)
     r, z = pts[0,:,0], pts[0,:,1] # r, z: (n_points,)
@@ -461,6 +446,19 @@ def convert_to_onnx_static(net:LiuqeRTNet, npts=N_CTRL_PTS, save_dir=[SAVE_DIR])
         assert os.path.exists(onnx_net_path), f"ONNX model not saved to {onnx_net_path}"
         print(f'ONNX model saved to {onnx_net_path}')
     return
+
+def save_weights_to_mat(net:LiuqeRTNet, save_dir=[SAVE_DIR]):
+    weights = {}
+    weights['x_mean_std'] = net.input_net.x_mean_std.cpu().numpy()  # save normalization parameters
+    for net in [net.input_net, net.pts_enc, net.rt_head]:
+        for name, param in net.named_parameters():
+            w = param.data.cpu().numpy()
+            n = name.replace('.', '_')
+            # print(f"Parameter: {n}: {w.shape}, {w.dtype}")
+            weights[n] = w
+    for sd in save_dir:
+        savemat(f'{sd}/weights.mat', weights)
+        print(f"Weights saved to {sd}/weights.mat")
 
 # function to load the dataset
 def load_ds(ds_path):
@@ -805,7 +803,7 @@ def plot_network_outputs(ds:LiuqeDataset, model:FullNet, title="test", save_dir=
             plt.subplot(nraws, ncols, j*(ncols//2) + ncols//2), plt.title(f"{n} Error %")
             ep = 100*np.abs(v[iv]-vp[iv])/(l[1]-l[0]) # error in %
             # plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep)) # variable bar
-            plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep) if n == IY else 0.5) # fixed bar
+            plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep) if n == IY else 1.0) # fixed bar
             if show_lcfs: plt.plot(sep[:NLCFS], sep[NLCFS:], '--w', lw=1, alpha=α_sep)
             prep_plot(plt.gca()), plt.colorbar()
             if on_grid: # plot contours if on grid
