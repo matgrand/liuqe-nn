@@ -80,3 +80,9 @@ Main data structures:
 ### Other
 - `liuqeplot`
 - `tcv_polview -cvt` 
+
+
+
+Read/watch hybrid branches: allen/shapectrl, cheiss/dcontrol
+for examples on integration with full controller
+like block SCDalgo_shapectrl.slx
