@@ -9,7 +9,8 @@ function [Fx, Br, Bz] = net_forward2(phys, r, z)
         % Ensure you are loading a file where ALL fields are single.
         % weights_path = 'data/local/weights.mat';
         % weights_path = 'data/3066835/weights.mat';
-        weights_path = 'data/3067354/weights.mat';
+%         weights_path = 'data/3067354/weights.mat'; 
+        weights_path = 'data/3075260/weights.mat';
         fprintf('Loading weights from %s...', weights_path);
         net_const = coder.load(weights_path); 
         net = coder.const(net_const);
