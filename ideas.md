@@ -50,7 +50,7 @@
   it's a problem of accuracy
 - estimate the response of the plasma to a variaiton in the coils current, even as a loss.
 - see influence of slight position variations (expect linear behaviour) 
-- [ ] investigate the my_pc/lac8 value difference. 
+- [v] investigate the my_pc/lac8 value difference [fp32 noise + compilation] 
 - BIG - since the control points dont change during a shot, u dont need to recalculate them
 
 ## More ideas
@@ -59,13 +59,13 @@
 - [ ] (related to previous one) split the netowork in 2? 1 for inner zone, and 1 for the one closer to the grid boundary (or closer to the sensors?)
 - Do I need a cleaner dataset to reach those precisions/accuracies?
 - [v] Test a training with absolute error (not MSE) [WORKS]
-- [ ] Test SoftPlus activation
+- [v] Test SoftPlus activation [MEH]
 - [ ] Test if 3 onnx net + manual combination in C++ is faster than single ONNX conversion
 - [ ] Force linear response from the model to Input currents
 
 ### Dataset mods
 - [ ] make the r,z borders wider (limit of the grid)
-- [ ] Br, Bz calculated from finer grid
+- [v] Br, Bz calculated from finer grid [GOOD, not much of a difference]
 
 
 ### Defuse 
