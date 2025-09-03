@@ -65,11 +65,8 @@ function y = act(x, beta)
     y = x ./ (1 + exp(bsxfun(@times, -beta, x)));
 end
 
-
+% %% 
 % function y = act(x, beta)
 %     coder.inline('always');
-%     % Use bsxfun for element-wise multiplication to ensure
-%     % compatibility with older MATLAB versions that don't fully
-%     % support implicit broadcasting in codegen.
-%     y = x ./ (1 + exp(x));
+%     y = max(0,beta .* x .^2);
 % end

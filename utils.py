@@ -180,12 +180,20 @@ def to_tensor(x, device=torch.device(CPU)): return torch.tensor(x, dtype=torch.f
 #         super(ActF, self).__init__()
 #         self.beta = torch.nn.Parameter(torch.tensor(1.0), requires_grad=True)
 #     def forward(self, x): return x*torch.sigmoid(self.beta*x)
-class ActF(Module): # swish
+
+# class ActF(Module): # swish
+#     def __init__(self, no=1): 
+#         super(ActF, self).__init__()
+#         if no == 1: self.beta = torch.nn.Parameter(torch.tensor(1.0), requires_grad=True)
+#         else: self.beta = torch.nn.Parameter(torch.ones(no), requires_grad=True) # n is the number of outputs
+#     def forward(self, x): return x*torch.sigmoid(self.beta*x)
+
+class ActF(Module): # Beta Relu
     def __init__(self, no=1): 
         super(ActF, self).__init__()
         if no == 1: self.beta = torch.nn.Parameter(torch.tensor(1.0), requires_grad=True)
         else: self.beta = torch.nn.Parameter(torch.ones(no), requires_grad=True) # n is the number of outputs
-    def forward(self, x): return x*torch.sigmoid(self.beta*x)
+    def forward(self, x): return self.beta * F.relu(x)
 
 def percentage_loss(a, b): # percentage loss (a = true, b = predicted)
     assert a.shape == b.shape, f"a.shape = {a.shape}, b.shape = {b.shape}, should be equal"
