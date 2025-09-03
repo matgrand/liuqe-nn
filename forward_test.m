@@ -15,23 +15,24 @@ try
     n_ctrl_pts = 25; % number of control points
     N = 1000; % number of iterations for inference time test
 
+    addpath(genpath([pwd '/data']));
 
-    addpath([pwd '/onnx_net_forward']);
-    % model_path = [pwd '/onnx_net_forward/net.onnx'];
-    % model_path = [pwd '/data/3011842/net.onnx'];
-    % model_path = [pwd '/data/3048577/net.onnx']; % 256 EMB SIZE
-    % model_path = [pwd '/data/3048577/net.onnx']; % 256 EMB SIZE
-    model_path = [pwd '/data/local/net.onnx']; 
-	% model_path = '/home/grandin/repos/liuqe-ml/data/3057800/net.onnx'; % extremely small
+    % addpath([pwd '/onnx_net_forward']);
+    % % model_path = [pwd '/onnx_net_forward/net.onnx'];
+    % % model_path = [pwd '/data/3011842/net.onnx'];
+    % % model_path = [pwd '/data/3048577/net.onnx']; % 256 EMB SIZE
+    % % model_path = [pwd '/data/3048577/net.onnx']; % 256 EMB SIZE
+    % model_path = [pwd '/data/local/net.onnx']; 
+	% % model_path = '/home/grandin/repos/liuqe-ml/data/3057800/net.onnx'; % extremely small
 
-    % first call to load the model
-    net_forward_mex(model_path);
+    % % first call to load the model
+    % net_forward_mex(model_path);
 
 
     % choose the function
     % net_forward = @(phys, r, z) net_forward_mex(single(phys), single(r), single(z));
-    % net_forward = @(phys, r, z) net_forward2(single(phys), single(r), single(z));
-    net_forward = @(phys, r, z) net_forward2_mex(single(phys), single(r), single(z));
+    net_forward = @(phys, r, z) net_forward2(single(phys), single(r), single(z));
+    % net_forward = @(phys, r, z) net_forward2_mex(single(phys), single(r), single(z));
 
 
 
