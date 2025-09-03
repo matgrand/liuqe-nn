@@ -11,19 +11,10 @@ shots = [
     % 87188
 ];
 
-
 disp('Shots to process:');
 disp(shots);
 
-addpath([pwd '/onnx_net_forward']);
 addpath(genpath([pwd '/data']));
-
-% ONNX_NET_PATH = '/home/grandin/repos/liuqe-ml/data/3011842/net.onnx'; % seems best, no 0*Iu required
-% ONNX_NET_PATH = '/home/grandin/repos/liuqe-ml/data/3048577/net.onnx'; %bigger 
-% ONNX_NET_PATH = '/home/grandin/repos/liuqe-ml/data/3060130/net.onnx'; % small one
-% ONNX_NET_PATH = '/home/grandin/repos/liuqe-ml/data/3057800/net.onnx'; % extremely small one
-% ONNX_NET_PATH = '/home/grandin/repos/liuqe-ml/data/3063623/net.onnx'; % new ds
-% net_forward_mex(ONNX_NET_PATH); % first call to load the model
 
 TIME_INTERV = [0.4, 0.9]; % time interval
 
