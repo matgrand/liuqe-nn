@@ -64,9 +64,3 @@ function y = act(x, beta)
     % support implicit broadcasting in codegen.
     y = x ./ (1 + exp(bsxfun(@times, -beta, x)));
 end
-
-% %% 
-% function y = act(x, beta)
-%     coder.inline('always');
-%     y = max(0,beta .* x .^2);
-% end
