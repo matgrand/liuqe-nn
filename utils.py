@@ -1,13 +1,16 @@
 # utils functions
+DARK_THEME = False # dark theme for plotting
+
 
 ## just for plotting settings
 import matplotlib.pyplot as plt
-plt.style.use('dark_background')
+plt.style.use('dark_background' if DARK_THEME else 'default')
 plt.rcParams['figure.figsize'] = (10, 6)
 plt.rcParams['axes.grid'] = True
 plt.rcParams['grid.alpha'] = 0.3
 plt.rcParams['font.family'] = 'monospace'
-plt.rcParams['image.cmap'] = 'inferno'
+# plt.rcParams['image.cmap'] = 'inferno'
+plt.rcParams['image.cmap'] = 'plasma'
 
 import numpy as np
 np.set_printoptions(precision=2)
@@ -742,9 +745,10 @@ def _fill_between_polygons(ax, inner_poly, outer_poly, **kwargs):
 
 def plot_vessel(ax=None, lw=1.5, alpha=0.3):
     if ax is None: ax = plt.gca()
-    ax.plot(VESS[:,0], VESS[:,1], color='white', lw=lw, alpha=alpha) # most inner
-    ax.plot(VESSI[:,0], VESSI[:,1], color='white', lw=lw, alpha=alpha) # inner
-    ax.plot(VESSO[:,0], VESSO[:,1], color='white', lw=lw, alpha=alpha) # outer
+    c = 'white' if DARK_THEME else 'black'
+    ax.plot(VESS[:,0], VESS[:,1], color=c, lw=lw, alpha=alpha) # most inner
+    ax.plot(VESSI[:,0], VESSI[:,1], color=c, lw=lw, alpha=alpha) # inner
+    ax.plot(VESSO[:,0], VESSO[:,1], color=c, lw=lw, alpha=alpha) # outer
     _fill_between_polygons(ax, VESSI, VESSO, color='gray', alpha=alpha*0.8, lw=0)
     _fill_between_polygons(ax, VESS, VESSI, color='gray', alpha=alpha*0.3, lw=0)
     return ax
@@ -761,13 +765,14 @@ def test_plot_vessel():
 
 def plot_network_outputs(ds:LiuqeDataset, model:FullNet, title="test", save_dir=SAVE_DIR, nplt=2 if LOCAL else 50, show_lcfs=False):
     assert ds.fg is not None, "Dataset does not have full grid data (fg)"
+    main_col = 'w' if DARK_THEME else 'k'
     model.eval()
     model.to(CPU)
     os.makedirs(f"{save_dir}/imgs", exist_ok=True)
     for pi, i in enumerate(np.random.randint(0, len(ds), nplt)):  
         on_grid = pi >= (nplt // 2) # on grid or not
         fs = (20, 8) if on_grid else (15, 8) # figure size
-        plt.figure(figsize=fs, facecolor='white')
+        plt.figure(figsize=fs, facecolor='white' if DARK_THEME else 'black')
         x, p, fx, iy, br, bz, sep = ds[i]
         x, p, fx, iy, br, bz, sep = map(lambda x: x.to(CPU), [x, p, fx, iy, br, bz, sep])
         if on_grid: 
@@ -802,17 +807,17 @@ def plot_network_outputs(ds:LiuqeDataset, model:FullNet, title="test", save_dir=
         for j, ((v, vp), l, n) in enumerate(zip(vals, limits, names)):
             plt.subplot(nraws, ncols, j*(ncols//2)+1), plt.title(f"{n} Actual")
             plt.scatter(p[iv,0], p[iv,1], c=v[iv], s=ms, vmin=l[0], vmax=l[1])
-            if show_lcfs: plt.plot(sep[:NLCFS], sep[NLCFS:], '--w', lw=1, alpha=α_sep) # plot LCFS
+            if show_lcfs: plt.plot(sep[:NLCFS], sep[NLCFS:], f'--{main_col}', lw=1, alpha=α_sep) # plot LCFS
             prep_plot(plt.gca()), plt.colorbar()
             plt.subplot(nraws, ncols, j*(ncols//2) + 2), plt.title(f"{n} Predicted")
             plt.scatter(p[iv,0], p[iv,1], c=vp[iv], s=ms, vmin=l[0], vmax=l[1])
-            if show_lcfs: plt.plot(sepp[:NLCFS], sepp[NLCFS:], '--w', lw=1, alpha=α_sep)
+            if show_lcfs: plt.plot(sepp[:NLCFS], sepp[NLCFS:], f'--{main_col}', lw=1, alpha=α_sep)
             prep_plot(plt.gca()), plt.colorbar()
             plt.subplot(nraws, ncols, j*(ncols//2) + ncols//2), plt.title(f"{n} Error %")
             ep = 100*np.abs(v[iv]-vp[iv])/(l[1]-l[0]) # error in %
             # plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep)) # variable bar
             plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep) if n == IY else 1.0) # fixed bar
-            if show_lcfs: plt.plot(sep[:NLCFS], sep[NLCFS:], '--w', lw=1, alpha=α_sep)
+            if show_lcfs: plt.plot(sep[:NLCFS], sep[NLCFS:], f'--{main_col}', lw=1, alpha=α_sep)
             prep_plot(plt.gca()), plt.colorbar()
             if on_grid: # plot contours if on grid
                 plt.subplot(nraws, ncols, j*(ncols//2) + 3), plt.title(f"{n} Contours")
@@ -828,8 +833,8 @@ def plot_network_outputs(ds:LiuqeDataset, model:FullNet, title="test", save_dir=
                                (0.5+dx/2+xoff, 0.5+dy/2+yoff, (1-3*dx)/2-xoff, (1-3*dy)/2-yoff-tvs),
                                (0.0+dx, 0.0+dy, (1-3*dx)/2+xoff, (1-3*dy)/2+yoff),
                                (0.5+dx/2+xoff, 0.0+dy, (1-3*dx)/2-xoff, (1-3*dy)/2+yoff)]:
-            fig.patches.append(Rectangle( (x0, y0), lx, ly, transform=fig.transFigure, color='black', alpha=1, zorder=-1))
-        plt.suptitle(f"[{JOBID}] FullNet: {title} {i}", y=0.985, color='black')
+            fig.patches.append(Rectangle( (x0, y0), lx, ly, transform=fig.transFigure, color='black' if DARK_THEME else 'white', alpha=1, zorder=-1))
+        plt.suptitle(f"[{JOBID}] FullNet: {title} {i}", y=0.985, color='black' if DARK_THEME else 'white')
         plt.tight_layout()
         plt.savefig(f"{save_dir}/imgs/net_example_{'g_' if on_grid else ''}{title}_{i}.png")
         if LOCAL: plt.show()  
@@ -837,6 +842,7 @@ def plot_network_outputs(ds:LiuqeDataset, model:FullNet, title="test", save_dir=
     return
     
 def plot_lcfs_net_out(ds:LiuqeDataset, model:LiuqeRTNet, title='test', save_dir=SAVE_DIR, nplt=5 if LOCAL else 50):
+    main_col = 'w' if DARK_THEME else 'k'
     model.eval()
     model.to(CPU)
     os.makedirs(f"{save_dir}/imgs", exist_ok=True)
@@ -867,8 +873,8 @@ def plot_lcfs_net_out(ds:LiuqeDataset, model:LiuqeRTNet, title='test', save_dir=
 
         plt.subplot(1, 3, 2)
         α = 0.8
-        plt.plot(y3[:,0], y3[:,1], lw=1, color='white', alpha=α)
-        plt.plot(yp3[:,0], yp3[:,1], lw=1, color='white', alpha=α)
+        plt.plot(y3[:,0], y3[:,1], lw=1, color=main_col, alpha=α)
+        plt.plot(yp3[:,0], yp3[:,1], lw=1, color=main_col, alpha=α)
         sc = plt.scatter(yp3[:,0], yp3[:,1], c=err, s=20, cmap='viridis')
         plt.colorbar(sc)
         plt.title("LCFS MAE")
@@ -877,8 +883,8 @@ def plot_lcfs_net_out(ds:LiuqeDataset, model:LiuqeRTNet, title='test', save_dir=
         plt.ylabel("Z")
 
         plt.subplot(1, 3, 3)
-        plt.plot(y3[:,0], y3[:,1], lw=1, color='white', alpha=α)
-        plt.plot(yp3[:,0], yp3[:,1], lw=1, color='white', alpha=α)
+        plt.plot(y3[:,0], y3[:,1], lw=1, color=main_col, alpha=α)
+        plt.plot(yp3[:,0], yp3[:,1], lw=1, color=main_col, alpha=α)
         for j in range(NLCFS):
             plt.plot([y3[j,0], yp3[j,0]], [y3[j,1], yp3[j,1]], color=err_colors[j], lw=2)
         plt.title("LCFS MAE")
