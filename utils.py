@@ -1,6 +1,9 @@
 # utils functions
 DARK_THEME = False # dark theme for plotting
 
+import numpy as np
+np.set_printoptions(precision=2)
+from numpy.random import uniform
 
 ## just for plotting settings
 import matplotlib.pyplot as plt
@@ -11,10 +14,9 @@ plt.rcParams['grid.alpha'] = 0.3
 plt.rcParams['font.family'] = 'monospace'
 # plt.rcParams['image.cmap'] = 'inferno'
 plt.rcParams['image.cmap'] = 'plasma'
+# plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.colormaps['plasma'](np.array([0.2,0.4,0.6,0.8,1.0])))
+plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.colormaps['plasma'](np.array([.1,.5,.2,.6,.3,.7,.4,.8,.9,1.0])))
 
-import numpy as np
-np.set_printoptions(precision=2)
-from numpy.random import uniform
 
 from scipy.io import loadmat, savemat
 
@@ -272,8 +274,11 @@ class LCFSHead(Module): # physics -> LCFS [ph -> LCFS]
             # Linear(PHYSICS_LS, 16), ActF(), # 1 layer
             # Linear(16, NLCFS*2), ActF(),
 
-            Linear(PHYSICS_LS, 2), ActF(2), # unused
-            Linear(2, NLCFS*2), ActF(NLCFS*2), 
+            Linear(PHYSICS_LS, 32), ActF(), # 1 layer
+            Linear(32, NLCFS*2), ActF(),
+
+            # Linear(PHYSICS_LS, 2), ActF(2), # unused
+            # Linear(2, NLCFS*2), ActF(NLCFS*2), 
         )
     def forward(self, ph): return self.lcfs(ph)
 
@@ -821,18 +826,23 @@ def plot_network_outputs(ds:LiuqeDataset, model:FullNet, title="test", save_dir=
             prep_plot(plt.gca()), plt.colorbar()
             if on_grid: # plot contours if on grid
                 plt.subplot(nraws, ncols, j*(ncols//2) + 3), plt.title(f"{n} Contours")
-                plt.contour(RRD, ZZD, v.reshape(65,28))
-                plt.contour(RRD, ZZD, vp.reshape(65,28), linestyles='dashed')
+                plt.contour(RRD, ZZD, v.reshape(65,28), levels=20, linestyles='solid')
+                plt.contour(RRD, ZZD, vp.reshape(65,28), levels=20, linestyles='dashed')
                 prep_plot(plt.gca()), plt.colorbar()
         fig = plt.gcf() # Get the current figure
         dx, xoff = 0.004, 0.01 #0.005, 0.008
-        dy, yoff = dx*fs[0]/fs[1], -0.012 #dx*fs[0]/fs[1], 0.003
-        tvs = 0.033 # title verticale space
+        # dy, yoff = dx*fs[0]/fs[1], -0.012 #dx*fs[0]/fs[1], 0.003
+        dy, yoff = dx*fs[0]/fs[1], -0.018 #dx*fs[0]/fs[1], 0.003
+        tvs = 0.041 # title verticale space
         from matplotlib.patches import Rectangle
-        for x0, y0, lx, ly in [(0.0+dx, 0.5+dy/2+yoff, (1-3*dx)/2+xoff, (1-3*dy)/2-yoff-tvs),
-                               (0.5+dx/2+xoff, 0.5+dy/2+yoff, (1-3*dx)/2-xoff, (1-3*dy)/2-yoff-tvs),
-                               (0.0+dx, 0.0+dy, (1-3*dx)/2+xoff, (1-3*dy)/2+yoff),
-                               (0.5+dx/2+xoff, 0.0+dy, (1-3*dx)/2-xoff, (1-3*dy)/2+yoff)]:
+        # for x0, y0, lx, ly in [(0.0+dx, 0.5+dy/2+yoff, (1-3*dx)/2+xoff, (1-3*dy)/2-yoff-tvs),
+        #                        (0.5+dx/2+xoff, 0.5+dy/2+yoff, (1-3*dx)/2-xoff, (1-3*dy)/2-yoff-tvs),
+        #                        (0.0+dx, 0.0+dy, (1-3*dx)/2+xoff, (1-3*dy)/2+yoff),
+        #                        (0.5+dx/2+xoff, 0.0+dy, (1-3*dx)/2-xoff, (1-3*dy)/2+yoff)]:
+        for x0, y0, lx, ly in [(0.0+dx,         0.5+dy/2+yoff, (1-3*dx)/2+xoff, (1-3*dy)/2-yoff-tvs),
+                               (0.5+dx/2+xoff,  0.5+dy/2+yoff, (1-3*dx)/2-xoff, (1-3*dy)/2-yoff-tvs),
+                               (0.0+dx,         0.0+dy, (1-3*dx)/2+xoff, (1-3*dy)/2+yoff),
+                               (0.5+dx/2+xoff,  0.0+dy, (1-3*dx)/2-xoff, (1-3*dy)/2+yoff)]:
             fig.patches.append(Rectangle( (x0, y0), lx, ly, transform=fig.transFigure, color='black' if DARK_THEME else 'white', alpha=1, zorder=-1))
         plt.suptitle(f"[{JOBID}] FullNet: {title} {i}", y=0.985, color='black' if DARK_THEME else 'white')
         plt.tight_layout()
@@ -859,7 +869,8 @@ def plot_lcfs_net_out(ds:LiuqeDataset, model:LiuqeRTNet, title='test', save_dir=
         yp3 = np.array([yp3[:NLCFS], yp3[NLCFS:]]).T
         err = np.linalg.norm(y3 - yp3, axis=-1)
         norm_err = err / np.max(err)
-        err_colors = np.array([plt.cm.viridis(norm_err[j]) for j in range(NLCFS)])
+        # err_colors = np.array([plt.cm.viridis(norm_err[j]) for j in range(NLCFS)]) #viridis
+        err_colors = np.array([plt.cm.plasma(norm_err[j]) for j in range(NLCFS)]) # plasma
 
         plt.subplot(1, 3, 1)
         plt.plot(y3[:,0], y3[:,1], lw=lw3, label='actual')
@@ -867,30 +878,31 @@ def plot_lcfs_net_out(ds:LiuqeDataset, model:LiuqeRTNet, title='test', save_dir=
         plot_vessel()
         plt.title("LCFS")
         plt.axis('equal')
-        plt.xlabel("R")
-        plt.ylabel("Z")
+        plt.xlabel("R [m]")
+        plt.ylabel("Z [m]")
         plt.legend(loc='upper right')
 
         plt.subplot(1, 3, 2)
         α = 0.8
         plt.plot(y3[:,0], y3[:,1], lw=1, color=main_col, alpha=α)
         plt.plot(yp3[:,0], yp3[:,1], lw=1, color=main_col, alpha=α)
-        sc = plt.scatter(yp3[:,0], yp3[:,1], c=err, s=20, cmap='viridis')
+        # sc = plt.scatter(yp3[:,0], yp3[:,1], c=err, s=20, cmap='viridis')
+        sc = plt.scatter(yp3[:,0], yp3[:,1], c=err, s=20, cmap='plasma')
         plt.colorbar(sc)
-        plt.title("LCFS MAE")
+        plt.title("LCFS Absolute Error [m]")
         plt.axis('equal')
-        plt.xlabel("R")
-        plt.ylabel("Z")
+        plt.xlabel("R [m]")
+        plt.ylabel("Z [m]")
 
         plt.subplot(1, 3, 3)
         plt.plot(y3[:,0], y3[:,1], lw=1, color=main_col, alpha=α)
         plt.plot(yp3[:,0], yp3[:,1], lw=1, color=main_col, alpha=α)
         for j in range(NLCFS):
             plt.plot([y3[j,0], yp3[j,0]], [y3[j,1], yp3[j,1]], color=err_colors[j], lw=2)
-        plt.title("LCFS MAE")
+        plt.title("LCFS Absolute Error [m]")
         plt.axis('equal')
-        plt.xlabel("R")
-        plt.ylabel("Z")
+        plt.xlabel("R [m]")
+        plt.ylabel("Z [m]")
 
         plt.suptitle(f"[{JOBID}] LCFSNet: {title} {i}")
         plt.tight_layout()
