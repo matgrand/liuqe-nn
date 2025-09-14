@@ -5,7 +5,7 @@
 #SBATCH --partition=allgroups
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=64G
+#SBATCH --mem=96G
 #SBATCH --time=23:59:00
 #SBATCH --gres=gpu:a40:1
 cd $HOME/repos/tcv_eq

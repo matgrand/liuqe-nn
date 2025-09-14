@@ -17,6 +17,10 @@ plt.rcParams['image.cmap'] = 'plasma'
 # plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.colormaps['plasma'](np.array([0.2,0.4,0.6,0.8,1.0])))
 plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.colormaps['plasma'](np.array([.1,.5,.2,.6,.3,.7,.4,.8,.9,1.0])))
 
+print("Current savefig.dpi:", plt.rcParams['savefig.dpi'])
+plt.rcParams['savefig.dpi'] = 300
+
+
 
 from scipy.io import loadmat, savemat
 
@@ -213,8 +217,8 @@ def percentage_loss(a, b): # percentage loss (a = true, b = predicted)
 # PHYSICS_LS = 256 # -> 70μ
 # PHYSICS_LS = 16 # turbosmall
 
-# PHYSICS_LS, PTSH, INPUTH, HEADH = 64, 64, 128, 128 # baseline
-PHYSICS_LS, PTSH, INPUTH, HEADH = 32, 32, 48, 48 # small 
+PHYSICS_LS, PTSH, INPUTH, HEADH = 64, 64, 128, 128 # baseline
+# PHYSICS_LS, PTSH, INPUTH, HEADH = 32, 32, 48, 48 # small <-
 # PHYSICS_LS, PTSH, INPUTH, HEADH = 16, 16, 32, 32 # turbosmall 
 
 class PtsEncoder(Module): # positional encoding for the input vector
@@ -271,11 +275,11 @@ class LCFSHead(Module): # physics -> LCFS [ph -> LCFS]
             # Linear(PHYSICS_LS, 64), ActF(), # 1 layer
             # Linear(64, NLCFS*2), ActF(),
     
-            # Linear(PHYSICS_LS, 16), ActF(), # 1 layer
-            # Linear(16, NLCFS*2), ActF(),
+            Linear(PHYSICS_LS, 16), ActF(), # 1 layer
+            Linear(16, NLCFS*2), ActF(),
 
-            Linear(PHYSICS_LS, 32), ActF(), # 1 layer
-            Linear(32, NLCFS*2), ActF(),
+            # Linear(PHYSICS_LS, 32), ActF(), # 1 layer
+            # Linear(32, NLCFS*2), ActF(),
 
             # Linear(PHYSICS_LS, 2), ActF(2), # unused
             # Linear(2, NLCFS*2), ActF(NLCFS*2), 
