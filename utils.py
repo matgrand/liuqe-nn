@@ -17,8 +17,8 @@ plt.rcParams['image.cmap'] = 'plasma'
 # plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.colormaps['plasma'](np.array([0.2,0.4,0.6,0.8,1.0])))
 plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.colormaps['plasma'](np.array([.1,.5,.2,.6,.3,.7,.4,.8,.9,1.0])))
 
-print("Current savefig.dpi:", plt.rcParams['savefig.dpi'])
-plt.rcParams['savefig.dpi'] = 300
+# print("Current savefig.dpi:", plt.rcParams['savefig.dpi'])
+# plt.rcParams['savefig.dpi'] = 300
 
 
 
