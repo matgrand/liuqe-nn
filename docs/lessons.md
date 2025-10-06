@@ -48,7 +48,7 @@ Main data structures:
 ## Integration into current shape controller
 
 - to understand the points required by the shape controller:
-![alt text](image.png)
+<!-- ![alt text](image.png) -->
 
 - testing shots: "_puoi iniziare a guardare un po' di configurazioni diverse. Posso farti una ricerca nel logbook, ma devo essere in laboratorio perché per qualche motivo da fuori le query SQL non funzionano: Ad esempio potresti prendere un limiter (magari uno yo-yo, provo a cercarlo nel logbook), un sn (magari uno standard, ad esempio 79742), un double-null (ad esempio 86310), un NT (78893 a memoria dovrebbe andare), snowflakes, XPT..._"
   
@@ -60,7 +60,7 @@ Main data structures:
 
 
 
-- fbt per filtrare corrent =e di plamsa
+- fbt per filtrare corrente di plamsa
 - Iy Ip mask to filter current too concentarted
 - to filter blips: "blips" "neab"
 - `/home/admele/Code/hunt_for_blips.m`
