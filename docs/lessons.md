@@ -78,6 +78,7 @@ Main data structures:
 
 
 ### Other
+for plotting:
 - `liuqeplot`
 - `tcv_polview -cvt` 
 
