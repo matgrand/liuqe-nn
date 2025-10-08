@@ -2,20 +2,25 @@ clear all; close all; clc;
 
 % TODO consider adding vessel currents: I_VESSEL
 
-START_SHOT = 77662; % Dec 2022, https://spcwiki.epfl.ch/wiki/Alma_database
+% START_SHOT = 77662; % Dec 2022, https://spcwiki.epfl.ch/wiki/Alma_database
 % END_SHOT = 85804; % April 2025
+START_SHOT = 87700; % May 2025
 END_SHOT = 87899; % Sept 2025
-% N_SHOTS = 100; % Number of shots to process
-N_SHOTS = END_SHOT-START_SHOT; % Number of shots to process
+N_SHOTS = 10; % Number of shots to process
+% N_SHOTS = END_SHOT-START_SHOT; % Number of shots to process
 
 % Directory to save the output .mat files
 % OUT_DIR = 'ds'; % testing
 OUT_DIR = '/NoTivoli/grandin/ds'; % more space available
 
-DECIMATION = 10; % 4 Decimation factor for the time vector
+DECIMATION = 40; % 4 Decimation factor for the time vector
+NDOM = 2; % Number of domains for liuqe
+% ITERA = 50; % Max Number of iterations for liuqe NOTE: cant change this bc has some weird values for specific shapes (like 888 for doublets)
+ITERFRZ = 50; %20; % Number of Picard iterations before which plasma domain is frozen to ease convergence (inactive if itert>0)
+ITERH = 50; %20; % Max Number of FE solver iterations
+
 
 MIN_TIME_SAMPLES = 5; % 10 Minimum number of time samples to keep the shot
-MAX_IP_PERC_DIFF = 2.5; % Maximum percentage difference between IPLIUQE and IP
 
 fprintf('Parameters:\n');
 fprintf('\tSTART_SHOT: %d\n', START_SHOT);
@@ -23,8 +28,11 @@ fprintf('\tEND_SHOT: %d\n', END_SHOT);
 fprintf('\tN_SHOTS: %d\n', N_SHOTS);
 fprintf('\tOUT_DIR: %s\n', OUT_DIR);
 fprintf('\tDECIMATION: %d\n', DECIMATION);
+fprintf('\tNDOM: %d\n', NDOM);
+% fprintf('\tITERA: %d\n', ITERA);
+fprintf('\tITERFRZ: %d\n', ITERFRZ);
+fprintf('\tITERH: %d\n', ITERH);
 fprintf('\tMIN_TIME_SAMPLES: %d\n', MIN_TIME_SAMPLES);
-fprintf('\tMAX_IP_PERC_DIFF: %.2f\n', MAX_IP_PERC_DIFF);
 fprintf('\n');
 
 fprintf('Deleting old figures...\n');
@@ -35,6 +43,8 @@ else delete(fullfile(OUT_DIR, '*')); fprintf('Output directory already exists. O
 end % Create output directory if it doesn't exist
 
 shots = randi([START_SHOT, END_SHOT], 1, N_SHOTS);
+% shots = [87835, 87851];
+% shots = [87835];
 total_shots = 0;
 fprintf('Shots: %s\n', mat2str(shots));
 fprintf('\nStarting data retrieval loop...\n');
@@ -46,83 +56,61 @@ for i = 1:length(shots)
     fprintf('\x1b[33mProcessing shot %d [%d/%d]\x1b[0m\n', shot, i, length(shots));
 
     try 
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        %% Load liuqe data
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %% load liuqe data
         t = liuqe_times(shot); % get times
         t = t(1:DECIMATION:end); % decimate times
         
-        % run liuqe
-        [L, LX] = liuqe(shot,t,'LYall',false,'ndom',4);
+        %% run liuqe
+%         [L, LX] = liuqe(shot,t,'LYall',false,'ndom',NDOM,'iterh',ITERH,'iterfrz',ITERFRZ);
+%         LY = liut(L, LX);
+        [L, LX, LY] = liuqe(shot,t,'ndom',NDOM,'iterh',ITERH,'iterfrz',ITERFRZ);
         
-        assert(all(abs(LX.t - t) < 1e-6), 'LX.t is not sufficiently close to t');
-        
-        LY = liut(L, LX);
-        
-        valid_t = ismember(LX.t, LY.t); % match times
-        t = LX.t(valid_t); % keep only valid times
+        % % quick plot diff between Fx1 and Fx
+        % [L1, LX1] = liuqe(shot,t,'LYall',false,'ndom',NDOM);
+        % LY1 = liut(L1, LX1);
+        % figure;
+        % mid = round(length(t)/2);
+        % Fx1 = LY1.Fx(:,:,mid);
+        % Fx2 = LY.Fx(:,:,mid);
+        % err = 100*abs(Fx1 - Fx2)/(max(Fx1(:))-min(Fx1(:)));
+        % subplot(1,3,1); imagesc(Fx1); axis xy; colorbar; title('Fx1 (default)');
+        % subplot(1,3,2); imagesc(Fx2); axis xy; colorbar; title('Fx2 (iterh/iterfrz)');
+        % subplot(1,3,3); imagesc(err); axis xy; colorbar; title('Error [%]');
+        % sgtitle(sprintf('Shot %d, t=%.3fs', shot, t(mid)));
+
+        t = LX.t;
         nt = length(t);
         assert(nt >= MIN_TIME_SAMPLES, 'Not enough time samples');
-        fprintf('\tNumber of times: %d\n', nt);
 
         %% extract quantities
         % Ouputs
-        Fx = LY.Fx; % Plasma poloidal flux map | `(rx,zx,t)` | `[Wb]` |
-        Iy = LY.Iy; % Plasma current density map | `(ry,zy,t)` | `[A/m^2]` |
-
+        Fx = single(LY.Fx); % Plasma poloidal flux map | `(rx,zx,t)` | `[Wb]` |
+        Iy = single(LY.Iy); % Plasma current density map | `(ry,zy,t)` | `[A/m^2]` |
         % Inputs
-        Bm = LX.Bm(:,valid_t); % magnetic probe measurements | (*,t) | [T]
-        Ff = LX.Ff(:,valid_t); % flux loop poloidal flux | (*,t) | [Wb] 
-        Ia = LX.Ia(:,valid_t); % poloidal field coil currents | (*,t) | [A]
-        Ip = LX.Ip(valid_t);   % plasma current | (t) | [A]
-
-        % check the dimensions and show actual size if wrong
+        Bm = single(LX.Bm); % magnetic probe measurements | (*,t) | [T]
+        Ff = single(LX.Ff); % flux loop poloidal flux | (*,t) | [Wb] 
+        Ia = single(LX.Ia); % poloidal field coil currents | (*,t) | [A]
+        Ip = single(LX.Ip);   % plasma current | (t) | [A]
+        
+        % check the dimensions
         assert(all(size(Fx) == [65, 28, nt]), sprintf('Fx has wrong size: %s', mat2str(size(Fx))));
         assert(all(size(Iy) == [63, 26, nt]), sprintf('Iy has wrong size: %s', mat2str(size(Iy))));
-
         assert(all(size(Bm) == [38, nt]), sprintf('Bm has wrong size: %s', mat2str(size(Bm))));
         assert(all(size(Ff) == [38, nt]), sprintf('Ff has wrong size: %s', mat2str(size(Ff))));
         assert(all(size(Ia) == [19, nt]), sprintf('Ia has wrong size: %s', mat2str(size(Ia))));
         assert(all(size(Ip) == [1, nt]), sprintf('Ip has wrong size: %s', mat2str(size(Ip))));
 
-        % filter out the NaN/Inf values [MILD]
-        mFx = reshape(all(all(~isnan(Fx) & ~isinf(Fx),1),2), [], 1);
-        mIy = reshape(all(all(~isnan(Iy) & ~isinf(Iy),1),2), [], 1);
-
-        mBm = reshape(all(~isnan(Bm) & ~isinf(Bm), 1), [], 1);
-        mFf = reshape(all(~isnan(Ff) & ~isinf(Ff), 1), [], 1);
-        mIa = reshape(all(~isnan(Ia) & ~isinf(Ia), 1), [], 1);
-        mIp = reshape(~isnan(Ip) & ~isinf(Ip), [], 1);
-
-        % valid = mFx & mIy & mBr & mBz & ...
-        valid = mFx & mIy & mBm & mFf & mIa & mIp;
-        fprintf('\tvalid samples -> [TOT: %.1f%%, %d] Fx:%.1f%%, Iy: %.1f%%, \n\tBm: %.1f%%, Ff: %.1f%%, Ia: %.1f%%, Ip: %.1f%%\n', ...
-            100*sum(valid)/nt, sum(valid), 100*sum(mFx)/nt, 100*sum(mIy)/nt, ...
-            100*sum(mBm)/nt, 100*sum(mFf)/nt, 100*sum(mIa)/nt, 100*sum(mIp)/nt);
-        assert(sum(valid) > 0.5 * nt, 'Nan/Inf filter -> not enough valid samples');
-        
-        % keep only the valid samples
-        t = t(valid);
-        Fx = Fx(:,:,valid);
-        Iy = Iy(:,:,valid);
-        Bm = Bm(:,valid);
-        Ff = Ff(:,valid);
-        Ia = Ia(:,valid);
-        Ip = Ip(valid);
-
-        % convert to single precision to save space
-        Fx = single(Fx); 
-        Iy = single(Iy);
-        Bm = single(Bm);
-        Ff = single(Ff);
-        Ia = single(Ia);
-        Ip = single(Ip);
+        % filter out the NaN/Inf values
+        assert(~any(isnan(Fx(:))) && ~any(isinf(Fx(:))), 'Fx contains NaN or Inf values');
+        assert(~any(isnan(Iy(:))) && ~any(isinf(Iy(:))), 'Iy contains NaN or Inf values');
+        assert(~any(isnan(Bm(:))) && ~any(isinf(Bm(:))), 'Bm contains NaN or Inf values');
+        assert(~any(isnan(Ff(:))) && ~any(isinf(Ff(:))), 'Ff contains NaN or Inf values');
+        assert(~any(isnan(Ia(:))) && ~any(isinf(Ia(:))), 'Ia contains NaN or Inf values');
+        assert(~any(isnan(Ip(:))) && ~any(isinf(Ip(:))), 'Ip contains NaN or Inf values');
 
         % print final sizes
-        fprintf('\tFinal sizes -> Fx:%s, Iy:%s, \n\tBm:%s, Ff:%s, Ia:%s, Ip:%s\n', ...
-            mat2str(size(Fx)), mat2str(size(Iy)), ...
-            mat2str(size(Bm)), mat2str(size(Ff)), mat2str(size(Ia)), mat2str(size(Ip)));
-        mdsclose; % Close the MDSplus connection
+        fprintf('\tFinal sizes -> Fx:%s, Iy:%s, Bm:%s, Ff:%s, Ia:%s, Ip:%s\n', ...
+            mat2str(size(Fx)), mat2str(size(Iy)), mat2str(size(Bm)), mat2str(size(Ff)), mat2str(size(Ia)), mat2str(size(Ip)));
         total_shots = total_shots + 1;
 
         % save data into a .mat file
@@ -133,6 +121,14 @@ for i = 1:length(shots)
         shot_processing_times(i) = toc(start_time);
         fprintf('\tProc time: %.2f s, ETA: %.0f min\n', shot_processing_times(i), sum(shot_processing_times) / i * (length(shots) - i) / 60);
         
+        % Quick plot of Fx and Iy at mid time
+        figure;
+        mid = round(nt/2);
+        sgtitle(sprintf('Shot %d', shot));
+        subplot(1,2,1); imagesc(Fx(:,:,mid)); axis xy; colorbar; title('Fx');
+        subplot(1,2,2); imagesc(Iy(:,:,mid)); axis xy; colorbar; title('Iy');
+
+
     catch ME
         fprintf('\x1b[31m\tError processing shot %d: %s\x1b[0m\n', shot, ME.message);
         % for k = 1:length(ME.stack)

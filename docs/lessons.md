@@ -41,7 +41,9 @@ Main data structures:
 
     to find the names of the variables, use jtraverser -> tcv_shot -> shot -> results -> EQUIL_1
     (liuqe.m) -> RESULTS 
-    
+
+## Liuqe help/guide
+The list of available parameters can be obtained using help meqp, help liup, help meqptcv, help liuptcv.
 
 
 
