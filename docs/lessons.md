@@ -43,7 +43,7 @@ Main data structures:
     (liuqe.m) -> RESULTS 
 
 ## Liuqe help/guide
-The list of available parameters can be obtained using help meqp, help liup, help meqptcv, help liuptcv.
+The list of available parameters can be obtained using `help meqp`, `help liup`, `help meqptcv`, `help liuptcv`.
 
 
 

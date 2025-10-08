@@ -14,10 +14,10 @@ N_SHOTS = 10; % Number of shots to process
 OUT_DIR = '/NoTivoli/grandin/ds'; % more space available
 
 DECIMATION = 40; % 4 Decimation factor for the time vector
-NDOM = 2; % Number of domains for liuqe
+NDOM = 4; % Number of domains for liuqe (must be >=3 for doublet)
 % ITERA = 50; % Max Number of iterations for liuqe NOTE: cant change this bc has some weird values for specific shapes (like 888 for doublets)
-ITERFRZ = 50; %20; % Number of Picard iterations before which plasma domain is frozen to ease convergence (inactive if itert>0)
-ITERH = 50; %20; % Max Number of FE solver iterations
+ITERFRZ = 20; %20; % Number of Picard iterations before which plasma domain is frozen to ease convergence (inactive if itert>0)
+ITERH = 20; %20; % Max Number of FE solver iterations
 
 
 MIN_TIME_SAMPLES = 5; % 10 Minimum number of time samples to keep the shot
@@ -42,9 +42,10 @@ if ~exist(OUT_DIR, 'dir') mkdir(OUT_DIR); fprintf('Output directory created: %s\
 else delete(fullfile(OUT_DIR, '*')); fprintf('Output directory already exists. Old files deleted: %s\n', OUT_DIR);
 end % Create output directory if it doesn't exist
 
-shots = randi([START_SHOT, END_SHOT], 1, N_SHOTS);
+% shots = randi([START_SHOT, END_SHOT], 1, N_SHOTS);
 % shots = [87835, 87851];
 % shots = [87835];
+shots = [87851];
 total_shots = 0;
 fprintf('Shots: %s\n', mat2str(shots));
 fprintf('\nStarting data retrieval loop...\n');
@@ -61,22 +62,7 @@ for i = 1:length(shots)
         t = t(1:DECIMATION:end); % decimate times
         
         %% run liuqe
-%         [L, LX] = liuqe(shot,t,'LYall',false,'ndom',NDOM,'iterh',ITERH,'iterfrz',ITERFRZ);
-%         LY = liut(L, LX);
         [L, LX, LY] = liuqe(shot,t,'ndom',NDOM,'iterh',ITERH,'iterfrz',ITERFRZ);
-        
-        % % quick plot diff between Fx1 and Fx
-        % [L1, LX1] = liuqe(shot,t,'LYall',false,'ndom',NDOM);
-        % LY1 = liut(L1, LX1);
-        % figure;
-        % mid = round(length(t)/2);
-        % Fx1 = LY1.Fx(:,:,mid);
-        % Fx2 = LY.Fx(:,:,mid);
-        % err = 100*abs(Fx1 - Fx2)/(max(Fx1(:))-min(Fx1(:)));
-        % subplot(1,3,1); imagesc(Fx1); axis xy; colorbar; title('Fx1 (default)');
-        % subplot(1,3,2); imagesc(Fx2); axis xy; colorbar; title('Fx2 (iterh/iterfrz)');
-        % subplot(1,3,3); imagesc(err); axis xy; colorbar; title('Error [%]');
-        % sgtitle(sprintf('Shot %d, t=%.3fs', shot, t(mid)));
 
         t = LX.t;
         nt = length(t);
