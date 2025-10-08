@@ -18,7 +18,7 @@ NDOM = 4; % Number of domains for liuqe (must be >=3 for doublet)
 % ITERA = 50; % Max Number of iterations for liuqe NOTE: cant change this bc has some weird values for specific shapes (like 888 for doublets)
 ITERFRZ = 20; %20; % Number of Picard iterations before which plasma domain is frozen to ease convergence (inactive if itert>0)
 ITERH = 20; %20; % Max Number of FE solver iterations
-
+ITERQ = 10; % iterations for the LCFS
 
 MIN_TIME_SAMPLES = 5; % 10 Minimum number of time samples to keep the shot
 
@@ -44,8 +44,8 @@ end % Create output directory if it doesn't exist
 
 % shots = randi([START_SHOT, END_SHOT], 1, N_SHOTS);
 % shots = [87835, 87851];
-% shots = [87835];
-shots = [87851];
+shots = [87835];
+% shots = [87851];
 total_shots = 0;
 fprintf('Shots: %s\n', mat2str(shots));
 fprintf('\nStarting data retrieval loop...\n');
@@ -62,7 +62,7 @@ for i = 1:length(shots)
         t = t(1:DECIMATION:end); % decimate times
         
         %% run liuqe
-        [L, LX, LY] = liuqe(shot,t,'ndom',NDOM,'iterh',ITERH,'iterfrz',ITERFRZ);
+        [L, LX, LY] = liuqe(shot,t,'ndom',NDOM,'iterh',ITERH,'iterfrz',ITERFRZ,'iterq',ITERQ);
 
         t = LX.t;
         nt = length(t);
@@ -77,6 +77,8 @@ for i = 1:length(shots)
         Ff = single(LX.Ff); % flux loop poloidal flux | (*,t) | [Wb] 
         Ia = single(LX.Ia); % poloidal field coil currents | (*,t) | [A]
         Ip = single(LX.Ip);   % plasma current | (t) | [A]
+        % LCFS
+        [rq, zq] = get_lcfs_rz(LY);
         
         % check the dimensions
         assert(all(size(Fx) == [65, 28, nt]), sprintf('Fx has wrong size: %s', mat2str(size(Fx))));
@@ -131,3 +133,17 @@ fprintf('Output files saved in: %s\n', OUT_DIR);
 
 % save a random mat in the /NoTivoli/grandin/ directory to show it is finished
 save(fullfile('/NoTivoli/grandin/', 'ds_done.mat'), 'shot_processing_times');
+
+function [r, z] = get_lcfs_rz(LY)
+    % Get the LCFS (last closed flux surface) from the LY structure
+    % Outputs:
+    %   rq, zq: coordinates of the LCFS
+    rq = LY.rq;
+    zq = LY.zq;
+    ItQ = LY.ItQ; % plasma current contained within the LCFS
+    nt = size(rq, 4); % # time points
+    nd = size(rq, 3); % # domains
+    np = size(rq, 1); % # points
+
+    % TODO complete this
+end
