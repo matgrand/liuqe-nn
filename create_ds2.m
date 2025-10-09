@@ -2,9 +2,9 @@ clear all; close all; clc;
 
 % TODO consider adding vessel currents: I_VESSEL
 
-% START_SHOT = 77662; % Dec 2022, https://spcwiki.epfl.ch/wiki/Alma_database
+START_SHOT = 77662; % Dec 2022, https://spcwiki.epfl.ch/wiki/Alma_database
 % END_SHOT = 85804; % April 2025
-START_SHOT = 87700; % May 2025
+% START_SHOT = 87700; % May 2025
 END_SHOT = 87899; % Sept 2025
 N_SHOTS = 10; % Number of shots to process
 % N_SHOTS = END_SHOT-START_SHOT; % Number of shots to process
@@ -42,9 +42,9 @@ if ~exist(OUT_DIR, 'dir') mkdir(OUT_DIR); fprintf('Output directory created: %s\
 else delete(fullfile(OUT_DIR, '*')); fprintf('Output directory already exists. Old files deleted: %s\n', OUT_DIR);
 end % Create output directory if it doesn't exist
 
-% shots = randi([START_SHOT, END_SHOT], 1, N_SHOTS);
+shots = randi([START_SHOT, END_SHOT], 1, N_SHOTS);
 % shots = [87835, 87851];
-shots = [87835];
+% shots = [87835];
 % shots = [87851];
 total_shots = 0;
 fprintf('Shots: %s\n', mat2str(shots));
@@ -78,7 +78,8 @@ for i = 1:length(shots)
         Ia = single(LX.Ia); % poloidal field coil currents | (*,t) | [A]
         Ip = single(LX.Ip);   % plasma current | (t) | [A]
         % LCFS
-        [rq, zq] = get_lcfs_rz(LY);
+        rq = reshape(LY.rq(:,end,:,:), [], size(LY.rq,4)); % (np*nd, nt)
+        zq = reshape(LY.zq(:,end,:,:), [], size(LY.zq,4)); % (np*nd, nt)
         
         % check the dimensions
         assert(all(size(Fx) == [65, 28, nt]), sprintf('Fx has wrong size: %s', mat2str(size(Fx))));
@@ -87,6 +88,8 @@ for i = 1:length(shots)
         assert(all(size(Ff) == [38, nt]), sprintf('Ff has wrong size: %s', mat2str(size(Ff))));
         assert(all(size(Ia) == [19, nt]), sprintf('Ia has wrong size: %s', mat2str(size(Ia))));
         assert(all(size(Ip) == [1, nt]), sprintf('Ip has wrong size: %s', mat2str(size(Ip))));
+        assert(all(size(rq) == [32*NDOM, nt]), sprintf('rq has wrong size: %s', mat2str(size(rq))));
+        assert(all(size(zq) == [32*NDOM, nt]), sprintf('zq has wrong size: %s', mat2str(size(zq))));
 
         % filter out the NaN/Inf values
         assert(~any(isnan(Fx(:))) && ~any(isinf(Fx(:))), 'Fx contains NaN or Inf values');
@@ -95,26 +98,36 @@ for i = 1:length(shots)
         assert(~any(isnan(Ff(:))) && ~any(isinf(Ff(:))), 'Ff contains NaN or Inf values');
         assert(~any(isnan(Ia(:))) && ~any(isinf(Ia(:))), 'Ia contains NaN or Inf values');
         assert(~any(isnan(Ip(:))) && ~any(isinf(Ip(:))), 'Ip contains NaN or Inf values');
+        assert(~any(isnan(rq(:))) && ~any(isinf(rq(:))), 'rq contains NaN or Inf values');
+        assert(~any(isnan(zq(:))) && ~any(isinf(zq(:))), 'zq contains NaN or Inf values');
 
         % print final sizes
-        fprintf('\tFinal sizes -> Fx:%s, Iy:%s, Bm:%s, Ff:%s, Ia:%s, Ip:%s\n', ...
-            mat2str(size(Fx)), mat2str(size(Iy)), mat2str(size(Bm)), mat2str(size(Ff)), mat2str(size(Ia)), mat2str(size(Ip)));
+        fprintf('\tFinal sizes -> Fx:%s, Iy:%s, Bm:%s, Ff:%s, Ia:%s, Ip:%s, rq:%s, zq:%s\n', ...
+            mat2str(size(Fx)), mat2str(size(Iy)), mat2str(size(Bm)), mat2str(size(Ff)), mat2str(size(Ia)), mat2str(size(Ip)), mat2str(size(rq)), mat2str(size(zq)));
         total_shots = total_shots + 1;
 
         % save data into a .mat file
         save_file = fullfile(OUT_DIR, sprintf('%d.mat', shot));
-        save(save_file, 't', 'Fx', 'Iy', 'Bm', 'Ff', 'Ia', 'Ip');
+        save(save_file, 't', 'Fx', 'Iy', 'Bm', 'Ff', 'Ia', 'Ip', 'rq', 'zq');
         fprintf('\x1b[32m\tData saved to: %s\x1b[0m\n', save_file);
         
         shot_processing_times(i) = toc(start_time);
         fprintf('\tProc time: %.2f s, ETA: %.0f min\n', shot_processing_times(i), sum(shot_processing_times) / i * (length(shots) - i) / 60);
-        
         % Quick plot of Fx and Iy at mid time
         figure;
         mid = round(nt/2);
         sgtitle(sprintf('Shot %d', shot));
-        subplot(1,2,1); imagesc(Fx(:,:,mid)); axis xy; colorbar; title('Fx');
-        subplot(1,2,2); imagesc(Iy(:,:,mid)); axis xy; colorbar; title('Iy');
+        [rr, zz] = meshgrid(L.rx, L.zx);
+        subplot(1,2,1);
+        contourf(rr, zz, Fx(:,:,mid), 20, 'LineColor', 'none'); hold on;
+        scatter(rq(:,mid), zq(:,mid), 10, 'k', 'filled'); % plot LCFS
+        axis xy; colorbar; title('Fx'); 
+        
+        [rry, zzy] = meshgrid(L.ry, L.zy);
+        subplot(1,2,2);
+        contourf(rry, zzy, Iy(:,:,mid), 20, 'LineColor', 'none'); hold on;
+        scatter(rq(:,mid), zq(:,mid), 10, 'k', 'filled'); % plot LCFS
+        axis xy; colorbar; title('Iy');
 
 
     catch ME
@@ -133,17 +146,3 @@ fprintf('Output files saved in: %s\n', OUT_DIR);
 
 % save a random mat in the /NoTivoli/grandin/ directory to show it is finished
 save(fullfile('/NoTivoli/grandin/', 'ds_done.mat'), 'shot_processing_times');
-
-function [r, z] = get_lcfs_rz(LY)
-    % Get the LCFS (last closed flux surface) from the LY structure
-    % Outputs:
-    %   rq, zq: coordinates of the LCFS
-    rq = LY.rq;
-    zq = LY.zq;
-    ItQ = LY.ItQ; % plasma current contained within the LCFS
-    nt = size(rq, 4); % # time points
-    nd = size(rq, 3); % # domains
-    np = size(rq, 1); % # points
-
-    % TODO complete this
-end
