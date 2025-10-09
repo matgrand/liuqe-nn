@@ -6,8 +6,8 @@ START_SHOT = 77662; % Dec 2022, https://spcwiki.epfl.ch/wiki/Alma_database
 % END_SHOT = 85804; % April 2025
 % START_SHOT = 87700; % May 2025
 END_SHOT = 87899; % Sept 2025
-N_SHOTS = 10; % Number of shots to process
-% N_SHOTS = END_SHOT-START_SHOT; % Number of shots to process
+% N_SHOTS = 10; % Number of shots to process
+N_SHOTS = END_SHOT-START_SHOT; % Number of shots to process
 
 % Directory to save the output .mat files
 % OUT_DIR = 'ds'; % testing
@@ -32,6 +32,7 @@ fprintf('\tNDOM: %d\n', NDOM);
 % fprintf('\tITERA: %d\n', ITERA);
 fprintf('\tITERFRZ: %d\n', ITERFRZ);
 fprintf('\tITERH: %d\n', ITERH);
+fprintf('\tITERQ: %d\n', ITERQ);
 fprintf('\tMIN_TIME_SAMPLES: %d\n', MIN_TIME_SAMPLES);
 fprintf('\n');
 
@@ -113,21 +114,15 @@ for i = 1:length(shots)
         
         shot_processing_times(i) = toc(start_time);
         fprintf('\tProc time: %.2f s, ETA: %.0f min\n', shot_processing_times(i), sum(shot_processing_times) / i * (length(shots) - i) / 60);
-        % Quick plot of Fx and Iy at mid time
-        figure;
-        mid = round(nt/2);
-        sgtitle(sprintf('Shot %d', shot));
-        [rr, zz] = meshgrid(L.rx, L.zx);
-        subplot(1,2,1);
-        contourf(rr, zz, Fx(:,:,mid), 20, 'LineColor', 'none'); hold on;
-        scatter(rq(:,mid), zq(:,mid), 10, 'k', 'filled'); % plot LCFS
-        axis xy; colorbar; title('Fx'); 
         
-        [rry, zzy] = meshgrid(L.ry, L.zy);
-        subplot(1,2,2);
-        contourf(rry, zzy, Iy(:,:,mid), 20, 'LineColor', 'none'); hold on;
-        scatter(rq(:,mid), zq(:,mid), 10, 'k', 'filled'); % plot LCFS
-        axis xy; colorbar; title('Iy');
+        % % Quick plot of Fx and Iy at mid time
+        % figure; mid = round(nt/2); sgtitle(sprintf('Shot %d', shot));
+        % [rr, zz] = meshgrid(L.rx, L.zx);
+        % subplot(1,2,1); contourf(rr, zz, Fx(:,:,mid), 20, 'LineColor', 'none'); hold on;
+        % scatter(rq(:,mid), zq(:,mid), 10, 'k', 'filled'); axis xy; colorbar; title('Fx'); 
+        % [rry, zzy] = meshgrid(L.ry, L.zy);
+        % subplot(1,2,2); contourf(rry, zzy, Iy(:,:,mid), 20, 'LineColor', 'none'); hold on;
+        % scatter(rq(:,mid), zq(:,mid), 10, 'k', 'filled'); axis xy; colorbar; title('Iy');
 
 
     catch ME

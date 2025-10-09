@@ -82,7 +82,7 @@ The list of available parameters can be obtained using `help meqp`, `help liup`,
 ### Other
 for plotting:
 - `liuqeplot`
-- `tcv_polview -cvt` 
+- `tcv_polview -cvt` -> `tcv_polview('cvtip',79742)`
 
 
 
