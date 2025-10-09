@@ -82,6 +82,13 @@ try
         phys = d.phys(rand_i, :); 
         r = d.pts(rand_i, 1:n, 1);
         z = d.pts(rand_i, 1:n, 2);
+
+        %add noise to the inputs 
+        noise_level = single(0.1);
+        phys = phys + noise_level * randn(size(phys));
+        r = r + noise_level * randn(size(r));
+        z = z + noise_level * randn(size(z));
+
         try
             % t1 = timeit(@() net_forward_mex(single(phys), single(r), single(z)));
             t1 = timeit(@() net_forward(single(phys), single(r), single(z)));
@@ -113,8 +120,10 @@ try
     for i = 1:N
         ri = rand_idxs(i);
         t1 = tic;
-        % [fx, br, bz] = net_forward_mex(single(d.phys(ri, :)), single(d.pts(ri, 1:n_ctrl_pts, 1)), single(d.pts(ri, 1:n_ctrl_pts, 2)));
-        [fx, br, bz] = net_forward(single(d.phys(ri, :)), single(d.pts(ri, 1:n_ctrl_pts, 1)), single(d.pts(ri, 1:n_ctrl_pts, 2)));
+        phys_i = single(d.phys(ri, :)+0.1*randn(size(d.phys(ri, :)))); 
+        r_i = single(d.pts(ri, 1:n_ctrl_pts, 1)+0.1*randn(size(d.pts(ri, 1:n_ctrl_pts, 1))));
+        z_i = single(d.pts(ri, 1:n_ctrl_pts, 2)+0.1*randn(size(d.pts(ri, 1:n_ctrl_pts, 2))));
+        [fx, br, bz] = net_forward(phys_i, r_i, z_i);
         times(i) = toc(t1);
     end
     ttot = toc(ttot);
