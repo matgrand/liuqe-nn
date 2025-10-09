@@ -80,7 +80,8 @@ function [Fx, Br, Bz] = net_forward2(phys, r, z)
 
     % 6. Backpropagate through the element-wise multiplication
     % x = phys_emb .* pts_embs. We only need the derivative w.r.t pts_embs.
-    d_pts_embs = d_x .* phys_emb; % phys_emb is broadcasted
+    % --- FIX IS HERE: Changed .* to bsxfun for codegen compatibility ---
+    d_pts_embs = bsxfun(@times, d_x, phys_emb);
 
     % 7. Backpropagate through the final activation of the points network
     d_out2 = d_pts_embs .* d_act(out2, net.pts_enc_3_beta);
