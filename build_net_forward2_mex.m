@@ -1,7 +1,8 @@
 % build_mex2.m
 
 % Define input types with variable dimensions for the points (r, z)
-phys_arg = coder.typeof(single(0), [1 136], [0 0]); 
+% phys_arg = coder.typeof(single(0), [1 136], [0 0]); 
+phys_arg = coder.typeof(single(0), [1 96], [0 0]); 
 
 upper_bound = 28*65; % Define a max number of points
 % upper_bound = 25; % Define a max number of points

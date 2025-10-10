@@ -20,13 +20,10 @@ plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.colormaps['plasma'](np.ar
 # print("Current savefig.dpi:", plt.rcParams['savefig.dpi'])
 # plt.rcParams['savefig.dpi'] = 300
 
-
-
 from scipy.io import loadmat, savemat
 
 import torch
-import torch.nn.functional as F
-from torch.nn import Module, Linear, Conv2d, MaxPool2d, BatchNorm2d, ReLU, Sequential, ConvTranspose2d, Tanh
+from torch.nn import functional as F, Module, Linear, Conv2d, MaxPool2d, BatchNorm2d, ReLU, Sequential, ConvTranspose2d, Tanh
 from torch.utils.data import Dataset
 
 import builtins
@@ -57,26 +54,21 @@ SAVE_DIR = f"data/{JOBID}"
 N_CTRL_PTS = 25 # number of control points to estimate
 
 PINN = True # if True, use PINN, otherwise use standard model
-
+NDOM = 4 # number of plasma domains, should be matched with create_ds.m
 ##################################################################################################################################
 ## Dataset inputs/outputs (see create_ds.m)
-USE_REAL_INPUTS = True # if True, use real inputs, otherwise use random inputs
-if not USE_REAL_INPUTS: print('Warning: using fitted inputs')
 # input names
-BM = f'Bm{"0" if USE_REAL_INPUTS else "1"}'  
-FF = f'Ff{"0" if USE_REAL_INPUTS else "1"}'  
-FT = f'Ft{"0" if USE_REAL_INPUTS else "1"}'  
-IA = f'Ia{"0" if USE_REAL_INPUTS else "1"}'  
-IP = f'Ip{"0" if USE_REAL_INPUTS else "1"}'  
-IU = f'Iu{"0" if USE_REAL_INPUTS else "1"}'  
-RB = f'rBt{"0" if USE_REAL_INPUTS else "1"}' 
+BM = 'Bm' # magnetic probe measurements
+FF = 'Ff' # flux loops poloidal flux 
+IA = 'Ia' # poloidal field coil currents
+IP = 'Ip' # plasma current
 # output names
-FX = 'Fx' 
-IY = 'Iy'
+FX = 'Fx' # Plasma poloidal flux map
+IY = 'Iy' # Plasma current density map
 BR = 'Br' # recalculated in python, not in matlab
 BZ = 'Bz' # recalculated in python, not in matlab
-RQ = 'rq'
-ZQ = 'zq'
+RQ = 'rq' # LCFS r coordinates
+ZQ = 'zq' # LCFS z coordinates
 #more names
 SEP = 'sep' # this is the LCFS, last closed flux surface, or separatrix
 PHYS = 'phys' # physics inputs
@@ -86,12 +78,12 @@ RT = 'rt' # real time output
 BRP = 'Brp' # Br from PINN  
 BZP = 'Bzp' # Bz from PINN
 
-INPUT_NAMES = [BM, FF, FT, IA, IP, IU, RB] # input names
+INPUT_NAMES = [BM, FF, IA, IP] # input names
 OUTPUT_NAMES = [FX, IY, BR, BZ, RQ, ZQ] # output names
 DS_NAMES = INPUT_NAMES + OUTPUT_NAMES # dataset names
 DS_SIZES = { 
-    BM:(38,), FF:(38,), FT:(1,), IA:(19,), IP:(1,), IU:(38,), RB:(1,),  # input sizes
-    FX:(65,28), IY:(63,26), BR:(65,28), BZ:(65,28), RQ:(129,), ZQ:(129,),  # output sizes
+    BM:(38,), FF:(38,), IA:(19,), IP:(1,),  # input sizes
+    FX:(65,28), IY:(63,26), BR:(65,28), BZ:(65,28), RQ:(32*NDOM,), ZQ:(32*NDOM,),  # output sizes
     SEP:(2*129,), # LCFS/SEP size, 2*NLCFS points (r,z) for the last closed flux surface
 }
 DTYPE = 'float32'
@@ -120,12 +112,9 @@ STRICT_LOAD = True # for loading the weights, should be true, but for testing va
 TEST_DIR = 'test' if LOCAL else '/nfsd/automatica/grandinmat/test'
 os.makedirs(TEST_DIR, exist_ok=True)
 
-# NGR = NGZ = 24 # number of grid points 
-NGR = NGZ = 16 # number of grid points <-
+NIN = sum(DS_SIZES[name][0] for name in INPUT_NAMES) # 96
 
-NIN = sum(DS_SIZES[name][0] for name in INPUT_NAMES) # 136
-
-NLCFS = 129 # number of LCFS points 
+NLCFS = 32*NDOM # number of LCFS points 
 
 assert NLCFS == DS_SIZES[RQ][0] == DS_SIZES[ZQ][0], f"NLCFS = {NLCFS}, DS_SIZES[RQ] = {DS_SIZES[RQ]}, DS_SIZES[ZQ] = {DS_SIZES[ZQ]}"
 
@@ -135,10 +124,9 @@ assert NLCFS == DS_SIZES[RQ][0] == DS_SIZES[ZQ][0], f"NLCFS = {NLCFS}, DS_SIZES[
 # read the original grid coordinates
 d = loadmat('tcv_params/grid.mat')
 rd, zd = d['r'].flatten(), d['z'].flatten() # original grid coordinates (DATA)
-r,z = np.linspace(rd[0], rd[-1], NGR), np.linspace(zd[0], zd[-1], NGZ)  # grid coordinates
 RRD, ZZD = np.meshgrid(rd, zd)  # meshgrid for the original grid coordinates (from the data)
 RRD2, ZZD2 = np.meshgrid(rd[1:-1], zd[1:-1])  
-del d, rd, zd, r, z
+del d, rd, zd
 
 
 # load the vessel perimeter
@@ -507,11 +495,6 @@ class LiuqeDataset(Dataset):
         self.fg = d.pop(FG) # pop the full grid 
         print(f"Dataset loaded from {ds_path}, keys: {d.keys()}")
         self.data = {k:to_tensor(v) for k,v in d.items()} # convert to tensors
-
-        # # TMP WORKAROUND: MASK A SECTION OF PHYS INPUTS (Iu) from 97 -> 135, set it to 0
-        # self.data[PHYS][:, 97:136] = 0.0 # set the section to 0, this is a workaround for the missing inputs in the dataset
-        # x_mean_std[0, 97:136] = 0.0 # set the mean to 0 for the masked section
-
         # move to DEV (doable bc the dataset is fairly small, check memory usage)
         tot_memory_ds = sum([x.element_size()*x.nelement() for x in self.data.values()]) # total memory in bytes
         gpu_free_mem = torch.cuda.mem_get_info()[0] if DEV == CUDA else np.inf
@@ -563,54 +546,20 @@ def test_dataset(ds:LiuqeDataset, verbose=True):
 
 
 ####################################################################################################
-def sample_random_points_inside_fw(n):
-    over_n = int(n * 1.4)  # oversample to ensure we get enough points inside the vessel (Area ratio: 0.8895 ± 0.0081)
-    pts = np.zeros((n, 2), dtype=DTYPE)
-    cpts = sample_random_points(over_n)  # sample random points
-    # inside = inpoly(cpts, poly=VESS)  # check if points are inside the vessel
-    inside = inpoly(cpts)  # check if points are inside the vessel
-    pts = cpts[inside]  # keep only points inside the vessel
-    return pts[:n]  # return the first n points
-
-def sample_random_subgrid(rrG, zzG, nr=64, nz=64): # tcv specific
-    rm, rM, zm, zM = rrG[0,0], rrG[-1,-1], zzG[0,0], zzG[-1,-1]
-    Δr, Δz = rM-rm, zM-zm 
-    assert Δr < Δz, f'TCV grid is like this'
-    nΔr = nΔz = Δr*uniform(0.5, 1.0) # force square grid
-    r0, z0 = uniform(rm, rM-nΔr), uniform(zm, zM-nΔz)
-    rr, zz = np.linspace(r0, r0+nΔr, nr), np.linspace(z0, z0+nΔz, nz)
-    rrg, zzg = np.meshgrid(rr, zz)
-    return rrg, zzg
-
-def spans2grids(rs, zs):
-    assert rs.shape[1:] == (NGR,), f"rs.shape = {rs.shape}, NGR = {NGR}"
-    assert zs.shape[1:] == (NGZ,), f"zs.shape = {zs.shape}, NGZ = {NGZ}"
-    assert rs.shape[0] == zs.shape[0], f"rs.shape = {rs.shape}, zs.shape = {zs.shape}"
-    rrgs, zzgs = np.zeros((len(rs), NGR, NGZ)), np.zeros((len(zs), NGR, NGZ))
-    for i in range(len(rs)):
-        rrgs[i,:], zzgs[i,:] = np.meshgrid(rs[i], zs[i])
-    return rrgs, zzgs
-
-def grid2box(rrg, zzg):
-    rm, rM, zm, zM = rrg.min(), rrg.max(), zzg.min(), zzg.max()
-    return np.array([[rm,zm],[rM,zm],[rM,zM],[rm,zM],[rm,zm]])
-
-def interp_fun(ψ, rrG, zzG, rrg, zzg, method=INTERP_METHOD):
-    interp_func = RegularGridInterpolator((rrG[0,:], zzG[:,0]), ψ.T, method=method)
-    pts = np.column_stack((rrg.reshape(-1), zzg.reshape(-1)))
-    f_int = interp_func(pts).reshape(rrg.shape)
-    return f_int
-
-def resample_on_new_subgrid(fs:list, rrG, zzG, nr=64, nz=64):
-    rrg, zzg = sample_random_subgrid(rrG, zzG, nr, nz)
-    fs_int = [interp_fun(ψ, rrG, zzG, rrg, zzg) for ψ in fs]
-    return fs_int, rrg, zzg
-
 def sample_random_points(n):
     pts = np.zeros((n, 2), dtype=DTYPE)
     pts[:,0] = uniform(RRD[0,0], RRD[0,-1], n) # r
     pts[:,1] = uniform(ZZD[0,0], ZZD[-1,0], n) # z
     return pts
+
+def sample_random_points_inside_fw(n):
+    over_n = int(n * 1.4)  # oversample to ensure we get enough points inside the vessel (Area ratio: 0.8895 ± 0.0081)
+    pts = np.zeros((n, 2), dtype=DTYPE)
+    cpts = sample_random_points(over_n)  # sample random points
+    inside = inpoly(cpts, VESS_CORNERS)  # check if points are inside the vessel
+    assert np.sum(inside) >= n, f"Not enough points inside the vessel, got {np.sum(inside)}, need {n}"
+    pts = cpts[inside]  # keep only points inside the vessel
+    return pts[:n]  # return the first n points
 
 def interp_pts(f:np.array, pts:np.array, gr=RRD[0,:], gz=ZZD[:,0], method=INTERP_METHOD):
     """
@@ -623,63 +572,10 @@ def interp_pts(f:np.array, pts:np.array, gr=RRD[0,:], gz=ZZD[:,0], method=INTERP
     interp_func = RegularGridInterpolator((gr, gz), f.T, method=method)
     return interp_func(pts).reshape(-1)
 
-####################################################################################################
-# kernels
-def calc_laplace_df_dr_ker(hr, hz):
-    α = -2*(hr**2 + hz**2)
-    assert np.abs(α) > 1e-10, f"α = {α} <= 0, hr = {hr}, hz = {hz}"
-    laplace_ker = np.array(([0, hr**2/α, 0], [hz**2/α, 1, hz**2/α], [0, hr**2/α, 0]))
-    dr_ker = np.array(([0, 0, 0], [+1, 0, -1], [0, 0, 0]))/(2*hr*α)*(hr**2*hz**2)
-    return laplace_ker, dr_ker
-
-#calculate the Grad-Shafranov operator pytorch
-def laplace_ker(Δr, Δz, α, dev=torch.device(CPU)): # [[0, Δr**2/α, 0], [Δz**2/α, 1, Δz**2/α], [0, Δr**2/α, 0]]
-    kr, kz = Δr**2/α, Δz**2/α
-    ker = torch.zeros(len(Δr),1, 3, 3, dtype=torch.float32, device=dev)
-    ker[:,0,0,1], ker[:,0,1,0], ker[:,0,1,2], ker[:,0,2,1], ker[:,0,1,1] = kr, kz, kz, kr, 1
-    return ker
-   
-def dr_ker(Δr, Δz, α, dev=torch.device(CPU)): # [[0,0,0],[-1,0,+1],[0,0,0]] * (Δr**2 * Δz**2) / (2*Δr*α)
-    ker = torch.zeros(len(Δr),1, 3, 3, dtype=torch.float32, device=dev)
-    k = (Δr**2 * Δz**2) / (2*Δr*α)
-    ker[:,0,1,0], ker[:,0,1,2] = -k, k
-    return ker
-
-def gauss_ker(dev=torch.device(CPU)):
-    # ker = torch.tensor([[1,2,1],[2,4,2],[1,2,1]], dtype=torch.float32, device=dev).view(1,1,3,3) / 16
-    ker = torch.tensor([[1,4,6,4,1],[4,16,24,16,4],[6,24,36,24,6],[4,16,24,16,4],[1,4,6,4,1]], dtype=torch.float32, device=dev).view(1,1,5,5) / 256
-    return ker
-
-# einops TODO: look
-
-def Ϛ(x, ker): # convolve x with ker
-    assert x.ndim == 4 and x.shape[1] == 1, f"x.ndim = {x.ndim}, x.shape = {x.shape}"
-    assert ker.ndim == 4 and ker.shape[1] == 1, f"ker.ndim = {ker.ndim}, ker.shape =  {ker.shape}"
-    s2, s3 = x.shape[2], x.shape[3]
-    if ker.shape[0] > 1: x = x.view(1,-1,s2,s3) # if the kernel is not the same for all samples
-    p = ker.shape[2]//2 # padding size
-    return F.pad(F.conv2d(x, ker, groups=ker.shape[0]), (p,p,p,p), mode='replicate').view(-1,1,s2,s3)
-
-def calc_gso(ψ, r, z):
-    sΨ2, sΨ3 = ψ.shape[0], ψ.shape[1]
-    assert r.ndim == 1, f'r.ndim = {r.ndim}, r.shape = {r.shape}'
-    assert z.ndim == 1, f'z.ndim = {z.ndim}, z.shape = {z.shape}'
-    sr, sz = r.shape[0], z.shape[0]
-    Ψ, r, z = torch.tensor(ψ).view(1,1,sΨ2,sΨ3), torch.tensor(r).view(1,sr), torch.tensor(z).view(1,sz)
-    return calc_gso_batch(Ψ, r, z).numpy()[0,0]
-
-def calc_gso_batch(Ψ, r, z, dev=torch.device(CPU)):
-    assert r.ndim == 2, f'r.ndim = {r.ndim}, r.shape = {r.shape}'
-    assert z.ndim == 2, f'z.ndim = {z.ndim}, z.shape = {z.shape}'
-    assert r.shape[1] == NGR, f'r.shape[1] = {r.shape[1]}, NGR = {NGR}'
-    assert z.shape[1] == NGZ, f'z.shape[1] = {z.shape[1]}, NGZ = {NGZ}'
-    Δr, Δz = r[:,2]-r[:,1], z[:,2]-z[:,1]
-    rr = r.repeat(1,NGZ).view(-1,1,NGR,NGZ).permute(0,1,3,2)  # repeat for batch
-    α = (-2*(Δr**2 + Δz**2))
-    β = ((Δr**2 * Δz**2) / α)
-    ΔΨ = (1/β.view(-1,1,1,1)) * (Ϛ(Ψ, laplace_ker(Δr, Δz, α, dev)) - Ϛ(Ψ, dr_ker(Δr, Δz, α, dev))/rr) # grad-shafranov operator
-    # ΔΨ = Ϛ(ΔΨ, gauss_ker(dev)) # apply gauss kernel
-    return ΔΨ
+def filter_zeros(r,z, thrs=1e-7):
+    m = ~((r == 0) & (z == 0)) # exact zeros
+    # m = ~((np.abs(r) < thrs) & (np.abs(z) < thrs)) # near zeros
+    return r[m], z[m]
 
 # calculate Br, Bz from the flux map (Fx)
 def meqBrBz(f:np.ndarray, rr=RRD, zz=ZZD):
