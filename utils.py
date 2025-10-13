@@ -520,22 +520,23 @@ def test_dataset(ds:LiuqeDataset, verbose=True):
         μ, σ = ds.x_mean_std.cpu().numpy()
         x = (x-μ) / σ  # normalize inputs
         r,z = pts[:,0], pts[:,1]
+        rq, zq = filter_zeros(sep[:NLCFS], sep[NLCFS:]) # filter zeros from LCFS
         ms = 1
         plt.subplot(n_plot, 5, i*5+1)
         plt.scatter(r, z, c=fx, s=ms), plt.title('FX')
-        plt.plot(sep[:NLCFS], sep[NLCFS:], 'gray', lw=2)
+        plt.plot(rq, zq, 'gray', lw=2)
         plot_vessel(), plt.axis('equal'), plt.axis('off'), plt.colorbar()
         plt.subplot(n_plot, 5, i*5+2)
         plt.scatter(r, z, c=iy, s=ms), plt.title('IY')
-        plt.plot(sep[:NLCFS], sep[NLCFS:], 'gray', lw=2)
+        plt.plot(rq, zq, 'gray', lw=2)
         plot_vessel(), plt.axis('equal'), plt.axis('off'), plt.colorbar()
         plt.subplot(n_plot, 5, i*5+3)
         plt.scatter(r, z, c=br, s=ms), plt.title('Br')
-        plt.plot(sep[:NLCFS], sep[NLCFS:], 'gray', lw=2)
+        plt.plot(rq, zq, 'gray', lw=2)
         plot_vessel(), plt.axis('equal'), plt.axis('off'), plt.colorbar()
         plt.subplot(n_plot, 5, i*5+4)
         plt.scatter(r, z, c=bz, s=ms), plt.title('Bz')
-        plt.plot(sep[:NLCFS], sep[NLCFS:], 'gray', lw=2)
+        plt.plot(rq, zq, 'gray', lw=2)
         plot_vessel(), plt.axis('equal'), plt.axis('off'), plt.colorbar()
         plt.subplot(n_plot, 5, i*5+5)
         plt.bar(np.arange(len(x)), x), plt.title('Physical Inputs')
@@ -560,6 +561,28 @@ def sample_random_points_inside_fw(n):
     assert np.sum(inside) >= n, f"Not enough points inside the vessel, got {np.sum(inside)}, need {n}"
     pts = cpts[inside]  # keep only points inside the vessel
     return pts[:n]  # return the first n points
+
+def sample_points_fx_importance_samp(n, gFx, rq, zq, σFx=0.01):
+    tot_pts, iters, pts = 0, 0, np.zeros((n,2), dtype=DTYPE)  # initialize 
+    rq = np.clip(rq, RRD[0,0], RRD[0,-1]) # clip to the grid range
+    zq = np.clip(zq, ZZD[0,0], ZZD[-1,0])
+    μFx = np.mean(interp_pts(gFx, np.stack((rq, zq), axis=-1), method='linear'))  # mean Fx at LCFS
+    while tot_pts < n:  # keep sampling until we have enough points or we reach the maximum number of iterations
+        rn = n-tot_pts # remaining points to sample
+        _pts = sample_random_points(3*rn)
+        _Fx = interp_pts(gFx, _pts, method='linear')
+        _d = np.abs(_Fx - μFx)
+        # close_LCFS = (1 - np.random.uniform(0, 1, size=_d.shape)) > _d**(1/100) # importance sampling (?)
+        # close_LCFS = np.random.uniform(0, 1, size=_d.shape)**2 > _d # importance sampling (?)
+        close_LCFS = np.random.normal(0.0, σFx, size=_d.shape) > _d # importance sampling 
+        inside_vessel = inpoly(_pts, VESS_CORNERS)
+        _pts = _pts[close_LCFS & inside_vessel]
+        _pts = _pts[:rn]  # keep only the remaining points
+        pts[tot_pts:tot_pts+_pts.shape[0]] = _pts
+        tot_pts += _pts.shape[0]
+        iters += 1
+        assert iters < 200, 'Too many iterations in importance sampling, try increasing σFx'
+    return pts
 
 def interp_pts(f:np.array, pts:np.array, gr=RRD[0,:], gz=ZZD[:,0], method=INTERP_METHOD):
     """
