@@ -13,7 +13,7 @@ N_SHOTS = END_SHOT-START_SHOT; % Number of shots to process
 % OUT_DIR = 'ds'; % testing
 OUT_DIR = '/NoTivoli/grandin/ds'; % more space available
 
-DECIMATION = 40; % 4 Decimation factor for the time vector
+DECIMATION = 20; % 4 Decimation factor for the time vector
 NDOM = 4; % Number of domains for liuqe (must be >=3 for doublet)
 % ITERA = 50; % Max Number of iterations for liuqe NOTE: cant change this bc has some weird values for specific shapes (like 888 for doublets)
 ITERFRZ = 20; %20; % Number of Picard iterations before which plasma domain is frozen to ease convergence (inactive if itert>0)
