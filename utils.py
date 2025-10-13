@@ -562,16 +562,20 @@ def sample_random_points_inside_fw(n):
     pts = cpts[inside]  # keep only points inside the vessel
     return pts[:n]  # return the first n points
 
+def uniform_sampling_inside_fw(n, gFx=None, rq=None, zq=None, σFx=None):
+    return sample_random_points_inside_fw(n)
+
 def sample_points_fx_importance_samp(n, gFx, rq, zq, σFx=0.01):
     tot_pts, iters, pts = 0, 0, np.zeros((n,2), dtype=DTYPE)  # initialize 
     rq = np.clip(rq, RRD[0,0], RRD[0,-1]) # clip to the grid range
     zq = np.clip(zq, ZZD[0,0], ZZD[-1,0])
     μFx = np.mean(interp_pts(gFx, np.stack((rq, zq), axis=-1), method='linear'))  # mean Fx at LCFS
+    range_Fx = np.max(gFx) - np.min(gFx)
     while tot_pts < n:  # keep sampling until we have enough points or we reach the maximum number of iterations
         rn = n-tot_pts # remaining points to sample
         _pts = sample_random_points(3*rn)
         _Fx = interp_pts(gFx, _pts, method='linear')
-        _d = np.abs(_Fx - μFx)
+        _d = np.abs(_Fx - μFx)/range_Fx  # distance from mean, normalized to [0, 1]
         # close_LCFS = (1 - np.random.uniform(0, 1, size=_d.shape)) > _d**(1/100) # importance sampling (?)
         # close_LCFS = np.random.uniform(0, 1, size=_d.shape)**2 > _d # importance sampling (?)
         close_LCFS = np.random.normal(0.0, σFx, size=_d.shape) > _d # importance sampling 
