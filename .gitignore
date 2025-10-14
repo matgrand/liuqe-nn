@@ -27,3 +27,4 @@ test_shots_net/*
 *.fig
 *.mat
 codegen/*
+*.tar.gz
