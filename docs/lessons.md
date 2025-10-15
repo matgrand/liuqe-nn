@@ -45,6 +45,11 @@ Main data structures:
 ## Liuqe help/guide
 The list of available parameters can be obtained using `help meqp`, `help liup`, `help meqptcv`, `help liuptcv`.
 
+plotting:
+    - `meqplott`     - Time slice plot
+    - `meqplotevo`   - Time evolution
+    - `meqplotfancy` - fancy plot
+    - `meqmovie`     - Movie of time history
 
 
 ## Integration into current shape controller
