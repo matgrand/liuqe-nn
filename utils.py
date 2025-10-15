@@ -48,7 +48,7 @@ except:
     JOBID = "local"
     LOCAL = True
     NCORES = os.cpu_count() or 1
-print(f"Running JOBID: {JOBID}, on {DEV}, GPU_MEM: {GPU_MEM/1e9:.2f} GB" if DEV != CPU else f"Running JOBID: {JOBID}, on cpu")
+print(f"Running JOBID: {JOBID}, on {DEV}, GPU_MEM: {GPU_MEM/1e9:.2f} GB" if DEV != CPU else f"Running JOBID: {JOBID}, on cpu. " + f"NCORES: {NCORES}")
 SAVE_DIR = f"data/{JOBID}"
 
 N_CTRL_PTS = 25 # number of control points to estimate
