@@ -94,3 +94,6 @@ for plotting:
 Read/watch hybrid branches: allen/shapectrl, cheiss/dcontrol
 for examples on integration with full controller
 like block `SCDalgo_shapectrl.slx`
+
+
+-  to run matlab test on hybrid: `matlab960 -nodesktop -nosplash -noFigureWindows -r "tests_matlab('all')"`
