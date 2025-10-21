@@ -629,6 +629,15 @@ def meqBrBz(f:np.ndarray, rr=RRD, zz=ZZD):
     Bz[:,:,0]       = i4pirdr[0] *  (-f[:,:,2] + 4*f[:,:,1]  - 3*f[:,:,0])
     return Br, Bz
 
+def find_approx_lcfs(Iy):
+    abs_Iy = np.abs(Iy)
+    inIy = abs_Iy > 0
+    Iy_border_mask = (
+        (np.abs(np.diff(inIy, axis=0, append=0)) > 0) |
+        (np.abs(np.diff(inIy, axis=1, append=0)) > 0)
+    )
+    return RRD[Iy_border_mask].reshape(-1), ZZD[Iy_border_mask].reshape(-1)
+
 ####################################################################################################
 ## PLOTTING
 from matplotlib.patches import PathPatch
