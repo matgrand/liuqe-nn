@@ -499,7 +499,7 @@ class LiuqeDataset(Dataset):
         print(f"Dataset loaded from {ds_path}, keys: {d.keys()}")
         self.data = {k:to_tensor(v) for k,v in d.items()} # convert to tensors
         # move to DEV (doable bc the dataset is fairly small, check memory usage)
-        tot_memory_ds = sum([x.element_size()*x.nelement() for x in self.data.values()]) # total memory in bytes
+        tot_memory_ds = 1.1*sum([x.element_size()*x.nelement() for x in self.data.values()]) # total memory in bytes
         gpu_free_mem = torch.cuda.mem_get_info()[0] if DEV == CUDA else np.inf
         self.on_dev = DEV != CPU and tot_memory_ds < gpu_free_mem
         if self.on_dev: self.data = {k:v.to(DEV) for k,v in self.data.items()} # move to device
