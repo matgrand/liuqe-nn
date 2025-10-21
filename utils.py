@@ -67,10 +67,10 @@ FX = 'Fx' # Plasma poloidal flux map
 IY = 'Iy' # Plasma current density map
 BR = 'Br' # recalculated in python, not in matlab
 BZ = 'Bz' # recalculated in python, not in matlab
-RQ = 'rq' # LCFS r coordinates
-ZQ = 'zq' # LCFS z coordinates
+# RQ = 'rq' # LCFS r coordinates
+# ZQ = 'zq' # LCFS z coordinates
 #more names
-SEP = 'sep' # this is the LCFS, last closed flux surface, or separatrix
+# SEP = 'sep' # this is the LCFS, last closed flux surface, or separatrix
 PHYS = 'phys' # physics inputs
 PTS = 'pts' # points 
 FG = 'fg' # full grid
@@ -79,12 +79,14 @@ BRP = 'Brp' # Br from PINN
 BZP = 'Bzp' # Bz from PINN
 
 INPUT_NAMES = [BM, FF, IA, IP] # input names
-OUTPUT_NAMES = [FX, IY, BR, BZ, RQ, ZQ] # output names
+# OUTPUT_NAMES = [FX, IY, BR, BZ, RQ, ZQ] # output names
+OUTPUT_NAMES = [FX, IY, BR, BZ] # output names
 DS_NAMES = INPUT_NAMES + OUTPUT_NAMES # dataset names
 DS_SIZES = { 
     BM:(38,), FF:(38,), IA:(19,), IP:(1,),  # input sizes
-    FX:(65,28), IY:(63,26), BR:(65,28), BZ:(65,28), RQ:(32*NDOM,), ZQ:(32*NDOM,),  # output sizes
-    SEP:(2*129,), # LCFS/SEP size, 2*NLCFS points (r,z) for the last closed flux surface
+    # FX:(65,28), IY:(63,26), BR:(65,28), BZ:(65,28), RQ:(32*NDOM,), ZQ:(32*NDOM,),  # output sizes
+    FX:(65,28), IY:(63,26), BR:(65,28), BZ:(65,28),  # output sizes
+    # SEP:(2*129,), # LCFS/SEP size, 2*NLCFS points (r,z) for the last closed flux surface
 }
 DTYPE = 'float32'
 
@@ -101,7 +103,8 @@ TRAIN_DS_PATH = f'{DS_DIR}/train_ds.npz'
 EVAL_DS_PATH = f'{DS_DIR}/eval_ds.npz'
 
 # paths to the best models
-LOSS_NAMES = [FX, IY, BR, BZ, SEP, BRP, BZP] # loss names
+# LOSS_NAMES = [FX, IY, BR, BZ, SEP, BRP, BZP] # loss names
+LOSS_NAMES = [FX, IY, BR, BZ, BRP, BZP] # loss names
 def model_path(loss_name, save_dir=SAVE_DIR):
     assert loss_name in LOSS_NAMES, f"loss_name should be one of {LOSS_NAMES}, got {loss_name}"
     return f"{save_dir}/best_{loss_name}.pth"
@@ -116,7 +119,7 @@ NIN = sum(DS_SIZES[name][0] for name in INPUT_NAMES) # 96
 
 NLCFS = 32*NDOM # number of LCFS points 
 
-assert NLCFS == DS_SIZES[RQ][0] == DS_SIZES[ZQ][0], f"NLCFS = {NLCFS}, DS_SIZES[RQ] = {DS_SIZES[RQ]}, DS_SIZES[ZQ] = {DS_SIZES[ZQ]}"
+# assert NLCFS == DS_SIZES[RQ][0] == DS_SIZES[ZQ][0], f"NLCFS = {NLCFS}, DS_SIZES[RQ] = {DS_SIZES[RQ]}, DS_SIZES[ZQ] = {DS_SIZES[ZQ]}"
 
 ##################################################################################################################################
 
@@ -481,7 +484,7 @@ def load_ds(ds_path):
         IY:d[IY], 
         BR:d[BR], 
         BZ:d[BZ], 
-        SEP:d[SEP], 
+        # SEP:d[SEP], 
         "x_mean_std":d["x_mean_std"],
         FG:d[FG] if FG in d else None, # full grid, optional
     }
@@ -503,7 +506,7 @@ class LiuqeDataset(Dataset):
         self.x_mean_std = x_mean_std.to(DEV) if self.on_dev else x_mean_std
         if verbose: print(f"Dataset: N:{len(self)}, memory:{tot_memory_ds/1e6}MB, on_dev:{self.on_dev}")
     def __len__(self): return len(self.data[PHYS]) # number of samples, all data should have the same length
-    def __getitem__(self, idx): return [x[idx] for x in self.data.values()] # [PHYS, PTS, FX, IY, BR, BZ, SEP]
+    def __getitem__(self, idx): return [x[idx] for x in self.data.values()] # [PHYS, PTS, FX, IY, BR, BZ]
 
 def test_dataset(ds:LiuqeDataset, verbose=True):
     if verbose:
@@ -516,27 +519,28 @@ def test_dataset(ds:LiuqeDataset, verbose=True):
     idxs = np.random.randint(0, len(ds), n_plot)
     plt.figure(figsize=(15, 3*n_plot))
     for i, j in enumerate(idxs):
-        x, pts, fx, iy, br, bz, sep = map(lambda x: x.cpu().numpy(), ds[j])
+        # x, pts, fx, iy, br, bz, sep = map(lambda x: x.cpu().numpy(), ds[j])
+        x, pts, fx, iy, br, bz = map(lambda x: x.cpu().numpy(), ds[j])
         μ, σ = ds.x_mean_std.cpu().numpy()
         x = (x-μ) / σ  # normalize inputs
         r,z = pts[:,0], pts[:,1]
-        rq, zq = filter_zeros(sep[:NLCFS], sep[NLCFS:]) # filter zeros from LCFS
+        # rq, zq = filter_zeros(sep[:NLCFS], sep[NLCFS:]) # filter zeros from LCFS
         ms = 1
         plt.subplot(n_plot, 5, i*5+1)
         plt.scatter(r, z, c=fx, s=ms), plt.title('FX')
-        plt.plot(rq, zq, 'gray', lw=2)
+        # plt.plot(rq, zq, 'gray', lw=2)
         plot_vessel(), plt.axis('equal'), plt.axis('off'), plt.colorbar()
         plt.subplot(n_plot, 5, i*5+2)
         plt.scatter(r, z, c=iy, s=ms), plt.title('IY')
-        plt.plot(rq, zq, 'gray', lw=2)
+        # plt.plot(rq, zq, 'gray', lw=2)
         plot_vessel(), plt.axis('equal'), plt.axis('off'), plt.colorbar()
         plt.subplot(n_plot, 5, i*5+3)
         plt.scatter(r, z, c=br, s=ms), plt.title('Br')
-        plt.plot(rq, zq, 'gray', lw=2)
+        # plt.plot(rq, zq, 'gray', lw=2)
         plot_vessel(), plt.axis('equal'), plt.axis('off'), plt.colorbar()
         plt.subplot(n_plot, 5, i*5+4)
         plt.scatter(r, z, c=bz, s=ms), plt.title('Bz')
-        plt.plot(rq, zq, 'gray', lw=2)
+        # plt.plot(rq, zq, 'gray', lw=2)
         plot_vessel(), plt.axis('equal'), plt.axis('off'), plt.colorbar()
         plt.subplot(n_plot, 5, i*5+5)
         plt.bar(np.arange(len(x)), x), plt.title('Physical Inputs')
@@ -630,6 +634,8 @@ def meqBrBz(f:np.ndarray, rr=RRD, zz=ZZD):
     return Br, Bz
 
 def find_approx_lcfs(Iy):
+    assert Iy.ndim == 2, f"Iy.ndim = {Iy.ndim}, should be 2D"
+    assert Iy.shape == RRD.shape, f"Iy.shape = {Iy.shape}, RRD.shape = {RRD.shape}, should be equal"
     abs_Iy = np.abs(Iy)
     inIy = abs_Iy > 0
     Iy_border_mask = (
@@ -716,15 +722,15 @@ def plot_network_outputs(ds:LiuqeDataset, model:FullNet, title="test", save_dir=
         on_grid = pi >= (nplt // 2) # on grid or not
         fs = (20, 8) if on_grid else (15, 8) # figure size
         plt.figure(figsize=fs, facecolor='white' if DARK_THEME else 'black')
-        x, p, fx, iy, br, bz, sep = ds[i]
-        x, p, fx, iy, br, bz, sep = map(lambda x: x.to(CPU), [x, p, fx, iy, br, bz, sep])
+        x, p, fx, iy, br, bz = ds[i]
+        x, p, fx, iy, br, bz = map(lambda x: x.to(CPU), [x, p, fx, iy, br, bz])
         if on_grid: 
             p = torch.stack([torch.tensor(RRD.reshape(-1), dtype=torch.float32), torch.tensor(ZZD.reshape(-1), dtype=torch.float32)], dim=1)  # shape (n, 2)
             fx, iy, br, bz = [to_tensor(v.reshape(-1)) for v in ds.fg[i]] # reshape to (n,)
-        rtp, iyp, sepp = model(x.unsqueeze(0), p.unsqueeze(0))
+        rtp, iyp, _ = model(x.unsqueeze(0), p.unsqueeze(0))
         fxp, brp, bzp = rtp[:,:,0], rtp[:,:,1], rtp[:,:,2]
-        fxp, iyp, brp, bzp, sepp = map(lambda t: t.squeeze(0), [fxp, iyp, brp, bzp, sepp]) # remove batch dimension
-        p, fx, iy, br, bz, fxp, iyp, brp, bzp, sepp = map(lambda t: t.detach().cpu().numpy(), [p, fx, iy, br, bz, fxp, iyp, brp, bzp, sepp]) # move to CPU and numpy
+        fxp, iyp, brp, bzp = map(lambda t: t.squeeze(0), [fxp, iyp, brp, bzp]) # remove batch dimension
+        p, fx, iy, br, bz, fxp, iyp, brp, bzp = map(lambda t: t.detach().cpu().numpy(), [p, fx, iy, br, bz, fxp, iyp, brp, bzp]) # move to CPU and numpy
         iv = inpoly(p) # inside vessel indices
         mfx, Mfx = np.min([fx[iv], fxp[iv]]), np.max([fx[iv], fxp[iv]])
         miy, Miy = np.min([iy[iv], iyp[iv]]), np.max([iy[iv], iyp[iv]])
@@ -750,17 +756,17 @@ def plot_network_outputs(ds:LiuqeDataset, model:FullNet, title="test", save_dir=
         for j, ((v, vp), l, n) in enumerate(zip(vals, limits, names)):
             plt.subplot(nraws, ncols, j*(ncols//2)+1), plt.title(f"{n} Actual")
             plt.scatter(p[iv,0], p[iv,1], c=v[iv], s=ms, vmin=l[0], vmax=l[1])
-            if show_lcfs: plt.plot(sep[:NLCFS], sep[NLCFS:], f'--{main_col}', lw=1, alpha=α_sep) # plot LCFS
+            # if show_lcfs: plt.plot(sep[:NLCFS], sep[NLCFS:], f'--{main_col}', lw=1, alpha=α_sep) # plot LCFS
             prep_plot(plt.gca()), plt.colorbar()
             plt.subplot(nraws, ncols, j*(ncols//2) + 2), plt.title(f"{n} Predicted")
             plt.scatter(p[iv,0], p[iv,1], c=vp[iv], s=ms, vmin=l[0], vmax=l[1])
-            if show_lcfs: plt.plot(sepp[:NLCFS], sepp[NLCFS:], f'--{main_col}', lw=1, alpha=α_sep)
+            # if show_lcfs: plt.plot(sepp[:NLCFS], sepp[NLCFS:], f'--{main_col}', lw=1, alpha=α_sep)
             prep_plot(plt.gca()), plt.colorbar()
             plt.subplot(nraws, ncols, j*(ncols//2) + ncols//2), plt.title(f"{n} Error %")
             ep = 100*np.abs(v[iv]-vp[iv])/(l[1]-l[0]) # error in %
             # plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep)) # variable bar
             plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep) if n == IY else 1.0) # fixed bar
-            if show_lcfs: plt.plot(sep[:NLCFS], sep[NLCFS:], f'--{main_col}', lw=1, alpha=α_sep)
+            # if show_lcfs: plt.plot(sep[:NLCFS], sep[NLCFS:], f'--{main_col}', lw=1, alpha=α_sep)
             prep_plot(plt.gca()), plt.colorbar()
             if on_grid: # plot contours if on grid
                 plt.subplot(nraws, ncols, j*(ncols//2) + 3), plt.title(f"{n} Contours")
