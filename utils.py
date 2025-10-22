@@ -481,7 +481,7 @@ def load_ds(ds_path):
         PHYS:d[PHYS], 
         PTS:d[PTS], 
         FX:d[FX], 
-        IY:d[IY], 
+        IY:np.abs(d[IY]), # TEST: make current dens is always positive 
         BR:d[BR], 
         BZ:d[BZ], 
         # SEP:d[SEP], 
