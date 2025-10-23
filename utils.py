@@ -53,7 +53,6 @@ SAVE_DIR = f"data/{JOBID}"
 
 N_CTRL_PTS = 25 # number of control points to estimate
 
-PINN = True # if True, use PINN, otherwise use standard model
 NDOM = 4 # number of plasma domains, should be matched with create_ds.m
 ##################################################################################################################################
 ## Dataset inputs/outputs (see create_ds.m)
@@ -104,7 +103,8 @@ EVAL_DS_PATH = f'{DS_DIR}/eval_ds.npz'
 
 # paths to the best models
 # LOSS_NAMES = [FX, IY, BR, BZ, SEP, BRP, BZP] # loss names
-LOSS_NAMES = [FX, IY, BR, BZ, BRP, BZP] # loss names
+# LOSS_NAMES = [FX, IY, BR, BZ, BRP, BZP] # loss names
+LOSS_NAMES = [FX, IY, BR, BZ] # loss names
 def model_path(loss_name, save_dir=SAVE_DIR):
     assert loss_name in LOSS_NAMES, f"loss_name should be one of {LOSS_NAMES}, got {loss_name}"
     return f"{save_dir}/best_{loss_name}.pth"
@@ -731,6 +731,7 @@ def plot_network_outputs(ds:LiuqeDataset, model:FullNet, title="test", save_dir=
         fxp, brp, bzp = rtp[:,:,0], rtp[:,:,1], rtp[:,:,2]
         fxp, iyp, brp, bzp = map(lambda t: t.squeeze(0), [fxp, iyp, brp, bzp]) # remove batch dimension
         p, fx, iy, br, bz, fxp, iyp, brp, bzp = map(lambda t: t.detach().cpu().numpy(), [p, fx, iy, br, bz, fxp, iyp, brp, bzp]) # move to CPU and numpy
+        iy = np.abs(iy)  # ensure current density is positive
         iv = inpoly(p) # inside vessel indices
         mfx, Mfx = np.min([fx[iv], fxp[iv]]), np.max([fx[iv], fxp[iv]])
         miy, Miy = np.min([iy[iv], iyp[iv]]), np.max([iy[iv], iyp[iv]])
