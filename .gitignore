@@ -28,3 +28,4 @@ test_shots_net/*
 *.mat
 codegen/*
 *.tar.gz
+SCDalgo_liuqeml/codegen/*
