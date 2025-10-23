@@ -66,10 +66,7 @@ FX = 'Fx' # Plasma poloidal flux map
 IY = 'Iy' # Plasma current density map
 BR = 'Br' # recalculated in python, not in matlab
 BZ = 'Bz' # recalculated in python, not in matlab
-# RQ = 'rq' # LCFS r coordinates
-# ZQ = 'zq' # LCFS z coordinates
 #more names
-# SEP = 'sep' # this is the LCFS, last closed flux surface, or separatrix
 PHYS = 'phys' # physics inputs
 PTS = 'pts' # points 
 FG = 'fg' # full grid
@@ -83,9 +80,7 @@ OUTPUT_NAMES = [FX, IY, BR, BZ] # output names
 DS_NAMES = INPUT_NAMES + OUTPUT_NAMES # dataset names
 DS_SIZES = { 
     BM:(38,), FF:(38,), IA:(19,), IP:(1,),  # input sizes
-    # FX:(65,28), IY:(63,26), BR:(65,28), BZ:(65,28), RQ:(32*NDOM,), ZQ:(32*NDOM,),  # output sizes
     FX:(65,28), IY:(63,26), BR:(65,28), BZ:(65,28),  # output sizes
-    # SEP:(2*129,), # LCFS/SEP size, 2*NLCFS points (r,z) for the last closed flux surface
 }
 DTYPE = 'float32'
 
@@ -116,10 +111,6 @@ TEST_DIR = 'test' if LOCAL else '/nfsd/automatica/grandinmat/test'
 os.makedirs(TEST_DIR, exist_ok=True)
 
 NIN = sum(DS_SIZES[name][0] for name in INPUT_NAMES) # 96
-
-NLCFS = 32*NDOM # number of LCFS points 
-
-# assert NLCFS == DS_SIZES[RQ][0] == DS_SIZES[ZQ][0], f"NLCFS = {NLCFS}, DS_SIZES[RQ] = {DS_SIZES[RQ]}, DS_SIZES[ZQ] = {DS_SIZES[ZQ]}"
 
 ##################################################################################################################################
 
@@ -188,13 +179,6 @@ class ActF(Module): # swish
         else: self.beta = torch.nn.Parameter(torch.ones(no), requires_grad=True) # n is the number of outputs
     def forward(self, x): return x*torch.sigmoid(self.beta*x)
 
-# class ActF(Module): # Beta Relu
-#     def __init__(self, no=1): 
-#         super(ActF, self).__init__()
-#         if no == 1: self.beta = torch.nn.Parameter(torch.tensor(1.0), requires_grad=True)
-#         else: self.beta = torch.nn.Parameter(torch.ones(no), requires_grad=True) # n is the number of outputs
-#     def forward(self, x): return self.beta * F.relu(x)
-
 def percentage_loss(a, b): # percentage loss (a = true, b = predicted)
     assert a.shape == b.shape, f"a.shape = {a.shape}, b.shape = {b.shape}, should be equal"
     assert a.dim() >= 2, f"a.dim() = {a.dim()}, should be >= 2"
@@ -203,115 +187,35 @@ def percentage_loss(a, b): # percentage loss (a = true, b = predicted)
     err = torch.abs(a - b) / span.unsqueeze(-1)  # calculate the error as a percentage of the span
     return torch.mean(err)  # return the mean error for each batch 
 
-# PHYSICS_LS = 64 # 128 physics latent size [ph] 64 <- 64 -> 40μ
-# PHYSICS_LS = 128 #128 -> 50μ
-# PHYSICS_LS = 256 # -> 70μ
-# PHYSICS_LS = 16 # turbosmall
-
 # PHYSICS_LS, PTSH, INPUTH, HEADH = 64, 64, 128, 128 # medium (old baseline)
 PHYSICS_LS, PTSH, INPUTH, HEADH = 32, 32, 48, 48 # small (new baseline) <- 
 # PHYSICS_LS, PTSH, INPUTH, HEADH = 16, 16, 32, 32 # turbosmall 
 # PHYSICS_LS, PTSH, INPUTH, HEADH = 3, 16, 32, 32 # for shot mapping
 print(f"Using PHYSICS_LS = {PHYSICS_LS}, PTSH = {PTSH}, INPUTH = {INPUTH}, HEADH = {HEADH}")
 
-
-class PtsEncoder(Module): # positional encoding for the input vector
-    def __init__(self, ni=2, nh=PTSH, no=PHYSICS_LS):
-        super(PtsEncoder, self).__init__()
+class liuqeML(Module):
+    def __init__(self, x_mean_std=torch.tensor([[0.0]*NIN, [1.0]*NIN], dtype=torch.float32)):
+        super(liuqeML, self).__init__()
         self.pts_enc = Sequential(
-            Linear(ni, nh), ActF(nh),
-            Linear(nh, no), ActF(no),
+            Linear(2, PTSH), ActF(PTSH),
+            Linear(PTSH, PHYSICS_LS), ActF(PHYSICS_LS),
         )
-    def forward(self, pts): return self.pts_enc(pts) # pts: (BS, NP, 2) -> (BS, NP, PHYSICS_LS)
-
-class InputNet(Module): # input -> latent physics vector [x -> ph]
-    def __init__(self, x_mean_std=torch.tensor([[0.0]*NIN, [1.0]*NIN], dtype=torch.float32),
-                 ni=NIN, nh=INPUTH, no=PHYSICS_LS):
-        super(InputNet, self).__init__()
-        assert x_mean_std.shape == (2, NIN), f"x_mean_std.shape = {x_mean_std.shape}, NIN = {NIN}"
         self.x_mean_std = x_mean_std
         self.phys_enc = Sequential(
-            Linear(ni, nh), ActF(nh), 
-            Linear(nh, no), ActF(no), 
+            Linear(NIN, INPUTH), ActF(INPUTH),
+            Linear(INPUTH, PHYSICS_LS), ActF(PHYSICS_LS),
         )
-    def forward(self, x): 
-        assert x.shape[1] == NIN, f"x.shape[1] = {x.shape[1]}, NIN = {NIN}"
-        x = (x - self.x_mean_std[0]) / self.x_mean_std[1] # normalize
-        ph = self.phys_enc(x)
-        return ph
+        self.rt_head = Sequential(
+            Linear(PHYSICS_LS, HEADH), ActF(HEADH),
+            Linear(HEADH, 3), ActF(3),
+        )
+        self.iy_head = Sequential(
+            Linear(PHYSICS_LS, HEADH), ActF(HEADH),
+            Linear(HEADH, 1), ActF(1),
+        )
     def to(self, device):
-        super(InputNet, self).to(device)
+        super(liuqeML, self).to(device)
         self.x_mean_std = self.x_mean_std.to(device)
-        return self
-
-class FHead(Module): # [pt, ph] -> [1] function (flux/Br/Bz/curr density) 
-    def __init__(self, ni=PHYSICS_LS, nh=HEADH, no=1):
-        super(FHead, self).__init__()
-        self.head = Sequential(
-            Linear(ni, nh), ActF(nh), # <-
-            Linear(nh, no), ActF(no),
-        )
-        self.no = no # number of outputs
-    def forward(self, v): return self.head(v) if self.no > 1 else self.head(v).squeeze(-1)
-
-class LCFSHead(Module): # physics -> LCFS [ph -> LCFS]
-    def __init__(self):
-        super(LCFSHead, self).__init__()
-        self.lcfs = Sequential(
-            # Linear(PHYSICS_LS, 64), ActF(),
-            # Linear(64, 32), ActF(),
-            # Linear(32, NLCFS*2), ActF(),
-
-            # Linear(PHYSICS_LS, 128), ActF(),
-            # Linear(128, 64), ActF(),
-            # Linear(64, NLCFS*2), ActF(),  # output is (NLCFS*2) for r and z coordinates
-
-            # Linear(PHYSICS_LS, 64), ActF(), # 1 layer
-            # Linear(64, NLCFS*2), ActF(),
-    
-            Linear(PHYSICS_LS, 16), ActF(), # 1 layer
-            Linear(16, NLCFS*2), ActF(),
-
-            # Linear(PHYSICS_LS, 32), ActF(), # 1 layer
-            # Linear(32, NLCFS*2), ActF(),
-
-            # Linear(PHYSICS_LS, 2), ActF(2), # unused
-            # Linear(2, NLCFS*2), ActF(NLCFS*2), 
-        )
-    def forward(self, ph): return self.lcfs(ph)
-
-def aggregate_pts_ph(ps, ph): # ps points, ph physics vector
-    # simple multiplication
-    assert ps.shape == ph.shape, f"ps.shape = {ps.shape}, ph.shape = {ph.shape}, should be equal" 
-    psh =  ps * ph
-    assert psh.dim() == 3 and psh.shape[2] == PHYSICS_LS, f"psh.dim() = {psh.dim()}, psh.shape[2] = {psh.shape[2]}, should be PHYSICS_LS = {PHYSICS_LS}"
-    return psh # multiply the points with the physics vector
-
-# def aggregate_pts_ph(ps, ph): # ps points, ph physics vector
-#     # multiply only half of the physics vector with the points
-#     assert ps.ndim == ph.ndim, f"ps.ndim = {ps.ndim}, ph.ndim = {ph.ndim}, should be equal"
-#     assert ps.shape[:-1] == ph.shape[:-1], f"ps.shape = {ps.shape}, ph.shape = {ph.shape}, should be equal except last dimension"
-#     assert ph.shape[-1] == PHYSICS_LS, f"ph.shape = {ph.shape}, PHYSICS_LS = {PHYSICS_LS}"
-#     assert ps.shape[-1] == PHYSICS_LS//2, f"ps.shape = {ps.shape}, PHYSICS_LS//2 = {PHYSICS_LS//2}"
-#     psh = ps * ph[..., :PHYSICS_LS//2] # multiply only the first half of the physics vector with the points
-#     assert psh.dim() == 3 and psh.shape[2] == PHYSICS_LS//2, f"psh.dim() = {psh.dim()}, psh.shape[2] = {psh.shape[2]}, should be PHYSICS_LS = {PHYSICS_LS//2}"
-#     return psh # multiply the points with the physics vector, return (BS, NP, PHYSICS_LS//2)
-
-class FullNet(Module): # [pt, ph] -> [1] function (flux/Br/Bz/curr density)
-    def __init__(self, input_net:InputNet, pts_enc:PtsEncoder, rt_head:FHead, iy_head:FHead, lcfs_head:LCFSHead):
-        super(FullNet, self).__init__()
-        self.input_net = input_net
-        self.pts_enc = pts_enc
-        self.iy_head = iy_head
-        self.rt_head = rt_head
-        self.lcfs_head = lcfs_head
-        assert isinstance(self.input_net, InputNet), f"input_net should be an instance of InputNet, got {type(self.input_net)}"
-        assert isinstance(self.pts_enc, PtsEncoder), f"pts_enc should be an instance of PtsEncoder, got {type(self.pts_enc)}"
-        assert isinstance(self.rt_head, FHead), f"rt_head should be an instance of FHead, got {type(self.rt_head)}"
-        assert isinstance(self.iy_head, FHead), f"iy_head should be an instance of FHead, got {type(self.iy_head)}"
-    def to(self, device):
-        super(FullNet, self).to(device)
-        self.input_net.to(device)
         return self
     def forward(self, x, pts):
         assert pts.shape[-1] == 2, f"pts.shape[-1] = {pts.shape[-1]}, should be 2 (r,z)"
@@ -319,160 +223,51 @@ class FullNet(Module): # [pt, ph] -> [1] function (flux/Br/Bz/curr density)
         assert x.dim() == 2, f"x.dim() = {x.dim()}, should be 2 (batch, NIN)"
         assert x.shape[-1] == NIN, f"x.shape[1] = {x.shape[1]}, NIN = {NIN}"
         assert pts.shape[0] == x.shape[0], f"pts.shape[0] = {pts.shape[0]}, x.shape[0] = {x.shape[0]}, should be equal (batch size)"
+        npts = pts.shape[1] # number of points
+        x = (x - self.x_mean_std[0]) / self.x_mean_std[1] # normalize
         # calculate physics vector ph and repeat it for each point in pts
-        ph = self.input_net(x) # get physics vector 
-        lcfs = self.lcfs_head(ph) # get LCFS (before expanding ph)
-        ph = ph.unsqueeze(1).expand(-1, pts.shape[1], -1) # (BS, NP, PHYSICS_LS)
+        ph = self.phys_enc(x) # get physics vector 
+        ph = ph.unsqueeze(1).expand(-1, npts, -1) # (BS, NP, PHYSICS_LS)
         # calculate a positional encoding for the points pts
         ps = self.pts_enc(pts) # encode points       
-        psh = aggregate_pts_ph(ps, ph) # aggregate points and physics vector
-        iy = self.iy_head(psh) # get current density
+        psh = ps * ph # aggregate points and physics vector
+        iy = self.iy_head(psh).view(-1, npts) # get current density
         rt = self.rt_head(psh) # get flux, Br, Bz (rt quantities)
-        assert iy.dim() == 2 and iy.shape[1] == pts.shape[1], f"iy.dim() = {iy.dim()}, iy.shape[1] = {iy.shape[1]}, should be pts.shape[1] = {pts.shape[1]}"
-        assert rt.dim() == 3 and rt.shape[1] == pts.shape[1] and rt.shape[2] == 3, f"rt.dim() = {rt.dim()}, rt.shape = {rt.shape}, should be (BS, NP, 4)"
-        assert lcfs.dim() == 2 and lcfs.shape[1] == NLCFS*2, f"lcfs.dim() = {lcfs.dim()}, lcfs.shape[1] = {lcfs.shape[1]}, should be 2*NLCFS = {NLCFS*2}"
-        return rt, iy, lcfs # return rt (flux, Br, Bz), current density iy, and LCFS
+        return rt, iy # return rt (flux, Br, Bz), current density iy
 
-class LiuqeRTNet(Module): # Liuqe Real Time surrogate net
-    def __init__(self, input_net:InputNet, pts_enc:PtsEncoder, rt_head:FHead):
-        super(LiuqeRTNet, self).__init__()
-        self.input_net = input_net
-        self.pts_enc = pts_enc
-        self.rt_head = rt_head
-        assert isinstance(self.input_net, InputNet), f"input_net should be an instance of InputNet, got {type(self.input_net)}"
-        assert isinstance(self.pts_enc, PtsEncoder), f"pts_enc should be an instance of PtsEncoder, got {type(self.pts_enc)}"
-        assert isinstance(self.rt_head, FHead), f"rt_head should be an instance of FHead, got {type(self.rt_head)}"
-    def to(self, device):
-        super(LiuqeRTNet, self).to(device)
-        self.input_net.to(device)
-        return self
-    def forward(self, x, r, z):
-        assert x.dim() == 1, f"x.dim() = {x.dim()}, should be 1(NIN,)"
-        assert x.shape == (NIN,), f"x.shape = {x.shape}, should be (NIN,)"
-        assert r.dim() == 1 and z.dim() == 1, f"r.dim() = {r.dim()}, z.dim() = {z.dim()}, should be 1"
-        assert r.shape == z.shape, f"r.shape = {r.shape}, z.shape = {z.shape}, should be equal"
-        n = r.shape[0] # number of points
-        pts = torch.stack([r, z], dim=1).view(1,n,2) # create points tensor (n, 2)
-        ph = self.input_net(x.view(1, -1)) # get physics vector
-        ph = ph.unsqueeze(1).expand(-1, n, -1)
-        ps = self.pts_enc(pts) # encode points
-        psh = aggregate_pts_ph(ps, ph) # aggregate points and physics vector
-        rt = self.rt_head(psh)
-        return rt.view(n, 3) # return flux, Br, Bz as (n, 3) tensor
-
-class LCFSNet(Module):
-    def __init__(self, input_net:InputNet, lcfs_head:LCFSHead):
-        super(LCFSNet, self).__init__()
-        self.input_net = input_net
-        self.lcfs_head = lcfs_head
-        assert isinstance(self.input_net, InputNet), f"input_net should be an instance of InputNet, got {type(self.input_net)}"
-        assert isinstance(self.lcfs_head, LCFSHead), f"lcfs_head should be an instance of LCFSHead, got {type(self.lcfs_head)}"
-    def to(self, device):
-        super(LCFSNet, self).to(device)
-        self.input_net.to(device)
-        return self
-    def forward(self, x):
-        ph = self.input_net(x) # get physics vector
-        assert ph.dim() == 2 and ph.shape[1] == PHYSICS_LS, f"ph.dim() = {ph.dim()}, ph.shape[1] = {ph.shape[1]}, PHYSICS_LS = {PHYSICS_LS}"
-        lcfs = self.lcfs_head(ph) # get LCFS
-        assert lcfs.dim() == 2 and lcfs.shape[1] == NLCFS*2, f"lcfs.dim() = {lcfs.dim()}, lcfs.shape[1] = {lcfs.shape[1]}, should be 2*NLCFS = {NLCFS*2}"
-        return lcfs
-    
 def test_network_io(verbose=True):
     v = verbose
     if v: print('test_network_io')
     n_points = 5 # number of points to sample
     # single sample
     x, pts = (torch.rand(1, NIN), torch.rand(1, n_points, 2)) # x: (1, NIN), pts: (1, n_points, 2)
-    fn = FullNet(InputNet(),PtsEncoder(),FHead(no=3),FHead(no=1),LCFSHead())
-    rt_net = LiuqeRTNet(fn.input_net,fn.pts_enc,fn.rt_head)
-    rt, iy, lcfs = fn(x, pts)
+    lml = liuqeML()
+    rt, iy = lml(x, pts)
     r, z = pts[0,:,0], pts[0,:,1] # r, z: (n_points,)
-    rt2 = rt_net(x.view(-1), r, z) # fx2, br2, bz2: (1, n_points, 3)
     assert rt.shape == (1, n_points, 3), f"rt.shape = {rt.shape}, should be (1, {n_points}, 3)"
-    assert rt2.shape == (n_points, 3), f"rt2.shape = {rt2.shape}, should be ({n_points}, 3)"
+    assert iy.shape == (1, n_points), f"iy.shape = {iy.shape}, should be (1, {n_points})"
     assert pts.shape == (1, n_points, 2), f"pts.shape = {pts.shape}, should be (1, {n_points}, 2)"
-    assert lcfs.shape == (1, NLCFS*2), f"lcfs.shape = {lcfs.shape}, should be (1, {NLCFS*2})"
-    assert torch.allclose(rt, rt2), f"rt and rt2 should be close, but got {torch.max(torch.abs(rt-rt2))}"
-    if v: print(f"single FullNet -> in: [{x.shape}, {pts.shape}], \n            out: [{rt.shape}, {iy.shape}, {lcfs.shape}]")
-    if v: print(f"single LiuqeRTNet  -> in: [{x.shape}, {pts.shape}], \n            out: [{rt2.shape}]") 
+    if v: print(f"single liuqeML -> in: [{x.shape}, {pts.shape}], \n            out: [{rt.shape}, {iy.shape}]")
     # batched
     bs = 7
     x, pts = torch.rand(bs, NIN), torch.rand(bs, n_points, 2) # x: (bs, NIN), pts: (bs, n_points, 2)
-    rt, iy, lcfs = fn(x, pts)
+    rt, iy = lml(x, pts)
+    assert iy.shape == (bs, n_points), f"iy.shape = {iy.shape}, should be ({bs}, {n_points})"
     assert rt.shape == (bs, n_points, 3), f"rt.shape = {rt.shape}, should be ({bs}, {n_points}, 3)"
-    assert lcfs.shape == (bs, NLCFS*2), f"lcfs.shape = {lcfs.shape}, should be ({bs}, {NLCFS*2})"
-    if v: print(f"batched FullNet -> in: [{x.shape}, {pts.shape}], \n            out: [{rt.shape}, {iy.shape}, {lcfs.shape}]")
+    if v: print(f"batched liuqeML -> in: [{x.shape}, {pts.shape}], \n            out: [{rt.shape}, {iy.shape}]")
+    # if v: print(f"No batched versions of LiuqeRTNet and LiuqeIyNet (meant for single sample inference only)")
 
-def convert_to_onnx_dyn(net:LiuqeRTNet, save_dir=[SAVE_DIR]):
-    net.to(CPU)  
-    net.eval()  # Set the network to evaluation mode
-    dummy_phys = torch.randn(NIN, device=CPU)
-    n = 24 # number of inference points
-    dummy_r = torch.randn(n, device=CPU)  # Dummy points for inference
-    dummy_z = torch.randn(n, device=CPU)  # Dummy points for inference
-    for d in save_dir:
-        onnx_net_path1 = f'{d}/net_dyn.onnx'
-        onnx_net_path2 = f'{d}/net_dyn_ops17.onnx'
-        # Export to ONNX
-        torch.onnx.export(
-            net,
-            args=(dummy_phys, dummy_r, dummy_z),  # Dummy inputs for the network
-            f=onnx_net_path1,
-            input_names=[PHYS, 'r', 'z'],  # Input names
-            output_names=[RT],
-            dynamic_axes={"r": {0: "n"}, "z": {0: "n"}, RT: {0: "n"}},
-            opset_version=15,  # 15 for onnx 1.11, onnx 1.11 bc GNU 5.3.1
-        )
-        torch.onnx.export(
-            net,
-            args=(dummy_phys, dummy_r, dummy_z),  # Dummy inputs for the network
-            f=onnx_net_path2,
-            input_names=[PHYS, 'r', 'z'],  # Input names
-            output_names=[RT],
-            dynamic_axes={"r": {0: "n"}, "z": {0: "n"}, RT: {0: "n"}},
-            opset_version=17, 
-        )
-        assert os.path.exists(onnx_net_path1), f"ONNX model not saved to {onnx_net_path1}"
-        assert os.path.exists(onnx_net_path2), f"ONNX model not saved to {onnx_net_path2}"
-        print(f'ONNX models saved to {onnx_net_path1} and {onnx_net_path2}')
-    return
-
-def convert_to_onnx_static(net:LiuqeRTNet, npts=N_CTRL_PTS, save_dir=[SAVE_DIR]):
-    net.to(CPU)  
-    net.eval()  # Set the network to evaluation mode
-    dummy_phys = torch.randn(NIN, device=CPU)
-    dummy_r = torch.randn(npts, device=CPU)  # Dummy points for inference
-    dummy_z = torch.randn(npts, device=CPU)  # Dummy points for inference
-    for d in save_dir:
-        onnx_net_path = f'{d}/net_static.onnx'
-        # Export to ONNX
-        onnx_model = torch.onnx.export(
-            net, 
-            (dummy_phys, dummy_r, dummy_z), 
-            dynamo=True,
-            input_names=[PHYS, 'r', 'z'],  # Input names
-            output_names=[RT],
-            opset_version=15,  # 15 for onnx 1.11, onnx 1.11 bc GNU 5.3.1
-        )
-        # onnx_model.optimize()
-        onnx_model.save(onnx_net_path)
-        assert os.path.exists(onnx_net_path), f"ONNX model not saved to {onnx_net_path}"
-        print(f'ONNX model saved to {onnx_net_path}')
-    return
-
-def save_weights_to_mat(net:LiuqeRTNet, save_dir=[SAVE_DIR]):
+def save_weights_to_mat(net, title="", save_dir=[SAVE_DIR]):
     weights = {}
-    weights['x_mean_std'] = net.input_net.x_mean_std.cpu().numpy()  # save normalization parameters
-    for net in [net.input_net, net.pts_enc, net.rt_head]:
-        for name, param in net.named_parameters():
-            w = param.data.cpu().numpy()
-            n = name.replace('.', '_')
-            # print(f"Parameter: {n}: {w.shape}, {w.dtype}")
-            weights[n] = w
+    weights['x_mean_std'] = net.x_mean_std.cpu().numpy()  # save normalization parameters
+    for name, param in net.named_parameters():
+        w = param.data.cpu().numpy()
+        n = name.replace('.', '_')
+        weights[n] = w
+    print(f'Weights {title}: {weights.keys()}')
     for sd in save_dir:
-        savemat(f'{sd}/weights.mat', weights)
-        print(f"Weights saved to {sd}/weights.mat")
+        savemat(f'{sd}/weights_{title}.mat', weights)
+        print(f"Weights saved to {sd}/weights_{title}.mat")
 
 # function to load the dataset
 def load_ds(ds_path):
@@ -525,7 +320,6 @@ def test_dataset(ds:LiuqeDataset, verbose=True):
         μ, σ = ds.x_mean_std.cpu().numpy()
         x = (x-μ) / σ  # normalize inputs
         r,z = pts[:,0], pts[:,1]
-        # rq, zq = filter_zeros(sep[:NLCFS], sep[NLCFS:]) # filter zeros from LCFS
         ms = 1
         plt.subplot(n_plot, 5, i*5+1)
         plt.scatter(r, z, c=fx, s=ms), plt.title('FX')
@@ -549,7 +343,6 @@ def test_dataset(ds:LiuqeDataset, verbose=True):
     plt.savefig(f"{TEST_DIR}/dataset_examples.png")
 
     return
-
 
 ####################################################################################################
 def sample_random_points(n):
@@ -713,7 +506,7 @@ def test_plot_vessel():
     plt.savefig(f"{TEST_DIR}/vessel.png")
     # plt.close()s
 
-def plot_network_outputs(ds:LiuqeDataset, model:FullNet, title="test", save_dir=SAVE_DIR, nplt=2 if LOCAL else 50, show_lcfs=False):
+def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=SAVE_DIR, nplt=2 if LOCAL else 50):
     assert ds.fg is not None, "Dataset does not have full grid data (fg)"
     main_col = 'w' if DARK_THEME else 'k'
     model.eval()
@@ -728,7 +521,7 @@ def plot_network_outputs(ds:LiuqeDataset, model:FullNet, title="test", save_dir=
         if on_grid: 
             p = torch.stack([torch.tensor(RRD.reshape(-1), dtype=torch.float32), torch.tensor(ZZD.reshape(-1), dtype=torch.float32)], dim=1)  # shape (n, 2)
             fx, iy, br, bz = [to_tensor(v.reshape(-1)) for v in ds.fg[i]] # reshape to (n,)
-        rtp, iyp, _ = model(x.unsqueeze(0), p.unsqueeze(0))
+        rtp, iyp = model(x.unsqueeze(0), p.unsqueeze(0))
         fxp, brp, bzp = rtp[:,:,0], rtp[:,:,1], rtp[:,:,2]
         fxp, iyp, brp, bzp = map(lambda t: t.squeeze(0), [fxp, iyp, brp, bzp]) # remove batch dimension
         p, fx, iy, br, bz, fxp, iyp, brp, bzp = map(lambda t: t.detach().cpu().numpy(), [p, fx, iy, br, bz, fxp, iyp, brp, bzp]) # move to CPU and numpy
@@ -758,17 +551,14 @@ def plot_network_outputs(ds:LiuqeDataset, model:FullNet, title="test", save_dir=
         for j, ((v, vp), l, n) in enumerate(zip(vals, limits, names)):
             plt.subplot(nraws, ncols, j*(ncols//2)+1), plt.title(f"{n} Actual")
             plt.scatter(p[iv,0], p[iv,1], c=v[iv], s=ms, vmin=l[0], vmax=l[1])
-            # if show_lcfs: plt.plot(sep[:NLCFS], sep[NLCFS:], f'--{main_col}', lw=1, alpha=α_sep) # plot LCFS
             prep_plot(plt.gca()), plt.colorbar()
             plt.subplot(nraws, ncols, j*(ncols//2) + 2), plt.title(f"{n} Predicted")
             plt.scatter(p[iv,0], p[iv,1], c=vp[iv], s=ms, vmin=l[0], vmax=l[1])
-            # if show_lcfs: plt.plot(sepp[:NLCFS], sepp[NLCFS:], f'--{main_col}', lw=1, alpha=α_sep)
             prep_plot(plt.gca()), plt.colorbar()
             plt.subplot(nraws, ncols, j*(ncols//2) + ncols//2), plt.title(f"{n} Error %")
             ep = 100*np.abs(v[iv]-vp[iv])/(l[1]-l[0]) # error in %
             # plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep)) # variable bar
             plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep) if n == IY else 1.0) # fixed bar
-            # if show_lcfs: plt.plot(sep[:NLCFS], sep[NLCFS:], f'--{main_col}', lw=1, alpha=α_sep)
             prep_plot(plt.gca()), plt.colorbar()
             if on_grid: # plot contours if on grid
                 plt.subplot(nraws, ncols, j*(ncols//2) + 3), plt.title(f"{n} Contours")
@@ -790,70 +580,10 @@ def plot_network_outputs(ds:LiuqeDataset, model:FullNet, title="test", save_dir=
                                (0.0+dx,         0.0+dy, (1-3*dx)/2+xoff, (1-3*dy)/2+yoff),
                                (0.5+dx/2+xoff,  0.0+dy, (1-3*dx)/2-xoff, (1-3*dy)/2+yoff)]:
             fig.patches.append(Rectangle( (x0, y0), lx, ly, transform=fig.transFigure, color='black' if DARK_THEME else 'white', alpha=1, zorder=-1))
-        plt.suptitle(f"[{JOBID}] FullNet: {title} {i}", y=0.985, color='black' if DARK_THEME else 'white')
+        plt.suptitle(f"[{JOBID}] liuqeML: {title} {i}", y=0.985, color='black' if DARK_THEME else 'white')
         plt.tight_layout()
         plt.savefig(f"{save_dir}/imgs/net_example_{'g_' if on_grid else ''}{title}_{i}.png")
         if LOCAL: plt.show()  
-        plt.close()
-    return
-    
-def plot_lcfs_net_out(ds:LiuqeDataset, model:LiuqeRTNet, title='test', save_dir=SAVE_DIR, nplt=5 if LOCAL else 50):
-    main_col = 'w' if DARK_THEME else 'k'
-    model.eval()
-    model.to(CPU)
-    os.makedirs(f"{save_dir}/imgs", exist_ok=True)
-    lw3 = 1.5
-    for i in np.random.randint(0, len(ds), nplt):  
-        plt.figure(figsize=(20, 8))
-        x, y3 = ds[i][0].to(CPU), ds[i][6].to(CPU)  # x: (NIN,), pts: (n_points, 2), y3: (2*NLCFS,)
-        x = x.reshape(1, -1)
-        yp3 = model(x)
-        yp3 = yp3.detach().numpy().reshape(2 * NLCFS)
-        y3 = y3.detach().numpy().reshape(2 * NLCFS)
-        # convert to 2d points
-        y3 = np.array([y3[:NLCFS], y3[NLCFS:]]).T
-        yp3 = np.array([yp3[:NLCFS], yp3[NLCFS:]]).T
-        err = np.linalg.norm(y3 - yp3, axis=-1)
-        norm_err = err / np.max(err)
-        # err_colors = np.array([plt.cm.viridis(norm_err[j]) for j in range(NLCFS)]) #viridis
-        err_colors = np.array([plt.cm.plasma(norm_err[j]) for j in range(NLCFS)]) # plasma
-
-        plt.subplot(1, 3, 1)
-        plt.plot(y3[:,0], y3[:,1], lw=lw3, label='actual')
-        plt.plot(yp3[:,0], yp3[:,1], lw=lw3, label='predicted')
-        plot_vessel()
-        plt.title("LCFS")
-        plt.axis('equal')
-        plt.xlabel("R [m]")
-        plt.ylabel("Z [m]")
-        plt.legend(loc='upper right')
-
-        plt.subplot(1, 3, 2)
-        α = 0.8
-        plt.plot(y3[:,0], y3[:,1], lw=1, color=main_col, alpha=α)
-        plt.plot(yp3[:,0], yp3[:,1], lw=1, color=main_col, alpha=α)
-        # sc = plt.scatter(yp3[:,0], yp3[:,1], c=err, s=20, cmap='viridis')
-        sc = plt.scatter(yp3[:,0], yp3[:,1], c=err, s=20, cmap='plasma')
-        plt.colorbar(sc)
-        plt.title("LCFS Absolute Error [m]")
-        plt.axis('equal')
-        plt.xlabel("R [m]")
-        plt.ylabel("Z [m]")
-
-        plt.subplot(1, 3, 3)
-        plt.plot(y3[:,0], y3[:,1], lw=1, color=main_col, alpha=α)
-        plt.plot(yp3[:,0], yp3[:,1], lw=1, color=main_col, alpha=α)
-        for j in range(NLCFS):
-            plt.plot([y3[j,0], yp3[j,0]], [y3[j,1], yp3[j,1]], color=err_colors[j], lw=2)
-        plt.title("LCFS Absolute Error [m]")
-        plt.axis('equal')
-        plt.xlabel("R [m]")
-        plt.ylabel("Z [m]")
-
-        plt.suptitle(f"[{JOBID}] LCFSNet: {title} {i}")
-        plt.tight_layout()
-        plt.savefig(f"{save_dir}/imgs/lcfs_example_{title}_{i}.png")
-        if LOCAL: plt.show()
         plt.close()
     return
 
