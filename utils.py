@@ -177,13 +177,17 @@ class ActF(Module): # swish
 #     def __init__(self, no=1): super(ActF, self).__init__()
 #     def forward(self, x): return x*torch.sigmoid(x)
 
-# PHYSICS_LS, PTSH, INPUTH, HEADH = 64, 64, 128, 128 # medium (old baseline)
-PHYSICS_LS, PTSH, INPUTH, HEADH = 32, 32, 48, 48 # small (new baseline) <- 
-# PHYSICS_LS, PTSH, INPUTH, HEADH = 16, 16, 32, 32 # turbosmall 
-# PHYSICS_LS, PTSH, INPUTH, HEADH = 3, 16, 32, 32 # for shot mapping
-print(f"Using PHYSICS_LS = {PHYSICS_LS}, PTSH = {PTSH}, INPUTH = {INPUTH}, HEADH = {HEADH}")
 
-USE_BIAS = False # whether to use bias in the linear layers
+# PHYSICS_LS, PTSH, PHYSH, HEADH = 64, 64, 128, 128 # medium (old baseline)
+# PHYSICS_LS, PTSH, PHYSH, HEADH = 48, 48, 64, 64 
+# PHYSICS_LS, PTSH, PHYSH, HEADH = 48, 48, 48, 48 
+PHYSICS_LS, PTSH, PHYSH, HEADH = 32, 32, 48, 48 # small (new baseline) <- 
+# PHYSICS_LS, PTSH, PHYSH, HEADH = 32, 32, 32, 32 
+# PHYSICS_LS, PTSH, PHYSH, HEADH = 16, 16, 32, 32 # turbosmall 
+# PHYSICS_LS, PTSH, PHYSH, HEADH = 3, 16, 32, 32 # for shot mapping
+print(f"Using PHYSICS_LS = {PHYSICS_LS}, PTSH = {PTSH}, PHYSH = {PHYSH}, HEADH = {HEADH}")
+
+USE_BIAS = True # whether to use bias in the linear layers
 print(f"BIAS = {USE_BIAS}")
 
 class liuqeML(Module):
@@ -191,12 +195,14 @@ class liuqeML(Module):
         super(liuqeML, self).__init__()
         self.pts_enc = Sequential(
             Linear(2, PTSH, bias=USE_BIAS), ActF(PTSH),
+            # Linear(PTSH, PTSH, bias=USE_BIAS), ActF(PTSH),
             Linear(PTSH, PHYSICS_LS, bias=USE_BIAS), ActF(PHYSICS_LS),
         )
         self.x_mean_std = x_mean_std
         self.phys_enc = Sequential(
-            Linear(NIN, INPUTH, bias=USE_BIAS), ActF(INPUTH),
-            Linear(INPUTH, PHYSICS_LS, bias=USE_BIAS), ActF(PHYSICS_LS),
+            Linear(NIN, PHYSH, bias=USE_BIAS), ActF(PHYSH),
+            # Linear(PHYSH, PHYSH, bias=USE_BIAS), ActF(PHYSH),
+            Linear(PHYSH, PHYSICS_LS, bias=USE_BIAS), ActF(PHYSICS_LS),
         )
         self.fx_head = Sequential(
             Linear(PHYSICS_LS, HEADH, bias=USE_BIAS), ActF(HEADH),
@@ -205,10 +211,12 @@ class liuqeML(Module):
         )
         self.brz_head = Sequential(
             Linear(PHYSICS_LS, HEADH, bias=USE_BIAS), ActF(HEADH),
+            # Linear(HEADH, HEADH, bias=USE_BIAS), ActF(HEADH),
             Linear(HEADH, 2, bias=USE_BIAS), ActF(2),
         )
         self.iy_head = Sequential(
             Linear(PHYSICS_LS, HEADH, bias=USE_BIAS), ActF(HEADH),
+            # Linear(HEADH, HEADH, bias=USE_BIAS), ActF(HEADH),
             Linear(HEADH, 1, bias=USE_BIAS), ActF(1),
         )
     def to(self, device):
@@ -241,19 +249,21 @@ def test_network_io(verbose=True):
     # single sample
     x, pts = (torch.rand(1, NIN), torch.rand(1, n_points, 2)) # x: (1, NIN), pts: (1, n_points, 2)
     lml = liuqeML()
-    rt, iy = lml(x, pts)
+    fx, brz, iy = lml(x, pts)
     r, z = pts[0,:,0], pts[0,:,1] # r, z: (n_points,)
-    assert rt.shape == (1, n_points, 3), f"rt.shape = {rt.shape}, should be (1, {n_points}, 3)"
+    assert fx.shape == (1, n_points), f"fx.shape = {fx.shape}, should be (1, {n_points})"
+    assert brz.shape == (1, n_points, 2), f"brz.shape = {brz.shape}, should be (1, {n_points}, 2)"
     assert iy.shape == (1, n_points), f"iy.shape = {iy.shape}, should be (1, {n_points})"
     assert pts.shape == (1, n_points, 2), f"pts.shape = {pts.shape}, should be (1, {n_points}, 2)"
-    if v: print(f"single liuqeML -> in: [{x.shape}, {pts.shape}], \n            out: [{rt.shape}, {iy.shape}]")
+    if v: print(f"single liuqeML -> in: [{x.shape}, {pts.shape}], \n            out: [{fx.shape}, {brz.shape}, {iy.shape}]")
     # batched
     bs = 7
     x, pts = torch.rand(bs, NIN), torch.rand(bs, n_points, 2) # x: (bs, NIN), pts: (bs, n_points, 2)
-    rt, iy = lml(x, pts)
+    fx, brz, iy = lml(x, pts)
     assert iy.shape == (bs, n_points), f"iy.shape = {iy.shape}, should be ({bs}, {n_points})"
-    assert rt.shape == (bs, n_points, 3), f"rt.shape = {rt.shape}, should be ({bs}, {n_points}, 3)"
-    if v: print(f"batched liuqeML -> in: [{x.shape}, {pts.shape}], \n            out: [{rt.shape}, {iy.shape}]")
+    assert fx.shape == (bs, n_points), f"fx.shape = {fx.shape}, should be ({bs}, {n_points})"
+    assert brz.shape == (bs, n_points, 2), f"brz.shape = {brz.shape}, should be ({bs}, {n_points}, 2)"
+    if v: print(f"batched liuqeML -> in: [{x.shape}, {pts.shape}], \n            out: [{fx.shape}, {brz.shape}, {iy.shape}]")
     # if v: print(f"No batched versions of LiuqeRTNet and LiuqeIyNet (meant for single sample inference only)")
 
 def save_weights_to_mat(net, title="", save_dir=[SAVE_DIR]):
@@ -522,9 +532,7 @@ def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=
             p = torch.stack([torch.tensor(RRD.reshape(-1), dtype=torch.float32), torch.tensor(ZZD.reshape(-1), dtype=torch.float32)], dim=1)  # shape (n, 2)
             fx, iy, br, bz = [to_tensor(v.reshape(-1)) for v in ds.fg[i]] # reshape to (n,)
         if pinn: r = p.clone()[:,0]; p.requires_grad = True # need r for PINN
-        print(f'x: {x.shape}, p: {p.shape}, fx: {fx.shape}, iy: {iy.shape}, br: {br.shape}, bz: {bz.shape}')
         fxp, brzp, iyp = model(x.unsqueeze(0), p.unsqueeze(0))
-        print(f'fxp: {fxp.shape}, brzp: {brzp.shape}, iyp: {iyp.shape}')
         if pinn:
             dFx_drz = torch.autograd.grad(outputs=fxp.sum(), inputs=p)[0].unsqueeze(0) # compute gradients wrt p
             dF_dr, dF_dz = dFx_drz[:,:,0], dFx_drz[:,:,1]  # shape (1, n)
