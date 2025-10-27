@@ -166,18 +166,16 @@ if not LOCAL: # Redefine the print function to always flush
 def to_tensor(x, device=torch.device(CPU)): return torch.tensor(x, dtype=torch.float32, device=device)
 
 # custom trainable swish activation function
-# class ActF(Module): # swish
-#     def __init__(self): 
-#         super(ActF, self).__init__()
-#         self.beta = torch.nn.Parameter(torch.tensor(1.0), requires_grad=True)
-#     def forward(self, x): return x*torch.sigmoid(self.beta*x)
-
 class ActF(Module): # swish
     def __init__(self, no=1): 
         super(ActF, self).__init__()
         if no == 1: self.beta = torch.nn.Parameter(torch.tensor(1.0), requires_grad=True)
         else: self.beta = torch.nn.Parameter(torch.ones(no), requires_grad=True) # n is the number of outputs
     def forward(self, x): return x*torch.sigmoid(self.beta*x)
+
+# class ActF(Module): # swish beta = 1
+#     def __init__(self, no=1): super(ActF, self).__init__()
+#     def forward(self, x): return x*torch.sigmoid(x)
 
 def percentage_loss(a, b): # percentage loss (a = true, b = predicted)
     assert a.shape == b.shape, f"a.shape = {a.shape}, b.shape = {b.shape}, should be equal"
@@ -193,25 +191,33 @@ PHYSICS_LS, PTSH, INPUTH, HEADH = 32, 32, 48, 48 # small (new baseline) <-
 # PHYSICS_LS, PTSH, INPUTH, HEADH = 3, 16, 32, 32 # for shot mapping
 print(f"Using PHYSICS_LS = {PHYSICS_LS}, PTSH = {PTSH}, INPUTH = {INPUTH}, HEADH = {HEADH}")
 
+USE_BIAS = False # whether to use bias in the linear layers
+print(f"BIAS = {USE_BIAS}")
+
 class liuqeML(Module):
     def __init__(self, x_mean_std=torch.tensor([[0.0]*NIN, [1.0]*NIN], dtype=torch.float32)):
         super(liuqeML, self).__init__()
         self.pts_enc = Sequential(
-            Linear(2, PTSH), ActF(PTSH),
-            Linear(PTSH, PHYSICS_LS), ActF(PHYSICS_LS),
+            Linear(2, PTSH, bias=USE_BIAS), ActF(PTSH),
+            Linear(PTSH, PHYSICS_LS, bias=USE_BIAS), ActF(PHYSICS_LS),
         )
         self.x_mean_std = x_mean_std
         self.phys_enc = Sequential(
-            Linear(NIN, INPUTH), ActF(INPUTH),
-            Linear(INPUTH, PHYSICS_LS), ActF(PHYSICS_LS),
+            Linear(NIN, INPUTH, bias=USE_BIAS), ActF(INPUTH),
+            Linear(INPUTH, PHYSICS_LS, bias=USE_BIAS), ActF(PHYSICS_LS),
         )
-        self.rt_head = Sequential(
-            Linear(PHYSICS_LS, HEADH), ActF(HEADH),
-            Linear(HEADH, 3), ActF(3),
+        self.fx_head = Sequential(
+            Linear(PHYSICS_LS, HEADH, bias=USE_BIAS), ActF(HEADH),
+            # Linear(HEADH, HEADH, bias=USE_BIAS), ActF(HEADH),
+            Linear(HEADH, 1, bias=USE_BIAS), ActF(1),
+        )
+        self.brz_head = Sequential(
+            Linear(PHYSICS_LS, HEADH, bias=USE_BIAS), ActF(HEADH),
+            Linear(HEADH, 2, bias=USE_BIAS), ActF(2),
         )
         self.iy_head = Sequential(
-            Linear(PHYSICS_LS, HEADH), ActF(HEADH),
-            Linear(HEADH, 1), ActF(1),
+            Linear(PHYSICS_LS, HEADH, bias=USE_BIAS), ActF(HEADH),
+            Linear(HEADH, 1, bias=USE_BIAS), ActF(1),
         )
     def to(self, device):
         super(liuqeML, self).to(device)
@@ -231,9 +237,10 @@ class liuqeML(Module):
         # calculate a positional encoding for the points pts
         ps = self.pts_enc(pts) # encode points       
         psh = ps * ph # aggregate points and physics vector
+        fx = self.fx_head(psh).view(-1, npts) # get flux
+        brz = self.brz_head(psh).view(-1, npts, 2) # get Br, Bz
         iy = self.iy_head(psh).view(-1, npts) # get current density
-        rt = self.rt_head(psh) # get flux, Br, Bz (rt quantities)
-        return rt, iy # return rt (flux, Br, Bz), current density iy
+        return fx, brz, iy
 
 def test_network_io(verbose=True):
     v = verbose
@@ -521,8 +528,8 @@ def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=
         if on_grid: 
             p = torch.stack([torch.tensor(RRD.reshape(-1), dtype=torch.float32), torch.tensor(ZZD.reshape(-1), dtype=torch.float32)], dim=1)  # shape (n, 2)
             fx, iy, br, bz = [to_tensor(v.reshape(-1)) for v in ds.fg[i]] # reshape to (n,)
-        rtp, iyp = model(x.unsqueeze(0), p.unsqueeze(0))
-        fxp, brp, bzp = rtp[:,:,0], rtp[:,:,1], rtp[:,:,2]
+        fxp, brzp, iyp = model(x.unsqueeze(0), p.unsqueeze(0))
+        brp, bzp = brzp[:,:,0], brzp[:,:,1]  # split Br, Bz
         fxp, iyp, brp, bzp = map(lambda t: t.squeeze(0), [fxp, iyp, brp, bzp]) # remove batch dimension
         p, fx, iy, br, bz, fxp, iyp, brp, bzp = map(lambda t: t.detach().cpu().numpy(), [p, fx, iy, br, bz, fxp, iyp, brp, bzp]) # move to CPU and numpy
         iy = np.abs(iy)  # ensure current density is positive
@@ -558,7 +565,8 @@ def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=
             plt.subplot(nraws, ncols, j*(ncols//2) + ncols//2), plt.title(f"{n} Error %")
             ep = 100*np.abs(v[iv]-vp[iv])/(l[1]-l[0]) # error in %
             # plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep)) # variable bar
-            plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep) if n == IY else 1.0) # fixed bar
+            # plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep) if n == IY else 1.0) # fixed bar
+            plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep)) # variable bar
             prep_plot(plt.gca()), plt.colorbar()
             if on_grid: # plot contours if on grid
                 plt.subplot(nraws, ncols, j*(ncols//2) + 3), plt.title(f"{n} Contours")
