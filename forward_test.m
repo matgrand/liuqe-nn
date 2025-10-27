@@ -30,8 +30,7 @@ try
 
 
     % choose the function
-    % net_forward = @(phys, r, z) net_forward_mex(single(phys), single(r), single(z));
-    % net_forward = @(phys, r, z) net_forward2(single(phys), single(r), single(z));
+%     net_forward = @(phys, r, z) net_forward2(single(phys), single(r), single(z));
     net_forward = @(phys, r, z) net_forward2_mex(single(phys), single(r), single(z));
 
 
@@ -136,7 +135,7 @@ try
     fprintf('Frequency -> %.1f [μs] | %.1f [Hz]\n', 1e6*ttot/N, N/ttot);
     % assert(false, 'This is a test, please remove this line to continue.');
 
-    n_plots = 3;
+    n_plots = 0;
     rand_idxs =  randi([1, size(d.phys, 1)], 1, n_plots);
     if PLOT
         fprintf('Plotting %d random examples', n_plots);

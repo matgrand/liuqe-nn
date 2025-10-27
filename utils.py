@@ -73,9 +73,10 @@ FG = 'fg' # full grid
 RT = 'rt' # real time output
 BRP = 'Brp' # Br from PINN  
 BZP = 'Bzp' # Bz from PINN
+BRZ = 'Brz' # combined Br, Bz 
+BRZP = 'Brzp' # combined Br, Bz from PINN
 
 INPUT_NAMES = [BM, FF, IA, IP] # input names
-# OUTPUT_NAMES = [FX, IY, BR, BZ, RQ, ZQ] # output names
 OUTPUT_NAMES = [FX, IY, BR, BZ] # output names
 DS_NAMES = INPUT_NAMES + OUTPUT_NAMES # dataset names
 DS_SIZES = { 
@@ -97,9 +98,8 @@ TRAIN_DS_PATH = f'{DS_DIR}/train_ds.npz'
 EVAL_DS_PATH = f'{DS_DIR}/eval_ds.npz'
 
 # paths to the best models
-# LOSS_NAMES = [FX, IY, BR, BZ, SEP, BRP, BZP] # loss names
-# LOSS_NAMES = [FX, IY, BR, BZ, BRP, BZP] # loss names
-LOSS_NAMES = [FX, IY, BR, BZ] # loss names
+LOSS_NAMES = [FX, IY, BRZ, BRZP] # loss names 
+# LOSS_NAMES = [FX, IY, BRZ] # loss names
 def model_path(loss_name, save_dir=SAVE_DIR):
     assert loss_name in LOSS_NAMES, f"loss_name should be one of {LOSS_NAMES}, got {loss_name}"
     return f"{save_dir}/best_{loss_name}.pth"
@@ -176,14 +176,6 @@ class ActF(Module): # swish
 # class ActF(Module): # swish beta = 1
 #     def __init__(self, no=1): super(ActF, self).__init__()
 #     def forward(self, x): return x*torch.sigmoid(x)
-
-def percentage_loss(a, b): # percentage loss (a = true, b = predicted)
-    assert a.shape == b.shape, f"a.shape = {a.shape}, b.shape = {b.shape}, should be equal"
-    assert a.dim() >= 2, f"a.dim() = {a.dim()}, should be >= 2"
-    span = torch.max(a, dim=-1).values - torch.min(a, dim=-1).values 
-    assert torch.all(span > 1e-10), f"span should be positive, but got {span.min():.3e}"
-    err = torch.abs(a - b) / span.unsqueeze(-1)  # calculate the error as a percentage of the span
-    return torch.mean(err)  # return the mean error for each batch 
 
 # PHYSICS_LS, PTSH, INPUTH, HEADH = 64, 64, 128, 128 # medium (old baseline)
 PHYSICS_LS, PTSH, INPUTH, HEADH = 32, 32, 48, 48 # small (new baseline) <- 
@@ -271,6 +263,7 @@ def save_weights_to_mat(net, title="", save_dir=[SAVE_DIR]):
         w = param.data.cpu().numpy()
         n = name.replace('.', '_')
         weights[n] = w
+        # print(f"{n}: {w.shape}")
     print(f'Weights {title}: {weights.keys()}')
     for sd in save_dir:
         savemat(f'{sd}/weights_{title}.mat', weights)
@@ -513,10 +506,10 @@ def test_plot_vessel():
     plt.savefig(f"{TEST_DIR}/vessel.png")
     # plt.close()s
 
-def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=SAVE_DIR, nplt=2 if LOCAL else 50):
+def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=SAVE_DIR, nplt=2 if LOCAL else 50, pinn=True):
     assert ds.fg is not None, "Dataset does not have full grid data (fg)"
     main_col = 'w' if DARK_THEME else 'k'
-    model.eval()
+    if not pinn: model.eval()
     model.to(CPU)
     os.makedirs(f"{save_dir}/imgs", exist_ok=True)
     for pi, i in enumerate(np.random.randint(0, len(ds), nplt)):  
@@ -528,8 +521,16 @@ def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=
         if on_grid: 
             p = torch.stack([torch.tensor(RRD.reshape(-1), dtype=torch.float32), torch.tensor(ZZD.reshape(-1), dtype=torch.float32)], dim=1)  # shape (n, 2)
             fx, iy, br, bz = [to_tensor(v.reshape(-1)) for v in ds.fg[i]] # reshape to (n,)
+        if pinn: r = p.clone()[:,0]; p.requires_grad = True # need r for PINN
+        print(f'x: {x.shape}, p: {p.shape}, fx: {fx.shape}, iy: {iy.shape}, br: {br.shape}, bz: {bz.shape}')
         fxp, brzp, iyp = model(x.unsqueeze(0), p.unsqueeze(0))
-        brp, bzp = brzp[:,:,0], brzp[:,:,1]  # split Br, Bz
+        print(f'fxp: {fxp.shape}, brzp: {brzp.shape}, iyp: {iyp.shape}')
+        if pinn:
+            dFx_drz = torch.autograd.grad(outputs=fxp.sum(), inputs=p)[0].unsqueeze(0) # compute gradients wrt p
+            dF_dr, dF_dz = dFx_drz[:,:,0], dFx_drz[:,:,1]  # shape (1, n)
+            brp = -dF_dz / (2 * torch.pi * r) # Br from derivative
+            bzp = dF_dr / (2 * torch.pi * r)  # Bz from derivative
+        else: brp, bzp = brzp[:,:,0], brzp[:,:,1]  # split Br, Bz
         fxp, iyp, brp, bzp = map(lambda t: t.squeeze(0), [fxp, iyp, brp, bzp]) # remove batch dimension
         p, fx, iy, br, bz, fxp, iyp, brp, bzp = map(lambda t: t.detach().cpu().numpy(), [p, fx, iy, br, bz, fxp, iyp, brp, bzp]) # move to CPU and numpy
         iy = np.abs(iy)  # ensure current density is positive
@@ -541,7 +542,7 @@ def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=
         lw, col, ms = 1.5, 'gray', 4
         limits = [(mfx, Mfx), (miy, Miy), (mbr, Mbr), (mbz, Mbz)] # variable limits
         vals = [(fx, fxp), (iy, iyp), (br, brp), (bz, bzp)]
-        names = ["Fx", "Iy", "Br", "Bz"]
+        names = ["Fx", "Iy", "Brp" if pinn else "Br", "Bzp" if pinn else "Bz"]
         def prep_plot(ax):
             ax.grid(False)
             ax.set_xticks([])
@@ -565,8 +566,8 @@ def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=
             plt.subplot(nraws, ncols, j*(ncols//2) + ncols//2), plt.title(f"{n} Error %")
             ep = 100*np.abs(v[iv]-vp[iv])/(l[1]-l[0]) # error in %
             # plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep)) # variable bar
-            # plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep) if n == IY else 1.0) # fixed bar
-            plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep)) # variable bar
+            plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep) if n == IY else 1.0) # fixed bar
+            # plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep)) # variable bar
             prep_plot(plt.gca()), plt.colorbar()
             if on_grid: # plot contours if on grid
                 plt.subplot(nraws, ncols, j*(ncols//2) + 3), plt.title(f"{n} Contours")
