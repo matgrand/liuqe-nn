@@ -538,6 +538,8 @@ def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=
             dF_dr, dF_dz = dFx_drz[:,:,0], dFx_drz[:,:,1]  # shape (1, n)
             brp = -dF_dz / (2 * torch.pi * r) # Br from derivative
             bzp = dF_dr / (2 * torch.pi * r)  # Bz from derivative
+            # calculate second derivatives ddFx_ddr, ddFx_ddz
+            # TODO
         else: brp, bzp = brzp[:,:,0], brzp[:,:,1]  # split Br, Bz
         fxp, iyp, brp, bzp = map(lambda t: t.squeeze(0), [fxp, iyp, brp, bzp]) # remove batch dimension
         p, fx, iy, br, bz, fxp, iyp, brp, bzp = map(lambda t: t.detach().cpu().numpy(), [p, fx, iy, br, bz, fxp, iyp, brp, bzp]) # move to CPU and numpy

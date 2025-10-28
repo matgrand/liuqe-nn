@@ -16,7 +16,7 @@ function [Fx, Br, Bz] = net_forward2(phys, r, z)
         fprintf('Loading weights from %s...', weights_path);
         net_const = coder.load(weights_path); 
         net = coder.const(net_const);
-
+        
         fields = fieldnames(net);
         for i = 1:numel(fields)
             sz = size(net.(fields{i}));
@@ -24,19 +24,26 @@ function [Fx, Br, Bz] = net_forward2(phys, r, z)
             sz_str = sz_str(1:end-1); % remove trailing 'x'
             fprintf('net.%s: [%s]\n', fields{i}, sz_str);
         end
-
+        
         fprintf('Success\n');
     end
 
-    %% pts net
+    % [Fx, Br, Bz] = direct_net_forward(phys, r, z, net); % standard version
+    [Fx, Br, Bz] = grad_net_forward(phys, r, z, net); % gradient version
+    
+end
+
+function [Fx, Br, Bz] = direct_net_forward(phys, r, z, net)
+    %#codegen
+    %% pts 
     pts = [r', z'];
     
     pts_embs = bsxfun(@plus, pts * net.pts_enc_0_weight', net.pts_enc_0_bias);
     pts_embs = act(pts_embs, net.pts_enc_1_beta);
     pts_embs = bsxfun(@plus, pts_embs * net.pts_enc_2_weight', net.pts_enc_2_bias);
     pts_embs = act(pts_embs, net.pts_enc_3_beta);
-%     pts_embs = bsxfun(@plus, pts_embs * net.pts_enc_4_weight', net.pts_enc_4_bias);
-%     pts_embs = act(pts_embs, net.pts_enc_5_beta);
+    % pts_embs = bsxfun(@plus, pts_embs * net.pts_enc_4_weight', net.pts_enc_4_bias);
+    % pts_embs = act(pts_embs, net.pts_enc_5_beta);
 
     %% phys net
     phys_norm = (phys - net.x_mean_std(1,:)) ./ net.x_mean_std(2,:);
@@ -45,8 +52,8 @@ function [Fx, Br, Bz] = net_forward2(phys, r, z)
     phys_emb = act(phys_emb, net.phys_enc_1_beta);
     phys_emb = bsxfun(@plus, phys_emb * net.phys_enc_2_weight', net.phys_enc_2_bias);
     phys_emb = act(phys_emb, net.phys_enc_3_beta);
-%     phys_emb = bsxfun(@plus, phys_emb * net.phys_enc_4_weight', net.phys_enc_4_bias);
-%     phys_emb = act(phys_emb, net.phys_enc_5_beta);
+    % phys_emb = bsxfun(@plus, phys_emb * net.phys_enc_4_weight', net.phys_enc_4_bias);
+    % phys_emb = act(phys_emb, net.phys_enc_5_beta);
 
     %% position + physics aggregation
     x = bsxfun(@times, phys_emb, pts_embs);
@@ -56,163 +63,98 @@ function [Fx, Br, Bz] = net_forward2(phys, r, z)
     f = act(f, net.fx_head_1_beta);
     f = bsxfun(@plus, f * net.fx_head_2_weight', net.fx_head_2_bias);
     f = act(f, net.fx_head_3_beta);
-%     f = bsxfun(@plus, f * net.fx_head_4_weight', net.fx_head_4_bias);
-%     f = act(f, net.fx_head_5_beta);
+    % f = bsxfun(@plus, f * net.fx_head_4_weight', net.fx_head_4_bias);
+    % f = act(f, net.fx_head_5_beta);
+
+    % %% Iy net
+    % fx1 = bsxfun(@plus, x * net.iy_head_0_weight', net.iy_head_0_bias);
+    % afx1 = act(fx1, net.iy_head_1_beta);
+    % fx2 = bsxfun(@plus, afx1 * net.iy_head_2_weight', net.iy_head_2_bias);
+    % Iy = act(fx2, net.iy_head_3_beta);
     
-%     %% Iy net
-%     out1_head = bsxfun(@plus, x * net.iy_head_0_weight', net.iy_head_0_bias);
-%     act1_head = act(out1_head, net.iy_head_1_beta);
-%     out2_head = bsxfun(@plus, act1_head * net.iy_head_2_weight', net.iy_head_2_bias);
-%     Iy = act(out2_head, net.iy_head_3_beta);
-     
     %% Br Bz net
     b = bsxfun(@plus, x * net.brz_head_0_weight', net.brz_head_0_bias);
     b = act(b, net.brz_head_1_beta);
     b = bsxfun(@plus, b * net.brz_head_2_weight', net.brz_head_2_bias);
     b = act(b, net.brz_head_3_beta);
-%     b = bsxfun(@plus, b * net.brz_head_4_weight', net.brz_head_4_bias);
-%     b = act(b, net.brz_head_5_beta);
+    % b = bsxfun(@plus, b * net.brz_head_4_weight', net.brz_head_4_bias);
+    % b = act(b, net.brz_head_5_beta);
     
-    Fx = f';
-    Br = b(:, 1)';
-    Bz = b(:, 2)';
-
-%     Br = Fx;
-%     Bz = Fx;
+    Fx = f'; % assign Fx
+    Br = b(:, 1)'; % assign Br
+    Bz = b(:, 2)'; % assign Bz
 end
 
-%% Activation function: Swish
+function [Fx, Br, Bz] = grad_net_forward(phys, r, z, net)
+
+    %% pts net
+    pts = [r', z'];
+    
+    p0 = bsxfun(@plus, pts * net.pts_enc_0_weight', net.pts_enc_0_bias);
+    [ap1, sp1] = act_with_grad_prep(p0, net.pts_enc_1_beta); % Store sp1
+    p2 = bsxfun(@plus, ap1 * net.pts_enc_2_weight', net.pts_enc_2_bias);
+    [pts_embs, sp2] = act_with_grad_prep(p2, net.pts_enc_3_beta); % Store sp2
+
+    %% phys net (we dont need grad wrt phys)
+    phys_norm = (phys - net.x_mean_std(1,:)) ./ net.x_mean_std(2,:);
+    phys_emb = bsxfun(@plus, phys_norm * net.phys_enc_0_weight', net.phys_enc_0_bias);
+    phys_emb = act(phys_emb, net.phys_enc_1_beta);
+    phys_emb = bsxfun(@plus, phys_emb * net.phys_enc_2_weight', net.phys_enc_2_bias);
+    phys_emb = act(phys_emb, net.phys_enc_3_beta);
+    % phys_emb = bsxfun(@plus, phys_emb * net.phys_enc_4_weight', net.phys_enc_4_bias);
+    % phys_emb = act(phys_emb, net.phys_enc_5_beta);
+
+    %% position + physics aggregation
+    x = bsxfun(@times, phys_emb, pts_embs);
+    
+    %% Fx net
+    fx1 = bsxfun(@plus, x * net.fx_head_0_weight', net.fx_head_0_bias);
+    [afx1, sfx1] = act_with_grad_prep(fx1, net.fx_head_1_beta); % Store sfx1
+    fx2 = bsxfun(@plus, afx1 * net.fx_head_2_weight', net.fx_head_2_bias);
+    [fx3, sfx3] = act_with_grad_prep(fx2, net.fx_head_3_beta); % Store sfx3
+
+    Fx = fx3'; % assign Fx
+
+    %% backward pass to get dFx/dr and dFx/dz
+    dfx2 = 1.0 .* d_act_fast(fx2, fx3, sfx3, net.fx_head_3_beta);
+    dafx1 = dfx2 * net.fx_head_2_weight;
+    dfx1 = dafx1 .* d_act_fast(fx1, afx1, sfx1, net.fx_head_1_beta);
+    dx = dfx1 * net.fx_head_0_weight;
+
+    d_pts_embs = bsxfun(@times, dx, phys_emb);
+
+    dp2 = d_pts_embs .* d_act_fast(p2, pts_embs, sp2, net.pts_enc_3_beta);
+    dap1 = dp2 * net.pts_enc_2_weight;
+    dp1 = dap1 .* d_act_fast(p0, ap1, sp1, net.pts_enc_1_beta);
+    d_pts = dp1 * net.pts_enc_0_weight;
+
+    dFx_dr = d_pts(:, 1)';
+    dFx_dt = d_pts(:, 2)';
+    
+    % Calculate final values from derivatives
+    Bz = dFx_dr ./ (2 * pi * r);
+    Br = -dFx_dt ./ (2 * pi * r);
+end
+
+%% activation functions
+
+% Original activation function for paths where no gradient is needed (phys_net)
 function y = act(x, beta)
     coder.inline('always');
-    % Use bsxfun for element-wise multiplication to ensure
-    % compatibility with older MATLAB versions that don't fully
-    % support implicit broadcasting in codegen.
     y = x ./ (1 + exp(bsxfun(@times, -beta, x)));
 end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% activation function: Computes activation AND prepares the sigmoid for the backward pass
+function [y, sig_bx] = act_with_grad_prep(x, beta)
+    coder.inline('always');
+    sig_bx = 1 ./ (1 + exp(bsxfun(@times, -beta, x)));
+    y = x .* sig_bx;
+end
 
-% % new version with optimized forward and backward passes
-% function [Fx, Br, Bz] = net_forward2(phys, r, z)
-%     %#codegen
-
-%     % Load the network weights at COMPILE TIME.
-%     % The 'coder.const' ensures the 'net' struct is embedded as a constant
-%     % into the final MEX file.
-%     persistent net;
-%     if isempty(net)
-%         % Ensure you are loading a file where ALL fields are single.
-%         % weights_path = 'data/local/weights.mat';
-%         % weights_path = 'data/3066835/weights.mat';
-% %         weights_path = 'data/3067354/weights.mat'; 
-%         weights_path = 'data/3075260/weights.mat';
-%         fprintf('Loading weights from %s...', weights_path);
-%         net_const = coder.load(weights_path); 
-%         net = coder.const(net_const);
-%         fprintf('Success\n');
-%     end
-
-%     %% --- OPTIMIZED FORWARD PASS ---
-%     % The forward pass now also stores intermediate sigmoid results 
-%     % ('sig1', 'sig2', etc.) needed for the backward pass.
-
-%     %% pts net
-%     pts = [r', z'];
-    
-%     out1 = bsxfun(@plus, pts * net.pts_enc_0_weight', net.pts_enc_0_bias);
-%     [act1, sig1] = act_with_grad_prep(out1, net.pts_enc_1_beta); % Store sig1
-%     out2 = bsxfun(@plus, act1 * net.pts_enc_2_weight', net.pts_enc_2_bias);
-%     [pts_embs, sig2] = act_with_grad_prep(out2, net.pts_enc_3_beta); % Store sig2
-
-%     %% phys net
-%     phys_norm = (phys - net.x_mean_std(1,:)) ./ net.x_mean_std(2,:);
-
-%     out1_phys = bsxfun(@plus, phys_norm * net.phys_enc_0_weight', net.phys_enc_0_bias);
-%     % We don't need the gradients for the phys_net, so we can use the original act function
-%     act1_phys = act(out1_phys, net.phys_enc_1_beta);
-%     out2_phys = bsxfun(@plus, act1_phys * net.phys_enc_2_weight', net.phys_enc_2_bias);
-%     phys_emb = act(out2_phys, net.phys_enc_3_beta);
-
-%     %% head net
-%     x = bsxfun(@times, phys_emb, pts_embs);
-
-%     out1_head = bsxfun(@plus, x * net.head_0_weight', net.head_0_bias);
-%     [act1_head, sig1_head] = act_with_grad_prep(out1_head, net.head_1_beta); % Store sig1_head
-%     out2_head = bsxfun(@plus, act1_head * net.head_2_weight', net.head_2_bias);
-%     [head_emb, sig2_head] = act_with_grad_prep(out2_head, net.head_3_beta); % Store sig2_head
-
-%     Fx = head_emb(:, 1)';
-%     % The original Br and Bz are still available if needed, but will be overwritten
-%     % Br = head_emb(:, 2)'; 
-%     % Bz = head_emb(:, 3)';
-    
-%     %% --- OPTIMIZED BACKWARD PASS ---
-%     % This backward pass uses the pre-calculated sigmoid values from the forward pass.
-    
-%     d_head_emb = zeros(size(head_emb), 'like', head_emb);
-%     d_head_emb(:, 1) = 1.0;
-
-%     % Backpropagate using the faster derivative function and stored sigmoids
-%     d_out2_head = d_head_emb .* d_act_fast(out2_head, head_emb, sig2_head, net.head_3_beta);
-%     d_act1_head = d_out2_head * net.head_2_weight;
-%     d_out1_head = d_act1_head .* d_act_fast(out1_head, act1_head, sig1_head, net.head_1_beta);
-%     d_x = d_out1_head * net.head_0_weight;
-
-%     d_pts_embs = bsxfun(@times, d_x, phys_emb);
-
-%     d_out2 = d_pts_embs .* d_act_fast(out2, pts_embs, sig2, net.pts_enc_3_beta);
-%     d_act1 = d_out2 * net.pts_enc_2_weight;
-%     d_out1 = d_act1 .* d_act_fast(out1, act1, sig1, net.pts_enc_1_beta);
-%     d_pts = d_out1 * net.pts_enc_0_weight;
-
-%     dFx_dr = d_pts(:, 1)';
-%     dFx_dt = d_pts(:, 2)';
-    
-%     % Calculate final values from derivatives
-%     Bz_pinn = dFx_dr ./ (2 * pi * r);
-%     Br_pinn = -dFx_dt ./ (2 * pi * r);
-
-%     Br = Br_pinn;
-%     Bz = Bz_pinn;
-
-% end
-
-% %% --- OPTIMIZED ACTIVATION FUNCTIONS ---
-
-% % Original activation function for paths where no gradient is needed (phys_net)
-% function y = act(x, beta)
-%     coder.inline('always');
-%     y = x ./ (1 + exp(bsxfun(@times, -beta, x)));
-% end
-
-% % New function: Computes activation AND prepares the sigmoid for the backward pass
-% function [y, sig_bx] = act_with_grad_prep(x, beta)
-%     coder.inline('always');
-%     sig_bx = 1 ./ (1 + exp(bsxfun(@times, -beta, x)));
-%     y = x .* sig_bx;
-% end
-
-% % New function: Computes derivative much faster using the pre-computed sigmoid
-% function dy_dx = d_act_fast(x, y, sig_bx, beta)
-%     coder.inline('always');
-%     % y is the activation result: x .* sig_bx
-%     % The full derivative is: sig_bx + beta * y * (1 - sig_bx)
-%     dy_dx = sig_bx + bsxfun(@times, beta, y) .* (1 - sig_bx);
-% end
-
-% % % %speed test results:
-% % Measuring inference time...
-% % 1 pts -> [80.5 μs (1)] [61.4 μs (1000)]
-% % 10 pts -> [84.5 μs (1)] [92.4 μs (1000)]
-% % 20 pts -> [120.2 μs (1)] [168.1 μs (1000)]
-% % 25 pts -> [141.6 μs (1)] [150.2 μs (1000)]
-% % 30 pts -> [156.0 μs (1)] [164.6 μs (1000)]
-% % 100 pts -> [463.0 μs (1)] [460.3 μs (333)]
-% % 128 pts -> [802.7 μs (1)] [550.8 μs (333)]
-% % 256 pts -> [991.5 μs (1)] [984.6 μs (333)]
-% % Testing inference time for 100000 iterations... Done.
-% % Inference time -> 182.7 ± 42.2 [μs] | max 2642.0 [μs]
-% % Total time -> 18.4 [s]
-% % Frequency -> 184.2 [μs] | 5428.4 [Hz]
+% activation function: Computes derivative using the pre-computed sigmoid
+function dy_dx = d_act_fast(x, y, sig_bx, beta)
+    coder.inline('always');
+    % y is the activation result: x .* sig_bx
+    % The full derivative is: sig_bx + beta * y * (1 - sig_bx)
+    dy_dx = sig_bx + bsxfun(@times, beta, y) .* (1 - sig_bx);
+end
