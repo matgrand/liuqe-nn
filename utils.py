@@ -298,7 +298,7 @@ def load_ds(ds_path):
 
 ####################################################################################################
 class LiuqeDataset(Dataset):
-    def __init__(self, ds_path, pts_per_sample=10, verbose=True):
+    def __init__(self, ds_path, pts_per_sample=100, verbose=True):
         d = load_ds(ds_path)
         x_mean_std = to_tensor(d.pop("x_mean_std")) # mean and std for inputs
         self.fg = d.pop(FG) # pop the full grid 
