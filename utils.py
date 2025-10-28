@@ -298,7 +298,7 @@ def load_ds(ds_path):
 
 ####################################################################################################
 class LiuqeDataset(Dataset):
-    def __init__(self, ds_path, verbose=True):
+    def __init__(self, ds_path, pts_per_sample=10, verbose=True):
         d = load_ds(ds_path)
         x_mean_std = to_tensor(d.pop("x_mean_std")) # mean and std for inputs
         self.fg = d.pop(FG) # pop the full grid 
@@ -310,10 +310,18 @@ class LiuqeDataset(Dataset):
         self.on_dev = DEV != CPU and tot_memory_ds < ( gpu_free_mem - 3e9 ) # x gb buffer for batches
         if self.on_dev: self.data = {k:v.to(DEV) for k,v in self.data.items()} # move to device
         self.x_mean_std = x_mean_std.to(DEV) if self.on_dev else x_mean_std
-        if verbose: print(f"Dataset: N:{len(self)}, memory:{tot_memory_ds/1e6}MB, on_dev:{self.on_dev}")
-    def __len__(self): return len(self.data[PHYS]) # number of samples, all data should have the same length
-    def __getitem__(self, idx): return [x[idx] for x in self.data.values()] # [PHYS, PTS, FX, IY, BR, BZ]
-
+        self.tnp = self.data[PTS].shape[1] # total number of points per timestamp
+        self.pps = pts_per_sample # number of points per sample
+        assert self.tnp % self.pps == 0, f'Number of points per sample ({self.tnp}) is not a perfect multiple of pps ({self.pps})'
+        if verbose: print(f"Dataset: n_t:{len(self.data[PHYS])}, total_pts_per_t:{self.tnp}, picked:{self.pps} -> N:{len(self)} ({len(self.data[PHYS])}*{self.tnp}//{self.pps}), memory:{tot_memory_ds/1e6}MB, on_dev:{self.on_dev}")
+    def __len__(self): return len(self.data[PHYS]) * self.tnp // self.pps # number of samples, all data should have the same length
+    def __getitem__(self, idx): 
+        # return [x[idx] for x in self.data.values()] # [PHYS, PTS, FX, IY, BR, BZ]
+        tnp, pps = self.tnp, self.pps
+        phys_idx = idx // (tnp // pps) # physical sample index
+        point_start = (idx % (tnp // pps)) * pps # starting point index
+        point_end = point_start + pps # ending point index
+        return (self.data[PHYS][phys_idx], *[self.data[k][phys_idx, point_start:point_end] for k in [PTS, FX, IY, BR, BZ]]) # return selected points only
 def test_dataset(ds:LiuqeDataset, verbose=True):
     if verbose:
         print("test_dataset")
@@ -325,7 +333,6 @@ def test_dataset(ds:LiuqeDataset, verbose=True):
     idxs = np.random.randint(0, len(ds), n_plot)
     plt.figure(figsize=(15, 3*n_plot))
     for i, j in enumerate(idxs):
-        # x, pts, fx, iy, br, bz, sep = map(lambda x: x.cpu().numpy(), ds[j])
         x, pts, fx, iy, br, bz = map(lambda x: x.cpu().numpy(), ds[j])
         μ, σ = ds.x_mean_std.cpu().numpy()
         x = (x-μ) / σ  # normalize inputs
@@ -333,19 +340,15 @@ def test_dataset(ds:LiuqeDataset, verbose=True):
         ms = 1
         plt.subplot(n_plot, 5, i*5+1)
         plt.scatter(r, z, c=fx, s=ms), plt.title('FX')
-        # plt.plot(rq, zq, 'gray', lw=2)
         plot_vessel(), plt.axis('equal'), plt.axis('off'), plt.colorbar()
         plt.subplot(n_plot, 5, i*5+2)
         plt.scatter(r, z, c=iy, s=ms), plt.title('IY')
-        # plt.plot(rq, zq, 'gray', lw=2)
         plot_vessel(), plt.axis('equal'), plt.axis('off'), plt.colorbar()
         plt.subplot(n_plot, 5, i*5+3)
         plt.scatter(r, z, c=br, s=ms), plt.title('Br')
-        # plt.plot(rq, zq, 'gray', lw=2)
         plot_vessel(), plt.axis('equal'), plt.axis('off'), plt.colorbar()
         plt.subplot(n_plot, 5, i*5+4)
         plt.scatter(r, z, c=bz, s=ms), plt.title('Bz')
-        # plt.plot(rq, zq, 'gray', lw=2)
         plot_vessel(), plt.axis('equal'), plt.axis('off'), plt.colorbar()
         plt.subplot(n_plot, 5, i*5+5)
         plt.bar(np.arange(len(x)), x), plt.title('Physical Inputs')
@@ -518,6 +521,8 @@ def test_plot_vessel():
 
 def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=SAVE_DIR, nplt=2 if LOCAL else 50, pinn=True):
     assert ds.fg is not None, "Dataset does not have full grid data (fg)"
+    _ds_pps = ds.pps # tmp workaround for proper plotting
+    ds.pps = ds.tnp # make ds to sample every point for every timestamp
     main_col = 'w' if DARK_THEME else 'k'
     if not pinn: model.eval()
     model.to(CPU)
@@ -604,6 +609,7 @@ def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=
         plt.savefig(f"{save_dir}/imgs/net_example_{'g_' if on_grid else ''}{title}_{i}.png")
         if LOCAL: plt.show()  
         plt.close()
+    ds.pps = _ds_pps # restore dataset pps
     return
 
 if __name__ == '__main__':
