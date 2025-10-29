@@ -212,7 +212,7 @@ function [name, bus] = SCDalgo_liuqeml_loadbus()
     memBus.DataScope = 'Auto';
     memBus.HeaderFile = '';
     memBus.Alignment = -1;
-    memBus.Elements = [inBus.Elements; outBus.Elements];
+    memBus.Elements = outBus.Elements;
 
     %% TP bus
     evalin('base','clear slBus1');
