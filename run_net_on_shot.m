@@ -5,7 +5,7 @@ function run_net_on_shot(shot_number, save_dir)
         % model_path = [pwd '/onnx_net_forward/net.onnx'];
 
         % % first call to load the model
-        % net_forward_mex(model_path);
+        % liuqenn_inference_mex(model_path);
 
 
         % load shot
@@ -43,24 +43,24 @@ function run_net_on_shot(shot_number, save_dir)
         Bz = zeros(65*28, nt); % preallocate Bz
         
         for i = 1:nt % loop over time points
-            % [Fx(:,i), Br(:,i), Bz(:,i)] = net_forward_mex(phys(:, i), r, z);
-            [Fx(:,i), Br(:,i), Bz(:,i)] = net_forward2(phys(:, i)', r', z');
+            % [Fx(:,i), Br(:,i), Bz(:,i)] = liuqenn_inference_mex(phys(:, i), r, z);
+            [Fx(:,i), Br(:,i), Bz(:,i)] = liuqenn_inference(phys(:, i)', r', z');
         end
 
         Fxc = zeros(n_ctrl_pts, nt); % preallocate Fx at control points
         Brc = zeros(n_ctrl_pts, nt); % preallocate Br at control points
         Bzc = zeros(n_ctrl_pts, nt); % preallocate Bz at control points
         for i = 1:nt % loop over time points
-            % [Fxc(:,i), Brc(:,i), Bzc(:,i)] = net_forward_mex(phys(:, i), rc', zc');
-            [Fxc(:,i), Brc(:,i), Bzc(:,i)] = net_forward2(phys(:, i)', rc, zc);
+            % [Fxc(:,i), Brc(:,i), Bzc(:,i)] = liuqenn_inference_mex(phys(:, i), rc', zc');
+            [Fxc(:,i), Brc(:,i), Bzc(:,i)] = liuqenn_inference(phys(:, i)', rc, zc);
         end
 
         Fxq = zeros(n_ctrl_pts, nt); % preallocate Fx at control points
         Brq = zeros(n_ctrl_pts, nt); % preallocate Br at control points
         Bzq = zeros(n_ctrl_pts, nt); % preallocate Bz at control points
         for i = 1:nt % loop over time points
-            % [Fxq(:,i), Brq(:,i), Bzq(:,i)] = net_forward_mex(phys(:, i), rq', zq');
-            [Fxq(:,i), Brq(:,i), Bzq(:,i)] = net_forward2(phys(:, i)', rq, zq);
+            % [Fxq(:,i), Brq(:,i), Bzq(:,i)] = liuqenn_inference_mex(phys(:, i), rq', zq');
+            [Fxq(:,i), Brq(:,i), Bzq(:,i)] = liuqenn_inference(phys(:, i)', rq, zq);
         end
 
         % reshape results to match the grid size

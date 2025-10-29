@@ -1,4 +1,4 @@
-function FP = SCDalgo_liuqeml_loadfp(obj)
+function FP = SCDalgo_liuqenn_loadfp(obj)
 
 % (here?) compile the mex function -> will generate net_forward2_mex.mex* file
 % build_net_forward2_mex;

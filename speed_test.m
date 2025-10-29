@@ -2,38 +2,15 @@
 try
 
     %% current best speeds:
-    % 1k -> 365 μs (fx, br, bz, iy grouped, dynamic axes)
-    % 1k -> 247 μs (fx, br, bz, iy grouped, static axes)
-    % 64 -> 44 μs (fx, br, bz, iy grouped, static axes)
-    % 64 -> 45 μs (fx, br, bz, iy grouped, dynamic axes)
-    % new architecture: (fx, br, bz grouped)
-    % 25 -> 23 / 49+-22 / tot 63 dynamic 
-    % 25 -> 20 / 20+-10 / tot 27 static [much faster]
     clear; close all;
     PLOT = false;
     PLOT = true; % set to true to plot results
     n_ctrl_pts = 25; % number of control points
     N = 1000; % number of iterations for inference time test
 
-    addpath(genpath([pwd '/data']));
-
-    % addpath([pwd '/onnx_net_forward']);
-    % % model_path = [pwd '/onnx_net_forward/net.onnx'];
-    % % model_path = [pwd '/data/3011842/net.onnx'];
-    % % model_path = [pwd '/data/3048577/net.onnx']; % 256 EMB SIZE
-    % % model_path = [pwd '/data/3048577/net.onnx']; % 256 EMB SIZE
-    % model_path = [pwd '/data/local/net.onnx']; 
-	% % model_path = '/home/grandin/repos/liuqe-ml/data/3057800/net.onnx'; % extremely small
-
-    % % first call to load the model
-    % net_forward_mex(model_path);
-
-
     % choose the function
-%     net_forward_localfcn = @(phys, r, z) net_forward(single(phys), single(r), single(z));
-    net_forward_localfcn = @(phys, r, z) net_forward_mex(single(phys), single(r), single(z));
-
-
+    % inference_func = @(phys, r, z) liuqenn_inference(single(phys), single(r), single(z));
+    inference_func = @(phys, r, z) liuqenn_inference_mex(single(phys), single(r), single(z));
 
     d = load('dss/demo.mat'); % load demo data (should be in DS_DIR/demo.mat , DS_DIR defined in utils.py)
 
@@ -55,7 +32,7 @@ try
     fprintf('phys size: %s, r size: %s, z size: %s\n', ...
         mat2str(size(phys)), mat2str(size(r)), mat2str(size(z)));
 
-    [Fx, Br, Bz] = net_forward_localfcn(single(phys), single(r), single(z));
+    [Fx, Br, Bz] = inference_func(single(phys), single(r), single(z));
     fprintf('Output: Fx %s [%s], Br %s [%s], Bz %s [%s]\n', ...
         mat2str(size(Fx)), mat2str(class(Fx)), ...
         mat2str(size(Br)), mat2str(class(Br)), ...
@@ -73,11 +50,8 @@ try
     % use timeit to measure inference time
     fprintf('Measuring inference time...\n');
     for n = [1, 10, 20, 25, 30, 100, 128, 256]
-        if n >= 100
-            n_iter = round(N/3);
-        else
-            n_iter = N;
-        end
+        if n >= 100 n_iter = round(N/3);
+        else n_iter = N; end
 
         phys = d.phys(rand_i, :); 
         r = d.pts(rand_i, 1:n, 1);
@@ -90,8 +64,7 @@ try
         z = z + noise_level * randn(size(z));
 
         try
-            % t1 = timeit(@() net_forward_mex(single(phys), single(r), single(z)));
-            t1 = timeit(@() net_forward(single(phys), single(r), single(z)));
+            t1 = timeit(@() inference_func(single(phys), single(r), single(z)));
         catch ME
             t1 = NaN; % in case of error, set time to NaN
         end
@@ -101,7 +74,7 @@ try
         vr = d.pts(rand_idxs, 1:n, 1);
         vz = d.pts(rand_idxs, 1:n, 2);
         try 
-            t2 = timeit(@() test_speed(net_forward, vphys, vr, vz, n));
+            t2 = timeit(@() test_speed(inference_func, vphys, vr, vz, n));
         catch ME
             t2 = NaN; % in case of error, set time to NaN
         end
@@ -123,7 +96,7 @@ try
         phys_i = single(d.phys(ri, :)+0.1*randn(size(d.phys(ri, :)))); 
         r_i = single(d.pts(ri, 1:n_ctrl_pts, 1)+0.1*randn(size(d.pts(ri, 1:n_ctrl_pts, 1))));
         z_i = single(d.pts(ri, 1:n_ctrl_pts, 2)+0.1*randn(size(d.pts(ri, 1:n_ctrl_pts, 2))));
-        [fx, br, bz] = net_forward(phys_i, r_i, z_i);
+        [fx, br, bz] = inference_func(phys_i, r_i, z_i);
         times(i) = toc(t1);
     end
     ttot = toc(ttot);
@@ -145,17 +118,14 @@ try
             r = d.pts(rand_i, :, 1);
             z = d.pts(rand_i, :, 2);
 
-            % net_forward_mex([pwd 'onnx_net_forward/net.onnx']); % to load the model
-            % [Fx, Br, Bz] = net_forward_mex(single(phys), single(r), single(z));
-            [Fx, Br, Bz] = net_forward(single(phys), single(r), single(z));
-
+            [Fx, Br, Bz] = inference_func(single(phys), single(r), single(z));
 
             preds = {Fx, Br, Bz};
             trues = {d.Fx(rand_i, :), d.Br(rand_i, :), d.Bz(rand_i, :)};
             labels = {'Fx', 'Br', 'Bz'};
             
             fig = figure('Visible', 'off', 'Position', [100, 100, 1000, 1000]);
-%             fig = figure('Visible', 'on', 'Position', [100, 100, 1000, 1000]);
+            % fig = figure('Visible', 'on', 'Position', [100, 100, 1000, 1000]);
             
             for k = 1:3
                 ftrue = trues{k};
@@ -171,7 +141,7 @@ try
                 title([labels{k} ' true']);
                 xlabel('r'); ylabel('z');
                 axis equal; colorbar;
-%                 clim([fmin fmax]);
+                % clim([fmin fmax]);
 
                 % Plot predicted value
                 subplot(3,3,3*(k-1)+2);
@@ -179,7 +149,7 @@ try
                 title([labels{k} ' pred']);
                 xlabel('r'); ylabel('z');
                 axis equal; colorbar;
-%                 clim([fmin fmax]);
+                % clim([fmin fmax]);
 
                 % Plot error map
                 subplot(3,3,3*(k-1)+3);
@@ -193,7 +163,7 @@ try
             % save figure
             saveas(gcf, sprintf('test/matlab_%s.png', num2str(i)));
             % close figure
-%             close(gcf);
+            % close(gcf);
             fprintf('.');
         end
         fprintf(' Done.\n');
@@ -219,13 +189,13 @@ catch ME
     end
 end
 
-function t = test_speed(net_forward, vphys, vr, vz, ncp)
+function t = test_speed(liuqenn_inference, vphys, vr, vz, ncp)
     start = tic;
     n = size(vphys, 1);
     assert(size(vr,1) == n && size(vz,1) == n, ...
         'Input vectors must have the same number of rows.');
     for i = 1:n
-        [fx, br, bz] = net_forward(single(vphys(i,:)), single(vr(i,1:ncp)), single(vz(i,1:ncp)));
+        [fx, br, bz] = liuqenn_inference(single(vphys(i,:)), single(vr(i,1:ncp)), single(vz(i,1:ncp)));
     end
     t = toc(start);
 end

@@ -1,10 +1,10 @@
-function [name, bus] = SCDalgo_liuqeml_loadbus()
+function [name, bus] = SCDalgo_liuqenn_loadbus()
 
     % ideally it should be the same of liuqert? where it is?
 
 
     %% Fixed parameters
-    FP = SCDalgo_liuqeml_loadfp();
+    FP = SCDalgo_liuqenn_loadfp();
 
     %% inBus
     ii = 1;
@@ -222,10 +222,10 @@ function [name, bus] = SCDalgo_liuqeml_loadbus()
 
     %% Final aggregation
     name = {};
-    name{end+1} = 'SCDalgo_liuqeml_inBus';
-    name{end+1} = 'SCDalgo_liuqeml_outBus';
-    name{end+1} = 'SCDalgo_liuqeml_memBus';
-    name{end+1} = 'SCDalgo_liuqeml_tpBus';
+    name{end+1} = 'SCDalgo_liuqenn_inBus';
+    name{end+1} = 'SCDalgo_liuqenn_outBus';
+    name{end+1} = 'SCDalgo_liuqenn_memBus';
+    name{end+1} = 'SCDalgo_liuqenn_tpBus';
 
     bus = {};
     bus{end+1} = inBus;

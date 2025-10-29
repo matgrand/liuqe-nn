@@ -28,5 +28,5 @@ test_shots_net/*
 *.mat
 codegen/*
 *.tar.gz
-SCDalgo_liuqeml/codegen/*
+SCDalgo_liuqenn/codegen/*
 *.sldd
