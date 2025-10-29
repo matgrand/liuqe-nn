@@ -5,6 +5,9 @@ function FP = SCDalgo_liuqeml_loadfp(obj)
 
 FP = struct();
 
+% sampling time
+FP.dt = 1e-4;
+
 % input dimensions
 FP.nBm = int32(38);  % magnetic probes
 FP.nFf = int32(38);  % flux loops
