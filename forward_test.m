@@ -30,8 +30,8 @@ try
 
 
     % choose the function
-%     net_forward = @(phys, r, z) net_forward2(single(phys), single(r), single(z));
-    net_forward = @(phys, r, z) net_forward2_mex(single(phys), single(r), single(z));
+%     net_forward_localfcn = @(phys, r, z) net_forward(single(phys), single(r), single(z));
+    net_forward_localfcn = @(phys, r, z) net_forward_mex(single(phys), single(r), single(z));
 
 
 
@@ -55,7 +55,7 @@ try
     fprintf('phys size: %s, r size: %s, z size: %s\n', ...
         mat2str(size(phys)), mat2str(size(r)), mat2str(size(z)));
 
-    [Fx, Br, Bz] = net_forward(single(phys), single(r), single(z));
+    [Fx, Br, Bz] = net_forward_localfcn(single(phys), single(r), single(z));
     fprintf('Output: Fx %s [%s], Br %s [%s], Bz %s [%s]\n', ...
         mat2str(size(Fx)), mat2str(class(Fx)), ...
         mat2str(size(Br)), mat2str(class(Br)), ...
