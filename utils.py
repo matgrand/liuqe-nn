@@ -85,6 +85,9 @@ DS_SIZES = {
 }
 DTYPE = 'float32'
 
+π = torch.pi # constant pi
+μ0 = 4e-7 * π  # Permeability of free space
+
 from scipy.interpolate import RegularGridInterpolator
 # INTERP_METHOD = 'linear' # fast, but less accurate
 # INTERP_METHOD = 'quintic' # slowest, but most accurate
@@ -120,6 +123,7 @@ d = loadmat('tcv_params/grid.mat')
 rd, zd = d['r'].flatten(), d['z'].flatten() # original grid coordinates (DATA)
 RRD, ZZD = np.meshgrid(rd, zd)  # meshgrid for the original grid coordinates (from the data)
 RRD2, ZZD2 = np.meshgrid(rd[1:-1], zd[1:-1])  
+GRA = (rd[1]-rd[0])*(zd[1]-zd[0])  # grid area
 del d, rd, zd
 
 
@@ -287,7 +291,8 @@ def load_ds(ds_path):
         PHYS:d[PHYS], 
         PTS:d[PTS], 
         FX:d[FX], 
-        IY:np.abs(d[IY]), # TEST: make current dens is always positive 
+        # IY:np.abs(d[IY]), # TEST: make current dens is always positive 
+        IY:d[IY]*μ0/GRA, # TEST: make current dens is always positive 
         BR:d[BR], 
         BZ:d[BZ], 
         # SEP:d[SEP], 
@@ -536,6 +541,7 @@ def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=
         if on_grid: 
             p = torch.stack([torch.tensor(RRD.reshape(-1), dtype=torch.float32), torch.tensor(ZZD.reshape(-1), dtype=torch.float32)], dim=1)  # shape (n, 2)
             fx, iy, br, bz = [to_tensor(v.reshape(-1)) for v in ds.fg[i]] # reshape to (n,)
+            # iy = iy*μ0/GRA  
         if pinn: r = p.clone()[:,0]; p.requires_grad = True # need r for PINN
         fxp, brzp, iyp = model(x.unsqueeze(0), p.unsqueeze(0))
         if pinn:
