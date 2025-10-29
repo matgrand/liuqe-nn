@@ -29,3 +29,4 @@ test_shots_net/*
 codegen/*
 *.tar.gz
 SCDalgo_liuqeml/codegen/*
+*.sldd
