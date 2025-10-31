@@ -7,10 +7,7 @@ function [Fx, Br, Bz] = liuqenn_inference(phys, r, z)
     % into the final MEX file.
     persistent net;
     if isempty(net)
-        % Ensure you are loading a file where ALL fields are single.
-        % weights_path = 'data/local/weights_Fx.mat'; 
-        % weights_path = '/home/admele/rtccode-liuqenn/algos/SCDliuqenn/data/3398107/weights_Fx.mat'; % /home/grandin/repos/liuqe-ml/data/3398107/weights_Fx.mat
-        weights_path = 'data/3398107/weights_Fx.mat'; % /home/grandin/repos/liuqe-ml/data/3398107/weights_Fx.mat
+        weights_path = 'demo_weights.mat'; % /home/grandin/repos/liuqe-ml/demo_weights.mat
         fprintf('Loading weights from %s...\n', weights_path);
         net_const = coder.load(weights_path); 
         net = coder.const(net_const);

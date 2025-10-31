@@ -18,9 +18,8 @@ try
     max_n_pts = size(d.pts, 2);
 
     fprintf('Loaded demo data with %d examples and %d points.\n', n_examples, max_n_pts);
-
-    % NIN = 136;
-    NIN = 96;
+    
+    NIN = 134;
 
     %% test with simplified inputs
     % rand_i = randi([1, size(d.phys, 1)], 1, 1);

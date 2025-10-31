@@ -1,8 +1,7 @@
 % function to build the MEX file for liuqenn inference
 
 % Define input types with variable dimensions for the points (r, z)
-% phys_arg = coder.typeof(single(0), [1 136], [0 0]); % old version (working)
-phys_arg = coder.typeof(single(0), [1 96], [0 0]); % new version
+phys_arg = coder.typeof(single(0), [1 134], [0 0]);
 
 % upper_bound = 28*65; % Define a max number of points
 upper_bound = 25; % Define a max number of points

@@ -1,12 +1,9 @@
 function [name, bus] = SCDalgo_liuqenn_loadbus()
 
-    % ideally it should be the same of liuqert? where it is?
-
-
     %% Fixed parameters
     FP = SCDalgo_liuqenn_loadfp();
 
-    %% inBus
+    %% inBus t + [BM, FF, IA, UF, RBT] + [rn, zn]
     ii = 1;
     tmp{1}(ii, 1) = Simulink.BusElement;
     tmp{1}(ii, 1).Name = 't';
@@ -65,9 +62,9 @@ function [name, bus] = SCDalgo_liuqenn_loadbus()
 
     ii = 5;
     tmp{1}(ii, 1) = Simulink.BusElement;
-    tmp{1}(ii, 1).Name = 'Ip';
+    tmp{1}(ii, 1).Name = 'Uf';
     tmp{1}(ii, 1).Complexity = 'real';
-    tmp{1}(ii, 1).Dimensions = [double(FP.nIp)  1];
+    tmp{1}(ii, 1).Dimensions = [double(FP.nUf) 1];
     tmp{1}(ii, 1).DataType = 'single';
     tmp{1}(ii, 1).Min = [];
     tmp{1}(ii, 1).Max = [];
@@ -78,34 +75,6 @@ function [name, bus] = SCDalgo_liuqenn_loadbus()
     tmp{1}(ii, 1).Description = ''; 
 
     ii = 6;
-    tmp{1}(ii, 1) = Simulink.BusElement;
-    tmp{1}(ii, 1).Name = 'Ft';
-    tmp{1}(ii, 1).Complexity = 'real';
-    tmp{1}(ii, 1).Dimensions = [double(FP.nFt) 1];
-    tmp{1}(ii, 1).DataType = 'single';
-    tmp{1}(ii, 1).Min = [];
-    tmp{1}(ii, 1).Max = [];
-    tmp{1}(ii, 1).DimensionsMode = 'Fixed';
-    tmp{1}(ii, 1).SamplingMode = 'Sample based';
-    tmp{1}(ii, 1).SampleTime = -1;
-    tmp{1}(ii, 1).DocUnits = '';
-    tmp{1}(ii, 1).Description = '';     
-
-    ii = 7;
-    tmp{1}(ii, 1) = Simulink.BusElement;
-    tmp{1}(ii, 1).Name = 'Iu';
-    tmp{1}(ii, 1).Complexity = 'real';
-    tmp{1}(ii, 1).Dimensions = [double(FP.nIu) 1];
-    tmp{1}(ii, 1).DataType = 'single';
-    tmp{1}(ii, 1).Min = [];
-    tmp{1}(ii, 1).Max = [];
-    tmp{1}(ii, 1).DimensionsMode = 'Fixed';
-    tmp{1}(ii, 1).SamplingMode = 'Sample based';
-    tmp{1}(ii, 1).SampleTime = -1;
-    tmp{1}(ii, 1).DocUnits = '';
-    tmp{1}(ii, 1).Description = ''; 
-
-    ii = 8;
     tmp{1}(ii, 1) = Simulink.BusElement;
     tmp{1}(ii, 1).Name = 'rBt';
     tmp{1}(ii, 1).Complexity = 'real';
@@ -119,7 +88,7 @@ function [name, bus] = SCDalgo_liuqenn_loadbus()
     tmp{1}(ii, 1).DocUnits = '';
     tmp{1}(ii, 1).Description = ''; 
 
-    ii = 9;
+    ii = 7;
     tmp{1}(ii, 1) = Simulink.BusElement;
     tmp{1}(ii, 1).Name = 'rn';
     tmp{1}(ii, 1).Complexity = 'real';
@@ -133,7 +102,7 @@ function [name, bus] = SCDalgo_liuqenn_loadbus()
     tmp{1}(ii, 1).DocUnits = '';
     tmp{1}(ii, 1).Description = ''; 
 
-    ii = 10;
+    ii = 8;
     tmp{1}(ii, 1) = Simulink.BusElement;
     tmp{1}(ii, 1).Name = 'zn';
     tmp{1}(ii, 1).Complexity = 'real';  
@@ -158,7 +127,7 @@ function [name, bus] = SCDalgo_liuqenn_loadbus()
     %% outBus
     ii = 1;
     tmp{1}(ii, 1) = Simulink.BusElement;
-    tmp{1}(ii, 1).Name = 'Fn';
+    tmp{1}(ii, 1).Name = 'Fxn';
     tmp{1}(ii, 1).Complexity = 'real';
     tmp{1}(ii, 1).Dimensions = [double(FP.npts) 1];
     tmp{1}(ii, 1).DataType = 'single';
@@ -206,7 +175,7 @@ function [name, bus] = SCDalgo_liuqenn_loadbus()
     outBus.Elements = tmp{1};    
     clear tmp;  
 
-    %% Mem bus = inBus + outBus
+    %% Mem bus = outBus
     memBus = Simulink.Bus;
     memBus.Description = '';
     memBus.DataScope = 'Auto';

@@ -60,7 +60,10 @@ NDOM = 4 # number of plasma domains, should be matched with create_ds.m
 BM = 'Bm' # magnetic probe measurements
 FF = 'Ff' # flux loops poloidal flux 
 IA = 'Ia' # poloidal field coil currents
-IP = 'Ip' # plasma current
+IP = 'Ip' # plasma current % not used
+UF = 'Uf' # 
+RBT = 'rBt' #
+
 # output names
 FX = 'Fx' # Plasma poloidal flux map
 IY = 'Iy' # Plasma current density map
@@ -75,11 +78,11 @@ B = 'B' # magnetic field, combined Br, Bz
 BD = 'Bd' # combined Br, Bz from derivative
 IYD = 'Iyd' # current density from derivative
 
-INPUT_NAMES = [BM, FF, IA, IP] # input names
+INPUT_NAMES = [BM, FF, IA, UF, RBT] # input names
 OUTPUT_NAMES = [FX, IY, BR, BZ] # output names
 DS_NAMES = INPUT_NAMES + OUTPUT_NAMES # dataset names
 DS_SIZES = { 
-    BM:(38,), FF:(38,), IA:(19,), IP:(1,),  # input sizes
+    BM:(38,), FF:(38,), IA:(19,), UF:(38,), RBT:(1,),  # input sizes
     FX:(65,28), IY:(63,26), BR:(65,28), BZ:(65,28),  # output sizes
 }
 DTYPE = 'float32'
@@ -111,7 +114,7 @@ STRICT_LOAD = True # for loading the weights, should be true, but for testing va
 TEST_DIR = 'test' if LOCAL else '/nfsd/automatica/grandinmat/test'
 os.makedirs(TEST_DIR, exist_ok=True)
 
-NIN = sum(DS_SIZES[name][0] for name in INPUT_NAMES) # 96
+NIN = sum(DS_SIZES[name][0] for name in INPUT_NAMES) # 134
 
 ##################################################################################################################################
 
@@ -633,6 +636,7 @@ def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=
 
     ds.pps = _ds_pps # restore dataset pps
     return
+
 
 if __name__ == '__main__':
     test_network_io()
