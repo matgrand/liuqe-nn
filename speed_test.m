@@ -12,7 +12,9 @@ try
     % inference_func = @(phys, r, z) liuqenn_inference(single(phys), single(r), single(z));
     inference_func = @(phys, r, z) liuqenn_inference_mex(single(phys), single(r), single(z));
 
+    % the following dataset can be copied from /home/grandin/repos/liuqe-ml/dss/demo.mat
     d = load('dss/demo.mat'); % load demo data (should be in DS_DIR/demo.mat , DS_DIR defined in utils.py)
+
 
     n_examples = size(d.phys, 1);
     max_n_pts = size(d.pts, 2);
