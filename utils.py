@@ -71,10 +71,9 @@ PHYS = 'phys' # physics inputs
 PTS = 'pts' # points 
 FG = 'fg' # full grid
 RT = 'rt' # real time output
-BRP = 'Brp' # Br from PINN  
-BZP = 'Bzp' # Bz from PINN
-BRZ = 'Brz' # combined Br, Bz 
-BRZP = 'Brzp' # combined Br, Bz from PINN
+B = 'B' # magnetic field, combined Br, Bz 
+BD = 'Bd' # combined Br, Bz from derivative
+IYD = 'Iyd' # current density from derivative
 
 INPUT_NAMES = [BM, FF, IA, IP] # input names
 OUTPUT_NAMES = [FX, IY, BR, BZ] # output names
@@ -101,8 +100,7 @@ TRAIN_DS_PATH = f'{DS_DIR}/train_ds.npz'
 EVAL_DS_PATH = f'{DS_DIR}/eval_ds.npz'
 
 # paths to the best models
-LOSS_NAMES = [FX, IY, BRZ, BRZP] # loss names 
-# LOSS_NAMES = [FX, IY, BRZ] # loss names
+LOSS_NAMES = [FX, IY, B, BD, IYD] # loss names 
 def model_path(loss_name, save_dir=SAVE_DIR):
     assert loss_name in LOSS_NAMES, f"loss_name should be one of {LOSS_NAMES}, got {loss_name}"
     return f"{save_dir}/best_{loss_name}.pth"
@@ -292,7 +290,8 @@ def load_ds(ds_path):
         PTS:d[PTS], 
         FX:d[FX], 
         # IY:np.abs(d[IY]), # TEST: make current dens is always positive 
-        IY:d[IY]*μ0/GRA, # TEST: make current dens is always positive 
+        IY:d[IY]*μ0/GRA, # convert to a better unit 
+        # IY:np.abs(d[IY])*μ0/GRA, # convert to a better unit 
         BR:d[BR], 
         BZ:d[BZ], 
         # SEP:d[SEP], 
@@ -342,7 +341,7 @@ def test_dataset(ds:LiuqeDataset, verbose=True):
         μ, σ = ds.x_mean_std.cpu().numpy()
         x = (x-μ) / σ  # normalize inputs
         r,z = pts[:,0], pts[:,1]
-        ms = 1
+        ms = max(1, int(1000/len(r)))  # marker size
         plt.subplot(n_plot, 5, i*5+1)
         plt.scatter(r, z, c=fx, s=ms), plt.title('FX')
         plot_vessel(), plt.axis('equal'), plt.axis('off'), plt.colorbar()
@@ -524,97 +523,114 @@ def test_plot_vessel():
     plt.savefig(f"{TEST_DIR}/vessel.png")
     # plt.close()s
 
-def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=SAVE_DIR, nplt=2 if LOCAL else 50, pinn=True):
+def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=SAVE_DIR, nplt=2 if LOCAL else 50, use_db=True, use_diy=True):
     assert ds.fg is not None, "Dataset does not have full grid data (fg)"
+    if use_diy: assert use_db, "use_diy requires use_db to be True"
     _ds_pps = ds.pps # tmp workaround for proper plotting
     ds.pps = ds.tnp # make ds to sample every point for every timestamp
     main_col = 'w' if DARK_THEME else 'k'
-    if not pinn: model.eval()
+    if not use_db: model.eval()
     model.to(CPU)
     os.makedirs(f"{save_dir}/imgs", exist_ok=True)
     for pi, i in enumerate(np.random.randint(0, len(ds), nplt)):  
         on_grid = pi >= (nplt // 2) # on grid or not
+        if not on_grid: continue # # TODO remove this
         fs = (20, 8) if on_grid else (15, 8) # figure size
         plt.figure(figsize=fs, facecolor='white' if DARK_THEME else 'black')
         x, p, fx, iy, br, bz = ds[i]
         x, p, fx, iy, br, bz = map(lambda x: x.to(CPU), [x, p, fx, iy, br, bz])
         if on_grid: 
+            μ0 = 4e-7 * np.pi  # Permeability of free space
             p = torch.stack([torch.tensor(RRD.reshape(-1), dtype=torch.float32), torch.tensor(ZZD.reshape(-1), dtype=torch.float32)], dim=1)  # shape (n, 2)
             fx, iy, br, bz = [to_tensor(v.reshape(-1)) for v in ds.fg[i]] # reshape to (n,)
-            # iy = iy*μ0/GRA  
-        if pinn: r = p.clone()[:,0]; p.requires_grad = True # need r for PINN
+            iy = iy*μ0/GRA # workaround, on grid points dont have the conversion applied
+        if use_db: r = p.clone()[:,0]; p.requires_grad = True # need r for PINN
+        reverse_cmap = iy.mean() < 0  # reverse cmap if current density is negative
         fxp, brzp, iyp = model(x.unsqueeze(0), p.unsqueeze(0))
-        if pinn:
-            dFx_drz = torch.autograd.grad(outputs=fxp.sum(), inputs=p)[0].unsqueeze(0) # compute gradients wrt p
-            dF_dr, dF_dz = dFx_drz[:,:,0], dFx_drz[:,:,1]  # shape (1, n)
-            brp = -dF_dz / (2 * torch.pi * r) # Br from derivative
-            bzp = dF_dr / (2 * torch.pi * r)  # Bz from derivative
-            # calculate second derivatives ddFx_ddr, ddFx_ddz
-            # TODO
+        if use_db:
+            dfx_drz = torch.autograd.grad(outputs=fxp.sum(), inputs=p, create_graph=True)[0].unsqueeze(0) # compute gradients wrt p
+            π = torch.pi
+            dfx_dr, dfx_dz = dfx_drz[:,:,0], dfx_drz[:,:,1]  # shape (1, n)
+            brp = -dfx_dz / (2*π*r) # Br from derivative
+            bzp = dfx_dr / (2*π*r)  # Bz from derivative
+            if use_diy: # calculate second derivative
+                d2fx_dr2 = torch.autograd.grad(outputs=dfx_dr.sum(), inputs=p, create_graph=True)[0][:,0].unsqueeze(0)
+                d2fx_dz2 = torch.autograd.grad(outputs=dfx_dz.sum(), inputs=p, create_graph=True)[0][:,1].unsqueeze(0)
+                iyp = - (1/(2*π*r) * d2fx_dz2 + 1/(2*π*r) * d2fx_dr2 - 1/(2*π*r**2) * dfx_dr)
+
         else: brp, bzp = brzp[:,:,0], brzp[:,:,1]  # split Br, Bz
-        fxp, iyp, brp, bzp = map(lambda t: t.squeeze(0), [fxp, iyp, brp, bzp]) # remove batch dimension
-        p, fx, iy, br, bz, fxp, iyp, brp, bzp = map(lambda t: t.detach().cpu().numpy(), [p, fx, iy, br, bz, fxp, iyp, brp, bzp]) # move to CPU and numpy
-        iy = np.abs(iy)  # ensure current density is positive
-        iv = inpoly(p) # inside vessel indices
-        mfx, Mfx = np.min([fx[iv], fxp[iv]]), np.max([fx[iv], fxp[iv]])
-        miy, Miy = np.min([iy[iv], iyp[iv]]), np.max([iy[iv], iyp[iv]])
-        mbr, Mbr = np.min([br[iv], brp[iv]]), np.max([br[iv], brp[iv]])
-        mbz, Mbz = np.min([bz[iv], bzp[iv]]), np.max([bz[iv], bzp[iv]])
-        lw, col, ms = 1.5, 'gray', 4
-        limits = [(mfx, Mfx), (miy, Miy), (mbr, Mbr), (mbz, Mbz)] # variable limits
-        vals = [(fx, fxp), (iy, iyp), (br, brp), (bz, bzp)]
-        names = ["Fx", "Iy", "Brp" if pinn else "Br", "Bzp" if pinn else "Bz"]
-        def prep_plot(ax):
-            ax.grid(False)
-            ax.set_xticks([])
-            ax.set_yticks([])
-            ax.set_aspect("equal")
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            ax.spines['left'].set_visible(False)
-            ax.spines['bottom'].set_visible(False)
-            plot_vessel(ax) # plot vessel
-        nraws = 2
-        ncols = 8 if on_grid else 6 # number of columns
-        α_sep = 0.5
-        for j, ((v, vp), l, n) in enumerate(zip(vals, limits, names)):
-            plt.subplot(nraws, ncols, j*(ncols//2)+1), plt.title(f"{n} Actual")
-            plt.scatter(p[iv,0], p[iv,1], c=v[iv], s=ms, vmin=l[0], vmax=l[1])
-            prep_plot(plt.gca()), plt.colorbar()
-            plt.subplot(nraws, ncols, j*(ncols//2) + 2), plt.title(f"{n} Predicted")
-            plt.scatter(p[iv,0], p[iv,1], c=vp[iv], s=ms, vmin=l[0], vmax=l[1])
-            prep_plot(plt.gca()), plt.colorbar()
-            plt.subplot(nraws, ncols, j*(ncols//2) + ncols//2), plt.title(f"{n} Error %")
-            ep = 100*np.abs(v[iv]-vp[iv])/(l[1]-l[0]) # error in %
-            # plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep)) # variable bar
-            plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep) if n == IY else 1.0) # fixed bar
-            # plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep)) # variable bar
-            prep_plot(plt.gca()), plt.colorbar()
-            if on_grid: # plot contours if on grid
-                plt.subplot(nraws, ncols, j*(ncols//2) + 3), plt.title(f"{n} Contours")
-                plt.contour(RRD, ZZD, v.reshape(65,28), levels=20, linestyles='solid')
-                plt.contour(RRD, ZZD, vp.reshape(65,28), levels=20, linestyles='dashed')
+        if True:
+            fxp, iyp, brp, bzp = map(lambda t: t.squeeze(0), [fxp, iyp, brp, bzp]) # remove batch dimension
+            p, fx, iy, br, bz, fxp, iyp, brp, bzp = map(lambda t: t.detach().cpu().numpy(), [p, fx, iy, br, bz, fxp, iyp, brp, bzp]) # move to CPU and numpy
+            iv = inpoly(p) # inside vessel indices
+            # mfx, Mfx = np.min([fx[iv], fxp[iv]]), np.max([fx[iv], fxp[iv]]) # both maps
+            # miy, Miy = np.min([iy[iv], iyp[iv]]), np.max([iy[iv], iyp[iv]])
+            # mbr, Mbr = np.min([br[iv], brp[iv]]), np.max([br[iv], brp[iv]])
+            # mbz, Mbz = np.min([bz[iv], bzp[iv]]), np.max([bz[iv], bzp[iv]])
+            mfx, Mfx = np.min(fx[iv]), np.max(fx[iv]) # only actual
+            miy, Miy = np.min(iy[iv]), np.max(iy[iv])
+            mbr, Mbr = np.min(br[iv]), np.max(br[iv])
+            mbz, Mbz = np.min(bz[iv]), np.max(bz[iv])
+            # mfx, Mfx = np.min(fxp[iv]), np.max(fxp[iv]) # only predicted
+            # miy, Miy = np.min(iyp[iv]), np.max(iyp[iv])
+            # mbr, Mbr = np.min(brp[iv]), np.max(brp[iv])
+            # mbz, Mbz = np.min(bzp[iv]), np.max(bzp[iv]) 
+            lw, col, ms, cm = 1.5, 'gray', 4, plt.rcParams['image.cmap'] + ('_r' if reverse_cmap else '') # line width, color, marker size, colormap
+            limits = [(mfx, Mfx), (miy, Miy), (mbr, Mbr), (mbz, Mbz)] # variable limits
+            vals = [(fx, fxp), (iy, iyp), (br, brp), (bz, bzp)]
+            names = ["Fx", "Iyd" if use_diy else "Iy", "Brd" if use_db else "Br", "Bzd" if use_db else "Bz"]
+            def prep_plot(ax):
+                ax.grid(False)
+                ax.set_xticks([])
+                ax.set_yticks([])
+                ax.set_aspect("equal")
+                ax.spines['top'].set_visible(False)
+                ax.spines['right'].set_visible(False)
+                ax.spines['left'].set_visible(False)
+                ax.spines['bottom'].set_visible(False)
+                plot_vessel(ax) # plot vessel
+            nraws = 2
+            ncols = 8 if on_grid else 6 # number of columns
+            α_sep = 0.5
+            for j, ((v, vp), l, n) in enumerate(zip(vals, limits, names)):
+                plt.subplot(nraws, ncols, j*(ncols//2)+1), plt.title(f"{n} Actual")
+                plt.scatter(p[iv,0], p[iv,1], c=v[iv], s=ms, vmin=l[0], vmax=l[1], cmap=cm)
+                prep_plot(plt.gca()), plt.colorbar(); reverse_cmap and plt.gcf().axes and plt.gcf().axes[-1].invert_yaxis(); 
+                plt.subplot(nraws, ncols, j*(ncols//2) + 2); plt.title(f"{n} Predicted")
+                plt.scatter(p[iv,0], p[iv,1], c=vp[iv], s=ms, vmin=l[0], vmax=l[1], cmap=cm)
+                prep_plot(plt.gca()), plt.colorbar(); reverse_cmap and plt.gcf().axes and plt.gcf().axes[-1].invert_yaxis();
+                plt.subplot(nraws, ncols, j*(ncols//2) + ncols//2), plt.title(f"{n} Error %")
+                ep = 100*np.abs(v[iv]-vp[iv])/(l[1]-l[0]) # error in %
+                # plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep)) # variable bar for everything
+                plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep) if n in [IY, IYD] else 1.0) # fixed bar but not for Iy
                 prep_plot(plt.gca()), plt.colorbar()
-        fig = plt.gcf() # Get the current figure
-        dx, xoff = 0.004, 0.01 #0.005, 0.008
-        # dy, yoff = dx*fs[0]/fs[1], -0.012 #dx*fs[0]/fs[1], 0.003
-        dy, yoff = dx*fs[0]/fs[1], -0.018 #dx*fs[0]/fs[1], 0.003
-        tvs = 0.041 # title verticale space
-        from matplotlib.patches import Rectangle
-        # for x0, y0, lx, ly in [(0.0+dx, 0.5+dy/2+yoff, (1-3*dx)/2+xoff, (1-3*dy)/2-yoff-tvs),
-        #                        (0.5+dx/2+xoff, 0.5+dy/2+yoff, (1-3*dx)/2-xoff, (1-3*dy)/2-yoff-tvs),
-        #                        (0.0+dx, 0.0+dy, (1-3*dx)/2+xoff, (1-3*dy)/2+yoff),
-        #                        (0.5+dx/2+xoff, 0.0+dy, (1-3*dx)/2-xoff, (1-3*dy)/2+yoff)]:
-        for x0, y0, lx, ly in [(0.0+dx,         0.5+dy/2+yoff, (1-3*dx)/2+xoff, (1-3*dy)/2-yoff-tvs),
-                               (0.5+dx/2+xoff,  0.5+dy/2+yoff, (1-3*dx)/2-xoff, (1-3*dy)/2-yoff-tvs),
-                               (0.0+dx,         0.0+dy, (1-3*dx)/2+xoff, (1-3*dy)/2+yoff),
-                               (0.5+dx/2+xoff,  0.0+dy, (1-3*dx)/2-xoff, (1-3*dy)/2+yoff)]:
-            fig.patches.append(Rectangle( (x0, y0), lx, ly, transform=fig.transFigure, color='black' if DARK_THEME else 'white', alpha=1, zorder=-1))
-        plt.suptitle(f"[{JOBID}] liuqeML: {title} {i}", y=0.985, color='black' if DARK_THEME else 'white')
-        plt.tight_layout()
-        plt.savefig(f"{save_dir}/imgs/net_example_{'g_' if on_grid else ''}{title}_{i}.png")
-        if LOCAL: plt.show()  
-        plt.close()
+
+                if on_grid: # plot contours if on grid
+                    plt.subplot(nraws, ncols, j*(ncols//2) + 3), plt.title(f"{n} Contours")
+                    plt.contour(RRD, ZZD, v.reshape(65,28), levels=20, linestyles='solid', cmap=cm)
+                    plt.contour(RRD, ZZD, vp.reshape(65,28), levels=20, linestyles='dashed', cmap=cm)
+                    prep_plot(plt.gca()), plt.colorbar()
+            fig = plt.gcf() # Get the current figure
+            dx, xoff = 0.004, 0.01 #0.005, 0.008
+            # dy, yoff = dx*fs[0]/fs[1], -0.012 #dx*fs[0]/fs[1], 0.003
+            dy, yoff = dx*fs[0]/fs[1], -0.018 #dx*fs[0]/fs[1], 0.003
+            tvs = 0.041 # title verticale space
+            from matplotlib.patches import Rectangle
+            # for x0, y0, lx, ly in [(0.0+dx, 0.5+dy/2+yoff, (1-3*dx)/2+xoff, (1-3*dy)/2-yoff-tvs),
+            #                        (0.5+dx/2+xoff, 0.5+dy/2+yoff, (1-3*dx)/2-xoff, (1-3*dy)/2-yoff-tvs),
+            #                        (0.0+dx, 0.0+dy, (1-3*dx)/2+xoff, (1-3*dy)/2+yoff),
+            #                        (0.5+dx/2+xoff, 0.0+dy, (1-3*dx)/2-xoff, (1-3*dy)/2+yoff)]:
+            for x0, y0, lx, ly in [(0.0+dx,         0.5+dy/2+yoff, (1-3*dx)/2+xoff, (1-3*dy)/2-yoff-tvs),
+                                (0.5+dx/2+xoff,  0.5+dy/2+yoff, (1-3*dx)/2-xoff, (1-3*dy)/2-yoff-tvs),
+                                (0.0+dx,         0.0+dy, (1-3*dx)/2+xoff, (1-3*dy)/2+yoff),
+                                (0.5+dx/2+xoff,  0.0+dy, (1-3*dx)/2-xoff, (1-3*dy)/2+yoff)]:
+                fig.patches.append(Rectangle( (x0, y0), lx, ly, transform=fig.transFigure, color='black' if DARK_THEME else 'white', alpha=1, zorder=-1))
+            plt.suptitle(f"[{JOBID}] liuqeML: {title} {i}", y=0.985, color='black' if DARK_THEME else 'white')
+            plt.tight_layout()
+            plt.savefig(f"{save_dir}/imgs/net_example_{'g_' if on_grid else ''}{title}_{i}.png")
+            if LOCAL: plt.show()  
+            plt.close()
+
     ds.pps = _ds_pps # restore dataset pps
     return
 
