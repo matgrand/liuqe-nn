@@ -8,7 +8,7 @@
 #SBATCH --mem=96G
 #SBATCH --time=23:59:00
 #SBATCH --gres=gpu:a40:1
-cd $HOME/repos/tcv_eq
+cd $HOME/repos/liuqe-ml
 echo "running job $SLURM_JOB_ID"
 git log -1 --pretty=format:"[%h] %s"
 echo
