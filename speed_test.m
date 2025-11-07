@@ -1,36 +1,27 @@
-
+    
 try
 
     %% current best speeds:
-    % 1k -> 365 μs (fx, br, bz, iy grouped, dynamic axes)
-    % 1k -> 247 μs (fx, br, bz, iy grouped, static axes)
-    % 64 -> 44 μs (fx, br, bz, iy grouped, static axes)
-    % 64 -> 45 μs (fx, br, bz, iy grouped, dynamic axes)
-    % new architecture: (fx, br, bz grouped)
-    % 25 -> 23 / 49+-22 / tot 63 dynamic 
-    % 25 -> 20 / 20+-10 / tot 27 static [much faster]
     clear; close all;
-    % PLOT = false;
+    PLOT = false;
     PLOT = true; % set to true to plot results
     n_ctrl_pts = 25; % number of control points
     N = 1000; % number of iterations for inference time test
 
+    % choose the function
+    % inference_func = @(phys, r, z) liuqenn_inference(single(phys), single(r), single(z));
+    inference_func = @(phys, r, z) liuqenn_inference_mex(single(phys), single(r), single(z));
 
-    addpath([pwd '/onnx_net_forward']);
-    model_path = [pwd '/onnx_net_forward/net.onnx'];
-
-    % first call to load the model
-    net_forward_mex(model_path);
-
-
+    % the following dataset can be copied from /home/grandin/repos/liuqe-ml/dss/demo.mat
     d = load('dss/demo.mat'); % load demo data (should be in DS_DIR/demo.mat , DS_DIR defined in utils.py)
+
 
     n_examples = size(d.phys, 1);
     max_n_pts = size(d.pts, 2);
 
     fprintf('Loaded demo data with %d examples and %d points.\n', n_examples, max_n_pts);
-
-    NIN = 136;
+    
+    NIN = 134;
 
     %% test with simplified inputs
     % rand_i = randi([1, size(d.phys, 1)], 1, 1);
@@ -39,31 +30,42 @@ try
     r = d.pts(rand_i, 1:n_ctrl_pts, 1);
     z = d.pts(rand_i, 1:n_ctrl_pts, 2);
 
-    fprintf('phys size: %d, r size: %d, z size: %d\n', size(phys, 2), size(r, 2), size(z, 2));
+    fprintf('phys size: %s, r size: %s, z size: %s\n', ...
+        mat2str(size(phys)), mat2str(size(r)), mat2str(size(z)));
 
-    [Fx, Br, Bz] = net_forward_mex(single(phys), single(r), single(z));
+    [Fx, Br, Bz] = inference_func(single(phys), single(r), single(z));
+    fprintf('Output: Fx %s [%s], Br %s [%s], Bz %s [%s]\n', ...
+        mat2str(size(Fx)), mat2str(class(Fx)), ...
+        mat2str(size(Br)), mat2str(class(Br)), ...
+        mat2str(size(Bz)), mat2str(class(Bz)));
+
+
     % print first 5 elements of results
-    fprintf('fx_pred -> [ %s ]\n', num2str(Fx(1:min(8,end)), '%+.4f '));
-    fprintf('fx_true -> [ %s ]\n', num2str(d.Fx(rand_i, 1:min(8,end)), '%+.4f '));
-    fprintf('br_pred -> [ %s ]\n', num2str(Br(1:min(8,end)), '%+.4f '));
-    fprintf('br_true -> [ %s ]\n', num2str(d.Br(rand_i, 1:min(8,end)), '%+.4f '));
-    fprintf('bz_pred -> [ %s ]\n', num2str(Bz(1:min(8,end)), '%+.4f '));
-    fprintf('bz_true -> [ %s ]\n', num2str(d.Bz(rand_i, 1:min(8,end)), '%+.4f '));
+    fprintf('fx_pred  -> [ %s ]\n', num2str(Fx(1:min(8,end)), '%+.4f '));
+    fprintf('fx_true  -> [ %s ]\n', num2str(d.Fx(rand_i, 1:min(8,end)), '%+.4f '));
+    fprintf('br_pred  -> [ %s ]\n', num2str(Br(1:min(8,end)), '%+.4f '));
+    fprintf('br_true  -> [ %s ]\n', num2str(d.Br(rand_i, 1:min(8,end)), '%+.4f '));
+    fprintf('bz_pred  -> [ %s ]\n', num2str(Bz(1:min(8,end)), '%+.4f '));
+    fprintf('bz_true  -> [ %s ]\n', num2str(d.Bz(rand_i, 1:min(8,end)), '%+.4f '));
 
     % use timeit to measure inference time
     fprintf('Measuring inference time...\n');
-    for n = [1, 10, 20, 25, 30, 100, 128, 256, 300, 400, 500, 1000]
-        if n >= 100
-            n_iter = round(N/3);
-        else
-            n_iter = N;
-        end
+    for n = [1, 10, 20, 25, 30, 100, 128, 256]
+        if n >= 100 n_iter = round(N/3);
+        else n_iter = N; end
 
         phys = d.phys(rand_i, :); 
         r = d.pts(rand_i, 1:n, 1);
         z = d.pts(rand_i, 1:n, 2);
+
+        %add noise to the inputs 
+        noise_level = single(0.1);
+        phys = phys + noise_level * randn(size(phys));
+        r = r + noise_level * randn(size(r));
+        z = z + noise_level * randn(size(z));
+
         try
-            t1 = timeit(@() net_forward_mex(single(phys), single(r), single(z)));
+            t1 = timeit(@() inference_func(single(phys), single(r), single(z)));
         catch ME
             t1 = NaN; % in case of error, set time to NaN
         end
@@ -73,7 +75,7 @@ try
         vr = d.pts(rand_idxs, 1:n, 1);
         vz = d.pts(rand_idxs, 1:n, 2);
         try 
-            t2 = timeit(@() test_speed(vphys, vr, vz, n));
+            t2 = timeit(@() test_speed(inference_func, vphys, vr, vz, n));
         catch ME
             t2 = NaN; % in case of error, set time to NaN
         end
@@ -92,7 +94,10 @@ try
     for i = 1:N
         ri = rand_idxs(i);
         t1 = tic;
-        [fx, br, bz] = net_forward_mex(single(d.phys(ri, :)), single(d.pts(ri, 1:n_ctrl_pts, 1)), single(d.pts(ri, 1:n_ctrl_pts, 2)));
+        phys_i = single(d.phys(ri, :)+0.1*randn(size(d.phys(ri, :)))); 
+        r_i = single(d.pts(ri, 1:n_ctrl_pts, 1)+0.1*randn(size(d.pts(ri, 1:n_ctrl_pts, 1))));
+        z_i = single(d.pts(ri, 1:n_ctrl_pts, 2)+0.1*randn(size(d.pts(ri, 1:n_ctrl_pts, 2))));
+        [fx, br, bz] = inference_func(phys_i, r_i, z_i);
         times(i) = toc(t1);
     end
     ttot = toc(ttot);
@@ -104,9 +109,8 @@ try
     fprintf('Frequency -> %.1f [μs] | %.1f [Hz]\n', 1e6*ttot/N, N/ttot);
     % assert(false, 'This is a test, please remove this line to continue.');
 
-    n_plots = 20;
+    n_plots = 0;
     rand_idxs =  randi([1, size(d.phys, 1)], 1, n_plots);
-
     if PLOT
         fprintf('Plotting %d random examples', n_plots);
         for i = 1:n_plots
@@ -115,15 +119,15 @@ try
             r = d.pts(rand_i, :, 1);
             z = d.pts(rand_i, :, 2);
 
-            % net_forward_mex([pwd 'onnx_net_forward/net.onnx']); % to load the model
-            [Fx, Br, Bz] = net_forward_mex(single(phys), single(r), single(z));
+            [Fx, Br, Bz] = inference_func(single(phys), single(r), single(z));
 
             preds = {Fx, Br, Bz};
             trues = {d.Fx(rand_i, :), d.Br(rand_i, :), d.Bz(rand_i, :)};
             labels = {'Fx', 'Br', 'Bz'};
             
             fig = figure('Visible', 'off', 'Position', [100, 100, 1000, 1000]);
-            tiledlayout(3,3, 'Padding', 'none', 'TileSpacing', 'compact'); 
+            % fig = figure('Visible', 'on', 'Position', [100, 100, 1000, 1000]);
+            
             for k = 1:3
                 ftrue = trues{k};
                 fpred = preds{k};
@@ -131,49 +135,51 @@ try
                 fmin = min([ftrue(:); fpred(:)]);
                 diffmap = 100 * abs(ftrue - fpred) ./ (fmax - fmin);
                 sz = 20;
-                % subplot(3,3,3*(k-1)+1);
-                nexttile
+
+                % Plot true value
+                subplot(3,3,3*(k-1)+1);
                 scatter(r, z, sz, ftrue, 'filled');
                 title([labels{k} ' true']);
                 xlabel('r'); ylabel('z');
                 axis equal; colorbar;
-                caxis([fmin fmax]);
-                % subplot(3,3,3*(k-1)+2);
-                nexttile
+                % clim([fmin fmax]);
+
+                % Plot predicted value
+                subplot(3,3,3*(k-1)+2);
                 scatter(r, z, sz, fpred, 'filled');
                 title([labels{k} ' pred']);
                 xlabel('r'); ylabel('z');
                 axis equal; colorbar;
-                caxis([fmin fmax]);
-                % subplot(3,3,3*(k-1)+3);
-                nexttile
+                % clim([fmin fmax]);
+
+                % Plot error map
+                subplot(3,3,3*(k-1)+3);
                 scatter(r, z, sz, diffmap, 'filled');
                 title([labels{k} ' Error [%]']);
                 xlabel('r'); ylabel('z');
                 axis equal; colorbar;
+                
                 set(gcf, 'Name', labels{k});
             end
             % save figure
             saveas(gcf, sprintf('test/matlab_%s.png', num2str(i)));
             % close figure
-            close(gcf);
+            % close(gcf);
             fprintf('.');
         end
         fprintf(' Done.\n');
-    end
 
-    if PLOT
-        % plot histogram
-        figure('Visible', 'on', 'Position', [100, 100, 800, 600]);
-        histogram(times * 1e6, 100);
-        title('Inference time histogram');
-        xlabel('Time [μs]');
-        ylabel('Count');
-        ylim([0 100]);
-        grid on;
-        % save figure
-        saveas(gcf, 'test/matlab_inference_time.png');
-        close(gcf);
+        % % plot histogram
+        % figure('Visible', 'on', 'Position', [100, 100, 800, 600]);
+        % histogram(times * 1e6, 100);
+        % title('Inference time histogram');
+        % xlabel('Time [μs]');
+        % ylabel('Count');
+        % ylim([0 100]);
+        % grid on;
+        % % save figure
+        % saveas(gcf, 'test/matlab_inference_time.png');
+        % close(gcf);
     end
 
 catch ME
@@ -184,13 +190,13 @@ catch ME
     end
 end
 
-function t = test_speed(vphys, vr, vz, ncp)
+function t = test_speed(liuqenn_inference, vphys, vr, vz, ncp)
     start = tic;
     n = size(vphys, 1);
     assert(size(vr,1) == n && size(vz,1) == n, ...
         'Input vectors must have the same number of rows.');
     for i = 1:n
-        [fx, br, bz] = net_forward_mex(single(vphys(i,:)), single(vr(i,1:ncp)), single(vz(i,1:ncp)));
+        [fx, br, bz] = liuqenn_inference(single(vphys(i,:)), single(vr(i,1:ncp)), single(vz(i,1:ncp)));
     end
     t = toc(start);
 end

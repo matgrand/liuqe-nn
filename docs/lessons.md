@@ -41,17 +41,59 @@ Main data structures:
 
     to find the names of the variables, use jtraverser -> tcv_shot -> shot -> results -> EQUIL_1
     (liuqe.m) -> RESULTS 
-    
 
+## Liuqe help/guide
+The list of available parameters can be obtained using `help meqp`, `help liup`, `help meqptcv`, `help liuptcv`.
+
+plotting:
+    - `meqplott`     - Time slice plot
+    - `meqplotevo`   - Time evolution
+    - `meqplotfancy` - fancy plot
+    - `meqmovie`     - Movie of time history
 
 
 ## Integration into current shape controller
 
 - to understand the points required by the shape controller:
-![alt text](image.png)
+<!-- ![alt text](image.png) -->
 
 - testing shots: "_puoi iniziare a guardare un po' di configurazioni diverse. Posso farti una ricerca nel logbook, ma devo essere in laboratorio perché per qualche motivo da fuori le query SQL non funzionano: Ad esempio potresti prendere un limiter (magari uno yo-yo, provo a cercarlo nel logbook), un sn (magari uno standard, ad esempio 79742), un double-null (ad esempio 86310), un NT (78893 a memoria dovrebbe andare), snowflakes, XPT..._"
   
 
 
+## Hybrid
+- to run shape controller (`shapectrl` for where the net is actually used), first `main_shape_ctrl`, then `test_closed_shape`
 
+
+
+
+- fbt per filtrare corrente di plamsa
+- Iy Ip mask to filter current too concentarted
+- to filter blips: "blips" "neab"
+- `/home/admele/Code/hunt_for_blips.m`
+
+
+
+
+## Random
+
+### LOGBOOK
+- call sql works only from lac
+- ``
+- Topic SL o PDJ
+
+
+
+### Other
+for plotting:
+- `liuqeplot`
+- `tcv_polview -cvt` -> `tcv_polview('cvtip',79742)`
+
+
+
+Read/watch hybrid branches: allen/shapectrl, cheiss/dcontrol
+for examples on integration with full controller
+like block `SCDalgo_shapectrl.slx`
+
+
+-  to run matlab test on hybrid: `matlab960 -nodesktop -nosplash -noFigureWindows -r "tests_matlab('all')"`

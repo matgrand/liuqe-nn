@@ -1,0 +1,142 @@
+clear all; close all; clc;
+
+disp('LIH Net LIUQE comparison...');
+
+shots = [
+    79742 % single null
+    86310 % double null
+    78893 % negative triangularity
+    83848 % ?
+    78071 % standard, test ctrl pts (t=0.571) (warn: theta is wrong)
+    % 87188
+];
+
+disp('Shots to process:');
+disp(shots);
+
+addpath(genpath([pwd '/data']));
+
+TIME_INTERV = [0.4, 0.9]; % time interval
+
+% dummy control points
+nq = 10; % number of control points
+thetaq = linspace(0,2*pi,nq+1); thetaq = thetaq(1:end-1)';
+rq = 0.88 + 0.15*cos(thetaq);
+zq = 0.20 + 0.45*sin(thetaq);
+
+%% init variables
+% full grid
+Fx_liuqe = []; Br_liuqe = []; Bz_liuqe = [];
+Fx_lih = []; Br_lih = []; Bz_lih = [];
+Fx_net = []; Br_net = []; Bz_net = [];
+% control points
+cFx_liuqe = []; cBr_liuqe = []; cBz_liuqe = [];
+cFx_lih = []; cBr_lih = []; cBz_lih = [];
+cFx_net = []; cBr_net = []; cBz_net = [];
+
+for si = 1:length(shots) % 1->liuqe, 2->lih, 3->net
+    shot = shots(si);
+
+    t = TIME_INTERV(1):0.01:TIME_INTERV(2); % time vector for the full grid
+    nt = length(t);
+    
+    [L1, LX1, LY1] = liuqe(shot, t);
+
+    % [L2, LX2, LY2] = lih('tcv', shot, [], 'debug', 1);
+    [L2, LX2, LY2] = lih('tcv', shot, t, 'debug', 1);
+
+    Fx_liuqe = [Fx_liuqe, LY1.Fx];
+    Fx_lih = [Fx_lih, LY2.Fx];
+
+    % calculate magnetic fields (copied from meqpost)
+    i4pirxdzx = 1./(4*pi*L1.dzx*L1.rx');
+    i4pirxdrx = 1./(4*pi*L1.drx*L1.rx');
+    [Br1, Bz1] = meqBrBz(LY1.Fx, i4pirxdzx, i4pirxdrx, L1.nzx, L1.nrx);
+    [Br2, Bz2] = meqBrBz(LY2.Fx, i4pirxdzx, i4pirxdrx, L1.nzx, L1.nrx);
+
+    Br_liuqe = [Br_liuqe, Br1];
+    Bz_liuqe = [Bz_liuqe, Bz1];
+    Br_lih = [Br_lih, Br2];
+    Bz_lih = [Bz_lih, Bz2];
+
+    r = L1.rrx(:);
+    z = L1.zzx(:);
+    [Fx3, Br3, Bz3] = net_forward_lx(LX1, r, z); % network inference
+    Fx3 = Fx3'; Br3 = Br3'; Bz3 = Bz3';
+    Fx3 = reshape(Fx3, [65, 28, nt]);
+    Br3 = reshape(Br3, [65, 28, nt]);
+    Bz3 = reshape(Bz3, [65, 28, nt]);
+    Fx_net = [Fx_net, Fx3];
+    Br_net = [Br_net, Br3];
+    Bz_net = [Bz_net, Bz3];
+
+    %% analyze the diff
+    eLIH_Fx = abs(Fx_liuqe - Fx_lih);
+    eNet_Fx = abs(Fx_liuqe - Fx_net);
+    eLIH_Br = abs(Br_liuqe - Br_lih);
+    eNet_Br = abs(Br_liuqe - Br_net);
+    eLIH_Bz = abs(Bz_liuqe - Bz_lih);
+    eNet_Bz = abs(Bz_liuqe - Bz_net);
+    fprintf('\nShot %d: LIUQE vs LIH vs NET\n', shot);
+    fprintf('Err LIH Fx: mean: %.2e, std: %.2e, max: %.2e\n', mean(eLIH_Fx(:)), std(eLIH_Fx(:)), max(eLIH_Fx(:)));
+    fprintf('Err NET Fx: mean: %.2e, std: %.2e, max: %.2e\n', mean(eNet_Fx(:)), std(eNet_Fx(:)), max(eNet_Fx(:)));
+    fprintf('Err LIH Br: mean: %.2e, std: %.2e, max: %.2e\n', mean(eLIH_Br(:)), std(eLIH_Br(:)), max(eLIH_Br(:)));
+    fprintf('Err NET Br: mean: %.2e, std: %.2e, max: %.2e\n', mean(eNet_Br(:)), std(eNet_Br(:)), max(eNet_Br(:)));
+    fprintf('Err LIH Bz: mean: %.2e, std: %.2e, max: %.2e\n', mean(eLIH_Bz(:)), std(eLIH_Bz(:)), max(eLIH_Bz(:)));
+    fprintf('Err NET Bz: mean: %.2e, std: %.2e, max: %.2e\n', mean(eNet_Bz(:)), std(eNet_Bz(:)), max(eNet_Bz(:)));
+end
+
+%% analyze diff over all shots
+eLIH_Fx = abs(Fx_liuqe - Fx_lih);
+eNet_Fx = abs(Fx_liuqe - Fx_net);
+eLIH_Br = abs(Br_liuqe - Br_lih);
+eNet_Br = abs(Br_liuqe - Br_net);
+eLIH_Bz = abs(Bz_liuqe - Bz_lih);       
+eNet_Bz = abs(Bz_liuqe - Bz_net);
+fprintf('\n\nAll shots: LIUQE vs LIH vs NET\n');
+fprintf('Err LIH Fx: mean: %.2e, std: %.2e, max: %.2e\n', mean(eLIH_Fx(:)), std(eLIH_Fx(:)), max(eLIH_Fx(:)));
+fprintf('Err NET Fx: mean: %.2e, std: %.2e, max: %.2e\n', mean(eNet_Fx(:)), std(eNet_Fx(:)), max(eNet_Fx(:)));
+fprintf('Err LIH Br: mean: %.2e, std: %.2e, max: %.2e\n', mean(eLIH_Br(:)), std(eLIH_Br(:)), max(eLIH_Br(:)));
+fprintf('Err NET Br: mean: %.2e, std: %.2e, max: %.2e\n', mean(eNet_Br(:)), std(eNet_Br(:)), max(eNet_Br(:)));
+fprintf('Err LIH Bz: mean: %.2e, std: %.2e, max: %.2e\n', mean(eLIH_Bz(:)), std(eLIH_Bz(:)), max(eLIH_Bz(:)));
+fprintf('Err NET Bz: mean: %.2e, std: %.2e, max: %.2e\n', mean(eNet_Bz(:)), std(eNet_Bz(:)), max(eNet_Bz(:)));
+
+% calculate magnetic fields using the ONNX net
+% network inference
+function [Fx, Br, Bz] = net_forward_lx(LX, r, z)
+    phys = [LX.Bm; LX.Ff; LX.Ft; LX.Ia; LX.Ip; LX.Iu; LX.rBt];
+    fprintf('phys size: %s\n', mat2str(size(phys)));
+    Fx = zeros(size(phys, 2), size(r, 1));
+    Br = zeros(size(phys, 2), size(r, 1));
+    Bz = zeros(size(phys, 2), size(r, 1));
+    fprintf('Fx size: %s, Br size: %s, Bz size: %s\n', mat2str(size(Fx)), mat2str(size(Br)), mat2str(size(Bz)));
+    for i = 1:size(phys, 2)
+        phys_i = phys(:, i);
+        r_i = r(:);
+        z_i = z(:);
+        % [Fxi, Bri, Bzi] = liuqenn_inference_mex(single(phys_i), single(r_i), single(z_i));
+        [Fxi, Bri, Bzi] = net_forward2_mex(single(phys_i)', single(r_i)', single(z_i)');
+        Fx(i,:) = Fxi; Br(i,:) = Bri; Bz(i,:) = Bzi;
+    end
+end
+
+% copied from meqpost
+function [Br,Bz] = meqBrBz(Fx,i4pirdz,i4pirdr,nz,nr)
+    % [Br,Bz] = meqBrBz(Fx,i4pirdz,i4pirdr,nz,nr)
+    % Compute Br,Bz fields
+    % General version that also accepts time-varying Fx
+
+    [Br,Bz] = deal(zeros(nz,nr,size(Fx,3))); % init
+    % Br = -1/(2*pi*R)* dF/dz
+    % Central differences dF/dz[i] =  F[i-1] - F[i+1]/(2*dz)
+    Br(2:end-1,:,:) = -i4pirdz.* (Fx(3:end,:,:) - Fx(1:end-2,:,:));
+    % At grid boundary i, use: dF/dz[i] = (-F(i+2) + 4*F(i+1) - 3*F(i))/(2*dz)
+    Br(end,:  ,:) = -i4pirdz          .* (+Fx(end-2,:,:) - 4*Fx(end-1,:,:) + 3*Fx(end,:,:));
+    Br(1  ,:  ,:) = -i4pirdz          .* (-Fx(    3,:,:) + 4*Fx(    2,:,:) - 3*Fx(  1,:,:));
+
+    % Bz = 1/(2*pi*R)* dF/dr
+    Bz(:,2:end-1,:) =  i4pirdr(2:end-1) .* (+Fx(:,  3:end,:) - Fx(:,1:end-2,:));
+    % Same as for Br
+    Bz(:,end    ,:) =  i4pirdr(end)     .* (+Fx(:,end-2,:) - 4*Fx(:,end-1,:) + 3*Fx(:,end,:));
+    Bz(:,1      ,:) =  i4pirdr(1)       .* (-Fx(:,    3,:) + 4*Fx(:,    2,:) - 3*Fx(:,  1,:));
+end
