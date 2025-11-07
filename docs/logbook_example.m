@@ -43,19 +43,3 @@ for shot = shotlist
 % 	pause(0.1)
 end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
