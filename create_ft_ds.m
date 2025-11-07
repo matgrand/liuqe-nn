@@ -1,5 +1,8 @@
 clear all; close all; clc;
 
+% set warning off for everything
+warning('off', 'all');
+
 % script to create a fine-tuning dataset 
 
 shots = [87701 87702 87703 87704 87706 87707 87708 87709 87710 87711 87712 87713 87714 87714 87715 87716 87717 87718 87719 87732 87735 87736 87737 87738 87739 87740 87741 87742 87743 87744 87745 87746 87747 87748 87750 87751 87752 87753 87755 87767 87767 87768 87769 87770 87771 87772 87773 87774 87775 87776 87777 87778 87779 87793 87796 87796 87797 87798 87799 87800 87801 87802 87803 87804 87805 87806 87807 87808 87809 87810 87811 87812 87828 87829 87832 87833 87834 87835 87836 87837 87838 87839 87840 87841 87842 87843 87844 87845 87846 87848 87849 87850 87866 87867 87868 87869 87870 87871 87872 87873 87874 87875 87876 87877 87878 87879 87880 87881 87882 87882 87892 87893 87895 87896 87897 87898 87899];
@@ -57,15 +60,16 @@ for i = 1:length(shots)
         assert(nt >= MIN_TIME_SAMPLES, 'Not enough time samples');
 
         % put threshold on ip
-        ip_valid = LX.Ip > 1e4; % Ip > 10 kA
+        ip = abs(LY.Ip);
+        ip_valid = reshape(ip > 1e4, [], 1); % Ip > 10 kA
         assert(sum(ip_valid) >= MIN_TIME_SAMPLES, 'Not enough valid Ip samples');
 
-        d = ds_prep_save_shot(shot, LX, LY, ones(size(t)), ip_valid, OUT_DIR);
+        d = ds_prep_save_shot(shot, LX, LY, ip_valid, 1, OUT_DIR);
 
         total_shots = total_shots + 1;
         good_shots = [good_shots, shot];
         % Quick plot of Fx and Iy at mid time
-        figure; mid = round(nt/2); sgtitle(sprintf('Shot %d, t = %.2f s', shot, t(mid)));
+        figure; mid = round(numel(d.t)/2); sgtitle(sprintf('Shot %d, t = %.2f s', shot, t(mid)));
         [rr, zz] = meshgrid(L.rx, L.zx);
         subplot(1,2,1); contourf(rr, zz, d.Fx(:,:,mid), 20, 'LineColor', 'none'); hold on;
         % scatter(rq(:,mid), zq(:,mid), 10, 'k', 'filled'); axis xy; colorbar; title('Fx'); 
