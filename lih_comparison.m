@@ -114,8 +114,8 @@ function [Fx, Br, Bz] = net_forward_lx(LX, r, z)
         phys_i = phys(:, i);
         r_i = r(:);
         z_i = z(:);
-        % [Fxi, Bri, Bzi] = liuqenn_inference_mex(single(phys_i), single(r_i), single(z_i));
-        [Fxi, Bri, Bzi] = liuqenn_inference_mex(single(phys_i)', single(r_i)', single(z_i)');
+        % [Fxi, Bri, Bzi] = liuqenn_inference_mex(single(phys_i)', single(r_i)', single(z_i)');
+        [Fxi, Bri, Bzi] = liuqenn_inference(single(phys_i)', single(r_i)', single(z_i)'); % we can use the non-mex version here
         Fx(i,:) = Fxi; Br(i,:) = Bri; Bz(i,:) = Bzi;
     end
 end

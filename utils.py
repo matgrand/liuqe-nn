@@ -285,6 +285,21 @@ def save_weights_to_mat(net, title="", save_dir=[SAVE_DIR]):
         savemat(f'{sd}/weights_{title}.mat', weights)
         print(f"Weights saved to {sd}/weights_{title}.mat")
 
+def save_weights_to_json(net, title="", save_dir=[SAVE_DIR]):
+    import json
+    weights = {}
+    weights['x_mean_std'] = net.x_mean_std.cpu().numpy().tolist()  # save normalization parameters
+    for name, param in net.named_parameters():
+        w = param.data.cpu().numpy()
+        n = name.replace('.', '_')
+        weights[n] = w.tolist()
+        # print(f"{n}: {w.shape}")
+    print(f'Weights {title}: {weights.keys()}')
+    for sd in save_dir:
+        with open(f'{sd}/weights_{title}.json', 'w') as f:
+            json.dump(weights, f)
+        print(f"Weights saved to {sd}/weights_{title}.json")
+
 # function to load the dataset
 def load_ds(ds_path):
     assert os.path.exists(ds_path), f"Dataset not found: {ds_path}"
