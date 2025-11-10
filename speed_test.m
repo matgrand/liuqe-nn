@@ -12,7 +12,7 @@ try
     % inference_func = @(phys, r, z) liuqenn_inference(single(phys), single(r), single(z));
     inference_func = @(phys, r, z) liuqenn_inference_mex(single(phys), single(r), single(z));
 
-    % the following dataset can be copied from /home/grandin/repos/liuqe-ml/dss/demo.mat
+    % the following dataset can be copied from /home/grandin/repos/liuqe-ml/dss/demo.mat (or generated with prepare_dataset.ipynb)
     d = load('dss/demo.mat'); % load demo data (should be in DS_DIR/demo.mat , DS_DIR defined in utils.py)
 
 
@@ -24,8 +24,8 @@ try
     NIN = 134;
 
     %% test with simplified inputs
-    % rand_i = randi([1, size(d.phys, 1)], 1, 1);
-    rand_i = 1;
+    rand_i = randi([1, size(d.phys, 1)], 1, 1);
+    % rand_i = 1;
     phys = d.phys(rand_i, :); 
     r = d.pts(rand_i, 1:n_ctrl_pts, 1);
     z = d.pts(rand_i, 1:n_ctrl_pts, 2);

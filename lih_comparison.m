@@ -101,10 +101,10 @@ fprintf('Err NET Br: mean: %.2e, std: %.2e, max: %.2e\n', mean(eNet_Br(:)), std(
 fprintf('Err LIH Bz: mean: %.2e, std: %.2e, max: %.2e\n', mean(eLIH_Bz(:)), std(eLIH_Bz(:)), max(eLIH_Bz(:)));
 fprintf('Err NET Bz: mean: %.2e, std: %.2e, max: %.2e\n', mean(eNet_Bz(:)), std(eNet_Bz(:)), max(eNet_Bz(:)));
 
-% calculate magnetic fields using the ONNX net
 % network inference
 function [Fx, Br, Bz] = net_forward_lx(LX, r, z)
-    phys = [LX.Bm; LX.Ff; LX.Ft; LX.Ia; LX.Ip; LX.Iu; LX.rBt];
+    % phys = [LX.Bm; LX.Ff; LX.Ft; LX.Ia; LX.Ip; LX.Iu; LX.rBt];
+    phys = [LX.Bm; LX.Ff; LX.Ia; LX.Uf; LX.rBt];
     fprintf('phys size: %s\n', mat2str(size(phys)));
     Fx = zeros(size(phys, 2), size(r, 1));
     Br = zeros(size(phys, 2), size(r, 1));
@@ -115,7 +115,7 @@ function [Fx, Br, Bz] = net_forward_lx(LX, r, z)
         r_i = r(:);
         z_i = z(:);
         % [Fxi, Bri, Bzi] = liuqenn_inference_mex(single(phys_i), single(r_i), single(z_i));
-        [Fxi, Bri, Bzi] = net_forward2_mex(single(phys_i)', single(r_i)', single(z_i)');
+        [Fxi, Bri, Bzi] = liuqenn_inference_mex(single(phys_i)', single(r_i)', single(z_i)');
         Fx(i,:) = Fxi; Br(i,:) = Bri; Bz(i,:) = Bzi;
     end
 end
