@@ -17,11 +17,14 @@ function [d] = ds_prep_save_shot(shot, LX, LY, t_mask, dec, save_dir)
     assert(all(size(LX.t) == size(LY.t)), 'Time vector sizes do not match');
     t = LX.t;
     nt = numel(t); % number of time samples
+    assert(nt > 0, 'No time samples found');
     assert(all(size(Fx) == [65, 28, nt]), 'Fx has wrong size');
     assert(all(size(Iy) == [63, 26, nt]), 'Iy has wrong size');
     % filter out the NaN/Inf values [MILD]
     mFx = reshape(all(all(~isnan(Fx) & ~isinf(Fx),1),2), [], 1);
+    mFx = mFx & reshape(all(all(abs(Fx) <= 2, 1), 2), [], 1);
     mIy = reshape(all(all(~isnan(Iy) & ~isinf(Iy),1),2), [], 1);
+    mIy = mIy & reshape(all(all(abs(Iy) <= 2e6, 1), 2), [], 1);
 
     mBm = reshape(all(~isnan(Bm) & ~isinf(Bm), 1), [], 1);
     mFf = reshape(all(~isnan(Ff) & ~isinf(Ff), 1), [], 1);

@@ -33,6 +33,7 @@ CUDA = torch.device('cuda')
 CPU = torch.device('cpu')
 MPS = torch.device('mps')
 
+DEV = CPU
 try: 
     JOBID = os.environ["SLURM_JOB_ID"] # get job id from slurm, when training on cluster
     NCORES = int(os.environ.get("SLURM_CPUS_PER_TASK", 1)) # number of cores per task
@@ -42,8 +43,7 @@ try:
     LOCAL = False # for plotting or saving images
 except:
     if torch.backends.mps.is_available():
-        # DEV = MPS
-        DEV = CPU  
+        DEV = MPS
         GPU_MEM = 16 * 1024**3  # 16 GB in bytes
     JOBID = "local"
     LOCAL = True
