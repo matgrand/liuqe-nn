@@ -33,7 +33,6 @@ CUDA = torch.device('cuda')
 CPU = torch.device('cpu')
 MPS = torch.device('mps')
 
-DEV = CPU
 try: 
     JOBID = os.environ["SLURM_JOB_ID"] # get job id from slurm, when training on cluster
     NCORES = int(os.environ.get("SLURM_CPUS_PER_TASK", 1)) # number of cores per task
