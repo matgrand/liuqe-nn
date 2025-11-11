@@ -279,7 +279,7 @@ def save_weights_to_mat(net, title="", save_dir=[SAVE_DIR]):
         n = name.replace('.', '_')
         weights[n] = w
         # print(f"{n}: {w.shape}")
-    print(f'Weights {title}: {weights.keys()}')
+    # print(f'Weights {title}: {weights.keys()}')
     for sd in save_dir:
         savemat(f'{sd}/weights_{title}.mat', weights)
         print(f"Weights saved to {sd}/weights_{title}.mat")
@@ -293,7 +293,7 @@ def save_weights_to_json(net, title="", save_dir=[SAVE_DIR]):
         n = name.replace('.', '_')
         weights[n] = w.tolist()
         # print(f"{n}: {w.shape}")
-    print(f'Weights {title}: {weights.keys()}')
+    # print(f'Weights {title}: {weights.keys()}')
     for sd in save_dir:
         with open(f'{sd}/weights_{title}.json', 'w') as f:
             json.dump(weights, f)
