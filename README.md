@@ -28,6 +28,8 @@ To run a comparison with `lih`:
     lih_comparison
 ```
 
+To see how to run an inference on a standard `LX` structure see `liuqe_nn_LX.m`
+
 ## Training
 Dataset generation and preparation steps:
 > Note: Training and dataset preparations requires a lot of tuning parameters (read the code to understand how to change them).

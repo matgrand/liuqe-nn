@@ -61,7 +61,7 @@ for si = 1:length(shots) % 1->liuqe, 2->lih, 3->net
 
     r = L1.rrx(:);
     z = L1.zzx(:);
-    [Fx3, Br3, Bz3] = net_forward_lx(LX1, r, z); % network inference
+    [Fx3, Br3, Bz3] = liuqe_nn_LX(LX1, r, z); % network inference
     Fx3 = Fx3'; Br3 = Br3'; Bz3 = Bz3';
     Fx3 = reshape(Fx3, [65, 28, nt]);
     Br3 = reshape(Br3, [65, 28, nt]);
@@ -100,25 +100,6 @@ fprintf('Err LIH Br: mean: %.2e, std: %.2e, max: %.2e\n', mean(eLIH_Br(:)), std(
 fprintf('Err NET Br: mean: %.2e, std: %.2e, max: %.2e\n', mean(eNet_Br(:)), std(eNet_Br(:)), max(eNet_Br(:)));
 fprintf('Err LIH Bz: mean: %.2e, std: %.2e, max: %.2e\n', mean(eLIH_Bz(:)), std(eLIH_Bz(:)), max(eLIH_Bz(:)));
 fprintf('Err NET Bz: mean: %.2e, std: %.2e, max: %.2e\n', mean(eNet_Bz(:)), std(eNet_Bz(:)), max(eNet_Bz(:)));
-
-% network inference
-function [Fx, Br, Bz] = net_forward_lx(LX, r, z)
-    % phys = [LX.Bm; LX.Ff; LX.Ft; LX.Ia; LX.Ip; LX.Iu; LX.rBt];
-    phys = [LX.Bm; LX.Ff; LX.Ia; LX.Uf; LX.rBt];
-    fprintf('phys size: %s\n', mat2str(size(phys)));
-    Fx = zeros(size(phys, 2), size(r, 1));
-    Br = zeros(size(phys, 2), size(r, 1));
-    Bz = zeros(size(phys, 2), size(r, 1));
-    fprintf('Fx size: %s, Br size: %s, Bz size: %s\n', mat2str(size(Fx)), mat2str(size(Br)), mat2str(size(Bz)));
-    for i = 1:size(phys, 2)
-        phys_i = phys(:, i);
-        r_i = r(:);
-        z_i = z(:);
-        % [Fxi, Bri, Bzi] = liuqenn_inference_mex(single(phys_i)', single(r_i)', single(z_i)');
-        [Fxi, Bri, Bzi] = liuqenn_inference(single(phys_i)', single(r_i)', single(z_i)'); % we can use the non-mex version here
-        Fx(i,:) = Fxi; Br(i,:) = Bri; Bz(i,:) = Bzi;
-    end
-end
 
 % copied from meqpost
 function [Br,Bz] = meqBrBz(Fx,i4pirdz,i4pirdr,nz,nr)
