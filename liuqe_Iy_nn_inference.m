@@ -7,8 +7,13 @@ function [Iy] = liuqe_Iy_nn_inference(phys, r, z)
     % into the final MEX file.
     persistent net;
     if isempty(net)
-        weights_path = 'demo_weights.mat'; % /home/grandin/repos/liuqe-ml/demo_weights.mat
-        fprintf('Loading weights from %s...\n', weights_path);
+        %% NOTE: to generate the MAT file from JSON weights, run the script: pretrained/json2mat.m
+        % uncomment one of the following weight files to use different models
+        weights_path = 'pretrained/weights_small_l1.mat'; % <- best
+        % weights_path = 'pretrained/weights_small_l2.mat'; 
+        % weights_path = 'pretrained/weights_turbosmall_l1.mat'; 
+
+        fprintf('Loading weights from %s...   (make sure to run the script pretrained/json2mat.m to convert JSON weights to MAT files)\n', weights_path);
         net_const = coder.load(weights_path); 
         net = coder.const(net_const);
         

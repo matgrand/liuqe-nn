@@ -13,8 +13,20 @@ try
     inference_func = @(phys, r, z) liuqenn_inference_mex(single(phys), single(r), single(z));
 
     % the following dataset can be copied from /home/grandin/repos/liuqe-ml/dss/demo.mat (or it can be generated with prepare_dataset.ipynb)
-    d = load('dss/demo.mat'); % load demo data (should be in DS_DIR/demo.mat , DS_DIR defined in utils.py)
-
+    try 
+        d = load('dss/demo.mat'); % load demo data (should be in DS_DIR/demo.mat , DS_DIR defined in utils.py)
+    catch ME
+        % create a ds with random data
+        fprintf('Could not load demo dataset dss/demo.mat (must be generated with prepare_ds.ipynb),\ngenerating random data instead...\n');
+        d = struct(); 
+        d.phys = single(randn(100, 134));
+        d.pts = single(randn(100, 500, 2));
+        d.Fx = single(randn(100, 500));
+        d.Iy = single(randn(100, 500));
+        d.Br = single(randn(100, 500));
+        d.Bz = single(randn(100, 500));
+        d.fg = single(randn(100, 4, 65, 28));
+    end
 
     n_examples = size(d.phys, 1);
     max_n_pts = size(d.pts, 2);
