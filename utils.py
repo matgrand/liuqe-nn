@@ -186,9 +186,9 @@ class ActF(Module): # swish
 # PHYSICS_LS, PTSH, PHYSH, HEADH = 64, 64, 128, 128 # medium (old baseline)
 # PHYSICS_LS, PTSH, PHYSH, HEADH = 48, 48, 64, 64 
 # PHYSICS_LS, PTSH, PHYSH, HEADH = 48, 48, 48, 48 
-# PHYSICS_LS, PTSH, PHYSH, HEADH = 32, 32, 48, 48 # small (new baseline) <- 
+PHYSICS_LS, PTSH, PHYSH, HEADH = 32, 32, 48, 48 # small (new baseline) <- 
 # PHYSICS_LS, PTSH, PHYSH, HEADH = 32, 32, 32, 32 
-PHYSICS_LS, PTSH, PHYSH, HEADH = 16, 16, 32, 32 # turbosmall 
+# PHYSICS_LS, PTSH, PHYSH, HEADH = 16, 16, 32, 32 # turbosmall 
 # PHYSICS_LS, PTSH, PHYSH, HEADH = 3, 16, 32, 32 # for shot mapping
 print(f"Using PHYSICS_LS = {PHYSICS_LS}, PTSH = {PTSH}, PHYSH = {PHYSH}, HEADH = {HEADH}")
 

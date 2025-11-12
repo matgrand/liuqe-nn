@@ -11,7 +11,7 @@ function [Iy] = liuqe_Iy_nn_inference(phys, r, z)
         % uncomment one of the following weight files to use different models
         weights_path = 'pretrained/weights_small_l1.mat'; % <- best
         % weights_path = 'pretrained/weights_small_l2.mat'; 
-        % weights_path = 'pretrained/weights_turbosmall_l1.mat'; 
+        % weights_path = 'pretrained/weights_turbo_l1.mat'; 
 
         fprintf('Loading weights from %s...   (make sure to run the script pretrained/json2mat.m to convert JSON weights to MAT files)\n', weights_path);
         net_const = coder.load(weights_path); 
