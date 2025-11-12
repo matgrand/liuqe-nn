@@ -1,7 +1,7 @@
-# LIUQE-ML a 10kHz LIUQE surrogate model
+# LIUQE-NN: a 10kHz LIUQE surrogate model
 
-This is the repository for the `liuqe-ml` (or `liuqe-nn` in some places) code. 
-`liuqe-ml` is a matlab super fast (30~70 microseconds) neural network surrogate for the equilibrium reconstruction code `liuqe`. It is meant for fast shape control, as an alternative to the `LIUQE-RT` block.
+This is the repository for the `liuqe-nn` (or `liuqe-ml`) code. 
+`liuqe-nn` is a matlab super fast (30~70 microseconds) neural network surrogate for the equilibrium reconstruction code `liuqe`. It is meant for fast shape control, as an alternative to the `LIUQE-RT` block.
 
 Here there are some
 
