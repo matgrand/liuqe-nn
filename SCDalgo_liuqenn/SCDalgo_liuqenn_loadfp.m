@@ -1,7 +1,7 @@
 function FP = SCDalgo_liuqenn_loadfp(obj)
 
-% (here?) compile the mex function -> will generate net_forward2_mex.mex* file
-% build_net_forward2_mex;
+% (here?) compile the mex function -> will generate liuqenn_inference_mex.mex* file
+% build_liuqenn_inference_mex;
 
 FP = struct();
 

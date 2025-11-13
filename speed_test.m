@@ -12,9 +12,21 @@ try
     % inference_func = @(phys, r, z) liuqenn_inference(single(phys), single(r), single(z));
     inference_func = @(phys, r, z) liuqenn_inference_mex(single(phys), single(r), single(z));
 
-    % the following dataset can be copied from /home/grandin/repos/liuqe-ml/dss/demo.mat
-    d = load('dss/demo.mat'); % load demo data (should be in DS_DIR/demo.mat , DS_DIR defined in utils.py)
-
+    % the following dataset can be copied from /home/grandin/repos/liuqe-ml/dss/demo.mat (or it can be generated with prepare_dataset.ipynb)
+    try 
+        d = load('dss/demo.mat'); % load demo data (should be in DS_DIR/demo.mat , DS_DIR defined in utils.py)
+    catch ME
+        % create a ds with random data
+        fprintf('Could not load demo dataset dss/demo.mat (must be generated with prepare_ds.ipynb),\ngenerating random data instead...\n');
+        d = struct(); 
+        d.phys = single(randn(100, 134));
+        d.pts = single(randn(100, 500, 2));
+        d.Fx = single(randn(100, 500));
+        d.Iy = single(randn(100, 500));
+        d.Br = single(randn(100, 500));
+        d.Bz = single(randn(100, 500));
+        d.fg = single(randn(100, 4, 65, 28));
+    end
 
     n_examples = size(d.phys, 1);
     max_n_pts = size(d.pts, 2);
@@ -24,8 +36,8 @@ try
     NIN = 134;
 
     %% test with simplified inputs
-    % rand_i = randi([1, size(d.phys, 1)], 1, 1);
-    rand_i = 1;
+    rand_i = randi([1, size(d.phys, 1)], 1, 1);
+    % rand_i = 1;
     phys = d.phys(rand_i, :); 
     r = d.pts(rand_i, 1:n_ctrl_pts, 1);
     z = d.pts(rand_i, 1:n_ctrl_pts, 2);
@@ -109,6 +121,45 @@ try
     fprintf('Frequency -> %.1f [μs] | %.1f [Hz]\n', 1e6*ttot/N, N/ttot);
     % assert(false, 'This is a test, please remove this line to continue.');
 
+    %% Iy inference test
+    fprintf('Testing Iy inference...\n');
+    rand_i = randi([1, size(d.phys, 1)], 1, 1);
+    phys = d.phys(rand_i, :); 
+    r = d.pts(rand_i, 1:n_ctrl_pts, 1);
+    z = d.pts(rand_i, 1:n_ctrl_pts, 2);
+
+    % Iy = liuqe_Iy_nn_inference(single(phys), single(r), single(z));
+    Iy = liuqe_Iy_nn_inference_mex(single(phys), single(r), single(z));
+    fprintf('Iy size: %s\n', mat2str(size(Iy)));
+
+    fprintf('Output: Iy %s [%s]\n', ...
+        mat2str(size(Iy)), mat2str(class(Iy))); 
+    fprintf('iy_pred  -> [ %s ]\n', num2str(Iy(1:min(10,end)), '%+4.0f '));
+    fprintf('iy_true  -> [ %s ]\n', num2str(d.Iy(rand_i, 1:min(10,end)), '%+4.0f '));
+
+    % test speed for 10_000 iterations
+    N = 10000;
+    fprintf('Testing Iy inference time for %d iterations...', N);
+    rand_idxs = randi([1, size(d.phys, 1)], N, 1);
+    times = zeros(1, N);
+    ttot = tic;
+    for i = 1:N
+        ri = rand_idxs(i);
+        t1 = tic;
+        phys_i = single(d.phys(ri, :)+0.1*randn(size(d.phys(ri, :)))); 
+        r_i = single(d.pts(ri, 1:n_ctrl_pts, 1)+0.1*randn(size(d.pts(ri, 1:n_ctrl_pts, 1))));
+        z_i = single(d.pts(ri, 1:n_ctrl_pts, 2)+0.1*randn(size(d.pts(ri, 1:n_ctrl_pts, 2))));
+        Iy = liuqe_Iy_nn_inference_mex(phys_i, r_i, z_i);
+        times(i) = toc(t1);
+    end
+    ttot = toc(ttot);
+    fprintf(' Done.\n');
+    % print times
+    fprintf('Iy Inference time -> %.1f ± %.1f [μs] | max %.1f [μs]\n', ...
+        mean(times) * 1e6, std(times) * 1e6, max(times) * 1e6); 
+    fprintf('Total time -> %.1f [s]\n', ttot);
+    fprintf('Frequency -> %.1f [μs] | %.1f [Hz]\n', 1e6*ttot/N, N/ttot);
+
     n_plots = 0;
     rand_idxs =  randi([1, size(d.phys, 1)], 1, n_plots);
     if PLOT
@@ -120,15 +171,16 @@ try
             z = d.pts(rand_i, :, 2);
 
             [Fx, Br, Bz] = inference_func(single(phys), single(r), single(z));
+            Iy = liuqe_Iy_nn_inference(single(phys), single(r), single(z));
 
-            preds = {Fx, Br, Bz};
-            trues = {d.Fx(rand_i, :), d.Br(rand_i, :), d.Bz(rand_i, :)};
-            labels = {'Fx', 'Br', 'Bz'};
+            preds = {Fx, Br, Bz, Iy};
+            trues = {d.Fx(rand_i, :), d.Br(rand_i, :), d.Bz(rand_i, :), d.Iy(rand_i, :)};
+            labels = {'Fx', 'Br', 'Bz', 'Iy'};
             
             fig = figure('Visible', 'off', 'Position', [100, 100, 1000, 1000]);
             % fig = figure('Visible', 'on', 'Position', [100, 100, 1000, 1000]);
             
-            for k = 1:3
+            for k = 1:4
                 ftrue = trues{k};
                 fpred = preds{k};
                 fmax = max([ftrue(:); fpred(:)]);
@@ -137,7 +189,7 @@ try
                 sz = 20;
 
                 % Plot true value
-                subplot(3,3,3*(k-1)+1);
+                subplot(3,4,3*(k-1)+1);
                 scatter(r, z, sz, ftrue, 'filled');
                 title([labels{k} ' true']);
                 xlabel('r'); ylabel('z');
@@ -145,7 +197,7 @@ try
                 % clim([fmin fmax]);
 
                 % Plot predicted value
-                subplot(3,3,3*(k-1)+2);
+                subplot(3,4,3*(k-1)+2);
                 scatter(r, z, sz, fpred, 'filled');
                 title([labels{k} ' pred']);
                 xlabel('r'); ylabel('z');
@@ -153,7 +205,7 @@ try
                 % clim([fmin fmax]);
 
                 % Plot error map
-                subplot(3,3,3*(k-1)+3);
+                subplot(3,4,3*(k-1)+3);
                 scatter(r, z, sz, diffmap, 'filled');
                 title([labels{k} ' Error [%]']);
                 xlabel('r'); ylabel('z');

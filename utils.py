@@ -43,8 +43,7 @@ try:
     LOCAL = False # for plotting or saving images
 except:
     if torch.backends.mps.is_available():
-        # DEV = MPS
-        DEV = CPU  
+        DEV = MPS
         GPU_MEM = 16 * 1024**3  # 16 GB in bytes
     JOBID = "local"
     LOCAL = True
@@ -280,10 +279,25 @@ def save_weights_to_mat(net, title="", save_dir=[SAVE_DIR]):
         n = name.replace('.', '_')
         weights[n] = w
         # print(f"{n}: {w.shape}")
-    print(f'Weights {title}: {weights.keys()}')
+    # print(f'Weights {title}: {weights.keys()}')
     for sd in save_dir:
         savemat(f'{sd}/weights_{title}.mat', weights)
         print(f"Weights saved to {sd}/weights_{title}.mat")
+
+def save_weights_to_json(net, title="", save_dir=[SAVE_DIR]):
+    import json
+    weights = {}
+    weights['x_mean_std'] = net.x_mean_std.cpu().numpy().tolist()  # save normalization parameters
+    for name, param in net.named_parameters():
+        w = param.data.cpu().numpy()
+        n = name.replace('.', '_')
+        weights[n] = w.tolist()
+        # print(f"{n}: {w.shape}")
+    # print(f'Weights {title}: {weights.keys()}')
+    for sd in save_dir:
+        with open(f'{sd}/weights_{title}.json', 'w') as f:
+            json.dump(weights, f)
+        print(f"Weights saved to {sd}/weights_{title}.json")
 
 # function to load the dataset
 def load_ds(ds_path):
