@@ -320,7 +320,7 @@ def load_ds(ds_path):
 
 ####################################################################################################
 class LiuqeDataset(Dataset):
-    def __init__(self, ds_path, pts_per_sample=100, verbose=True):
+    def __init__(self, ds_path, pts_per_sample=None, verbose=True):
         d = load_ds(ds_path)
         x_mean_std = to_tensor(d.pop("x_mean_std")) # mean and std for inputs
         self.fg = d.pop(FG) # pop the full grid 
@@ -333,7 +333,7 @@ class LiuqeDataset(Dataset):
         if self.on_dev: self.data = {k:v.to(DEV) for k,v in self.data.items()} # move to device
         self.x_mean_std = x_mean_std.to(DEV) if self.on_dev else x_mean_std
         self.tnp = self.data[PTS].shape[1] # total number of points per timestamp
-        self.pps = pts_per_sample # number of points per sample
+        self.pps = pts_per_sample if pts_per_sample is not None else self.tnp # number of points per sample
         assert self.tnp % self.pps == 0, f'Number of points per sample ({self.tnp}) is not a perfect multiple of pps ({self.pps})'
         if verbose: print(f"Dataset: n_t:{len(self.data[PHYS])}, total_pts_per_t:{self.tnp}, picked:{self.pps} -> N:{len(self)} ({len(self.data[PHYS])}*{self.tnp}//{self.pps}), memory:{tot_memory_ds/1e6}MB, on_dev:{self.on_dev}")
     def __len__(self): return len(self.data[PHYS]) * self.tnp // self.pps # number of samples, all data should have the same length
