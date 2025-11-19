@@ -23,6 +23,7 @@ function [obj] = SCDalgoobj_liuqenn()
     % Tasks
 
     % Wavegens 
-
+    obj=obj.addwavegen(SCDclass_mdswgsigarray1('rtcalgo.liuqenn.waves.rn_%03d','sc_ri',1:25,'srcsrv','scd','srctree','scd'));
+    obj=obj.addwavegen(SCDclass_mdswgsigarray1('rtcalgo.liuqenn.waves.zn_%03d','sc_zi',1:25,'srcsrv','scd','srctree','scd'));
     
 end
