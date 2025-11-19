@@ -185,7 +185,7 @@ function [name, bus] = SCDalgo_liuqenn_loadbus()
 
     %% TP bus
     evalin('base','clear slBus1');
-    TP = get_fmag_tunable_params;
+    TP = get_liuqenn_tunable_params;
     Simulink.Bus.createObject(TP);
     tpBus = evalin('base','slBus1');
 

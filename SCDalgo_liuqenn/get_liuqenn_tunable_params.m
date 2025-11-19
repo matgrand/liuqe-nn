@@ -1,4 +1,4 @@
-function TP = get_liuqeml_tunable_params()
+function TP = get_liuqenn_tunable_params()
 
     % return an empty struct for now (no tunable params)
     TP = struct();
