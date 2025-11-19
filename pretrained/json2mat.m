@@ -1,7 +1,7 @@
 % this script converts all json files in the current directory to mat files
 % usage: json2mat
 
-curr_dir = pwd;
+curr_dir = fileparts(mfilename('fullpath'));
 json_files = dir(fullfile(curr_dir, '*.json'));
 
 for k = 1:length(json_files)
