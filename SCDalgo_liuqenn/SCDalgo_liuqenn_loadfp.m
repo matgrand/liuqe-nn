@@ -6,7 +6,7 @@ function FP = SCDalgo_liuqenn_loadfp(obj)
 FP = struct();
 
 % sampling time
-FP.dt = 1e-4;
+FP.Ts = 1e-4;
 
 % input dimensions
 FP.nBm = int32(38);  % magnetic probes
