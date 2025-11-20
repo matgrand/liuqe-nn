@@ -3,7 +3,8 @@ function [obj] = SCDalgoobj_liuqenn()
     obj = SCD_algo('SCDalgo_liuqenn');
 
     % Timing of the algorithm
-    obj = obj.settiming(-0.5, 1e-4, 3); % same as fmag
+    FP = SCDalgo_liuqenn_loadfp;   
+    obj = obj.settiming(-0.5, FP.dt, 3); % same as fmag
 
     % Fixed parameters init functions
     obj = obj.addfpinitfcn('SCDalgo_liuqenn_loadfp', 'SCDalgo_liuqenn_fp');
@@ -22,8 +23,8 @@ function [obj] = SCDalgoobj_liuqenn()
 
     % Tasks
 
-    % Wavegens 
-    obj=obj.addwavegen(SCDclass_mdswgsigarray1('rtcalgo.liuqenn.waves.rn_%03d','sc_ri',1:25,'srcsrv','scd','srctree','scd'));
-    obj=obj.addwavegen(SCDclass_mdswgsigarray1('rtcalgo.liuqenn.waves.zn_%03d','sc_zi',1:25,'srcsrv','scd','srctree','scd'));
+    % Wavegens     
+    obj=obj.addwavegen(SCDclass_mdswgsigarray1('rtcalgo.liuqenn.waves.ri_%03d','rn',1:25,'srcsrv','scd','srctree','scd'));
+    obj=obj.addwavegen(SCDclass_mdswgsigarray1('rtcalgo.liuqenn.waves.zi_%03d','zn',1:25,'srcsrv','scd','srctree','scd'));
     
 end
