@@ -2,15 +2,16 @@ clear all; close all; clc;
 
 START_SHOT = 77662; % Dec 2022, https://spcwiki.epfl.ch/wiki/Alma_database
 % END_SHOT = 85804; % April 2025
-END_SHOT = 87899; % Sept 2025
+% END_SHOT = 87899; % Sept 2025
+END_SHOT = 88534; % Nov 2025
 % N_SHOTS = 100; % Number of shots to process
-% N_SHOTS = END_SHOT-START_SHOT; % Number of shots to process
-N_SHOTS = 5; % Number of shots to process
+N_SHOTS = END_SHOT-START_SHOT; % Number of shots to process
+% N_SHOTS = 5; % Number of shots to process
 
 % Directory to save the output .mat files
 OUT_DIR = '/NoTivoli/grandin/ds'; % more space available on NoTivoli
 
-DECIMATION = 6; % 6 Decimation factor for the time vector
+DECIMATION = 2; % 6 Decimation factor for the time vector
 
 MIN_TIME_SAMPLES = 10; % Minimum number of time samples to keep the shot
 MAX_IP_PERC_DIFF = 2.5; % Maximum percentage difference between IPLIUQE and IP
