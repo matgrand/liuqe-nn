@@ -1,15 +1,17 @@
 clc; clear all; close all;
 
 % load mems from liuqenn
-shot = 88566;
-% shot = 88567;
+% shot = 88566;
+shot = 88567;
+% shot = 88564;
 
-START_TIME = 0.05 % start time for analysis
+% START_TIME = 0.05 % start time for analysis
+START_TIME = 0.3 % start time for analysis
 STOP_TIME = 1.6 %3.0; % stop time for analysis
-dec = 50; % decimation factor
+dec = 150; % decimation factor
 
 
-nrt = get_scd_mems(shot,'liuqenn')
+nrt = get_scd_mems(shot,'liuqenn');
 Fxn = nrt.liuqenn_Fxn;
 Brn = nrt.liuqenn_Brn;
 Bzn = nrt.liuqenn_Bzn;
@@ -74,6 +76,11 @@ z = [ 0.1574  0.4299  0.5873  0.5873  0.4299  0.1574 -0.1574 -0.4299 -0.5873 -0.
 [Fx_liu, Br_liu, Bz_liu] = interp_liuqe(r,z, L, LX, LY, INTERP_METHOD);
 
 
+%recalculated net
+[Fx_rec, Br_rec, Bz_rec] = liuqe_nn_LX(LX, single(r'), single(z'));
+
+
+
 
 % print abs err, std of the err and max err of Fx, Br, Bz between liuqe and liuqenn
 e_Fx_nn = abs(Fx_liu - Fx);
@@ -101,6 +108,15 @@ fprintf('LIH vs LIUQE:\n');
 fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_lih(:)), std(e_Fx_lih(:)), max(e_Fx_lih(:)));
 fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_lih(:)), std(e_Br_lih(:)), max(e_Br_lih(:)));
 fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_lih(:)), std(e_Bz_lih(:)), max(e_Bz_lih(:)));
+
+%recalculated net
+e_Fx_rec = abs(Fx_rec - Fx_liu);
+e_Br_rec = abs(Br_rec - Br_liu);
+e_Bz_rec = abs(Bz_rec - Bz_liu);
+fprintf('RECALCULATED NET vs LIUQE:\n');
+fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_rec(:)), std(e_Fx_rec(:)), max(e_Fx_rec(:)));
+fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_rec(:)), std(e_Br_rec(:)), max(e_Br_rec(:)));
+fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_rec(:)), std(e_Bz_rec(:)), max(e_Bz_rec(:)));
 
 %plotting
 nplt = 5; % number of points to plot
