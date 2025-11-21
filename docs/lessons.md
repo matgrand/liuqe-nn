@@ -97,3 +97,19 @@ like block `SCDalgo_shapectrl.slx`
 
 
 -  to run matlab test on hybrid: `matlab960 -nodesktop -nosplash -noFigureWindows -r "tests_matlab('all')"`
+
+
+
+
+
+
+
+
+
+
+
+
+# Test on ctrl server
+- date: 21/11/2025 15.40
+- l1_small -> 79.8 micro +- 3 micro
+- l1_turbo -> 20.3 micro +- 0 (!)

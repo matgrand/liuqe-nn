@@ -9,7 +9,8 @@ N_SHOTS = END_SHOT-START_SHOT; % Number of shots to process
 % N_SHOTS = 5; % Number of shots to process
 
 % Directory to save the output .mat files
-OUT_DIR = '/NoTivoli/grandin/ds'; % more space available on NoTivoli
+% OUT_DIR = '/NoTivoli/grandin/ds'; % more space available on NoTivoli
+OUT_DIR = '/tmp/grandin/ds'; % temporary directory
 
 DECIMATION = 2; % 6 Decimation factor for the time vector
 
