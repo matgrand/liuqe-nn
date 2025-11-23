@@ -8,7 +8,7 @@ shot = 88567;
 % START_TIME = 0.05 % start time for analysis
 START_TIME = 0.3 % start time for analysis
 STOP_TIME = 1.6 %3.0; % stop time for analysis
-dec = 50; % decimation factor
+dec = 500; % decimation factor
 
 
 nrt = get_scd_mems(shot,'liuqenn');
@@ -162,7 +162,7 @@ title('Bz'); xlabel('Time (s)');
 figure;
 bm_rt = phys_RT(:,1:38); ff_rt = phys_RT(:,39:76); ia_rt = phys_RT(:,77:95); uf_rt = phys_RT(:,96:133); rbt_rt = phys_RT(:,134);
 bm_lx = phys_LX(:,1:38); ff_lx = phys_LX(:,39:76); ia_lx = phys_LX(:,77:95); uf_lx = phys_LX(:,96:133); rbt_lx = phys_LX(:,134);
-e_bm=abs(bm_rt - bm_lx); e_ff=abs(ff_rt - ff_lx); e_ia=abs(ia_rt - ia_lx); e_uf=abs(uf_rt - uf_lx);
+e_bm=bm_rt-bm_lx; e_ff=ff_rt-ff_lx; e_ia=ia_rt-ia_lx; e_uf=uf_rt-uf_lx;
 
 % idx = 3;
 % bmrt=bm_rt(idx,:); ffrt=ff_rt(idx,:); iart=ia_rt(idx,:); ufrt=uf_rt(idx,:); bmlx=bm_lx(idx,:); fflx=ff_lx(idx,:); ialx=ia_lx(idx,:); uflx=uf_lx(idx,:);
