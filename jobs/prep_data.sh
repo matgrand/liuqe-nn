@@ -6,7 +6,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=200G
-#SBATCH --time=4:00:00
+#SBATCH --time=6:00:00
 cd $HOME/repos/liuqe-ml
 
 echo "Latest commit:"
