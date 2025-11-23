@@ -8,62 +8,80 @@ shot = 88567;
 % START_TIME = 0.05 % start time for analysis
 START_TIME = 0.3 % start time for analysis
 STOP_TIME = 1.6 %3.0; % stop time for analysis
-dec = 150; % decimation factor
+dec = 50; % decimation factor
 
 
 nrt = get_scd_mems(shot,'liuqenn');
 Fxn = nrt.liuqenn_Fxn;
 Brn = nrt.liuqenn_Brn;
 Bzn = nrt.liuqenn_Bzn;
+Fx = Fxn.Data; Br = Brn.Data; Bz = Bzn.Data;
+
+t = round(Fxn.Time,5); % time vector
 
 
+% Inputs
+fmagin = get_scd_mems(shot,'fmagin');
+fmagin = fmagin.fmagin;
+% inputs from fmag
+Bm = fmagin.Bm.Data;
+Bmdot = fmagin.Bmdot.Data;
+Ff = fmagin.Ff.Data;
+IPHI = fmagin.IPHI.Data;
+Ia = fmagin.Ia.Data;
+Uf = fmagin.Uf.Data;
+Va = fmagin.Va.Data;
+enable_exec = fmagin.enable_exec.Data;
+feedforwards = fmagin.feedforwards.Data;
+references = fmagin.references.Data;
+% t = fmagin.t;
 
 
+rBt = zeros(size(Bm,1),1); % just put zeros for rBt for now
 
+phys = [Bm Ff Ia Uf rBt];
+phys_t = round(fmagin.t.Data,5);
 
-
-%% Inputs
-% fmagin = get_scd_mems(shot,'fmagin')
-% fmagin = fmagin.fmagin
-% % inputs from fmag
-% Bm = fmagin.Bm;
-% Bmdot = fmagin.Bmdot;
-% Ff = fmagin.Ff;
-% IPHI = fmagin.IPHI;
-% Ia = fmagin.Ia;
-% Uf = fmagin.Uf;
-% Va = fmagin.Va;
-% enable_exec = fmagin.enable_exec;
-% feedforwards = fmagin.feedforwards;
-% references = fmagin.references;
-% % t = fmagin.t;
+%times
+valid_t_mask = (t >= START_TIME) & (t <= STOP_TIME);
+t = t(valid_t_mask);
+Fx = Fx(valid_t_mask, :);
+Br = Br(valid_t_mask, :);
+Bz = Bz(valid_t_mask, :);
+valid_phys_mask = (phys_t >= START_TIME) & (phys_t <= STOP_TIME);
+phys = phys(valid_phys_mask, :);
+phys_t = phys_t(valid_phys_mask);
+assert(max(abs(phys_t - t)) < 1e-8, 'Time vectors do not coincide');
 
 
 
 %% analysis
 
 
+% decimate
+Fx = Fx(1:dec:end,:);
+Br = Br(1:dec:end,:);
+Bz = Bz(1:dec:end,:);
+t = t(1:dec:end);
+phys = phys(1:dec:end, :);
 
-Fx = Fxn.Data(1:dec:end,:);
-Br = Brn.Data(1:dec:end,:);
-Bz = Bzn.Data(1:dec:end,:);
-t = Fxn.Time(1:dec:end);
 
-valid_t_mask = (t >= START_TIME) & (t <= STOP_TIME);
-t = t(valid_t_mask);
-Fx = Fx(valid_t_mask, :);
-Br = Br(valid_t_mask, :);
-Bz = Bz(valid_t_mask, :);
+% figure; grid on; bar(log(abs(phys(1,:)))); title('Bar Plot of phys 1 (RT)');
+% fprintf('phys (rt): %s \n', mat2str(phys(1,:),4));
+phys_RT = phys;
+
 
 INTERP_METHOD = 'linear'; % interpolation method for interp2
 
 r = [1.0864 1.0313 0.9357 0.8253 0.7297 0.6746 0.6746 0.7297 0.8253 0.9357 1.0313 1.0864 1.0137 0.9747 0.8805 0.7863 0.7473 0.7863 0.8805 0.9747 0.9182 0.9182 0.8428 0.8428 0.8805];
-z = [ 0.1574  0.4299  0.5873  0.5873  0.4299  0.1574 -0.1574 -0.4299 -0.5873 -0.5873 -0.4299 -0.1574 0. 0.2687 0.38 0.2687 0. -0.2687 -0.38 -0.2687 -0.1075 0.1075 0.1075 -0.1075  0.];
+z = [0.1574  0.4299  0.5873  0.5873  0.4299  0.1574 -0.1574 -0.4299 -0.5873 -0.5873 -0.4299 -0.1574 0. 0.2687 0.38 0.2687 0. -0.2687 -0.38 -0.2687 -0.1075 0.1075 0.1075 -0.1075  0.];
 
-% liuqe
+% net inference realtime
+Fx_net = Fx; Br_net = Br; Bz_net = Bz;
 
+fprintf('Running LIUQE versions...\n');
 
-%rtliuqe
+% rtliuqe (approx)
 [L,LX,LY] = liuqe(shot,t,'itert',1);
 [Fx_lrt, Br_lrt, Bz_lrt] = interp_liuqe(r,z, L, LX, LY, INTERP_METHOD);
 
@@ -75,23 +93,25 @@ z = [ 0.1574  0.4299  0.5873  0.5873  0.4299  0.1574 -0.1574 -0.4299 -0.5873 -0.
 [L,LX,LY] = liuqe(shot,t);
 [Fx_liu, Br_liu, Bz_liu] = interp_liuqe(r,z, L, LX, LY, INTERP_METHOD);
 
-
-%recalculated net
+% recalculated net
 [Fx_rec, Br_rec, Bz_rec] = liuqe_nn_LX(LX, single(r'), single(z'));
+
+
+% recalculated on rt phys
 
 
 
 
 % print abs err, std of the err and max err of Fx, Br, Bz between liuqe and liuqenn
-e_Fx_nn = abs(Fx_liu - Fx);
-e_Br_nn = abs(Br_liu - Br);
-e_Bz_nn = abs(Bz_liu - Bz);
+e_Fx_nn = abs(Fx_liu - Fx_net);
+e_Br_nn = abs(Br_liu - Br_net);
+e_Bz_nn = abs(Bz_liu - Bz_net);
 fprintf('LIUQENN vs LIUQE:\n');
 fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_nn(:)), std(e_Fx_nn(:)), max(e_Fx_nn(:)));
 fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_nn(:)), std(e_Br_nn(:)), max(e_Br_nn(:)));
 fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_nn(:)), std(e_Bz_nn(:)), max(e_Bz_nn(:)));
 
-%now liuqert vs liuqe
+% liuqert vs liuqe
 e_Fx_lrt = abs(Fx_lrt - Fx_liu);
 e_Br_lrt = abs(Br_lrt - Br_liu);
 e_Bz_lrt = abs(Bz_lrt - Bz_liu);
@@ -100,7 +120,7 @@ fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_lrt(:)),
 fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_lrt(:)), std(e_Br_lrt(:)), max(e_Br_lrt(:)));
 fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_lrt(:)), std(e_Bz_lrt(:)), max(e_Bz_lrt(:)));
 
-% now lih vs liuqe
+% lih vs liuqe
 e_Fx_lih = abs(Fx_lih - Fx_liu);
 e_Br_lih = abs(Br_lih - Br_liu);
 e_Bz_lih = abs(Bz_lih - Bz_liu);
@@ -109,7 +129,7 @@ fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_lih(:)),
 fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_lih(:)), std(e_Br_lih(:)), max(e_Br_lih(:)));
 fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_lih(:)), std(e_Bz_lih(:)), max(e_Bz_lih(:)));
 
-%recalculated net
+% recalculated net vs liuqe
 e_Fx_rec = abs(Fx_rec - Fx_liu);
 e_Br_rec = abs(Br_rec - Br_liu);
 e_Bz_rec = abs(Bz_rec - Bz_liu);
@@ -123,20 +143,48 @@ nplt = 5; % number of points to plot
 
 figure;
 subplot(3,1,1); grid on; hold on;
-plot(t, Fx(:,1:nplt:end));
+plot(t, Fx_net(:,1:nplt:end));
 % plot(t, Fx_lrt(:,1:nplt:end), '--');
 plot(t, Fx_liu(:,1:nplt:end), ':');
 title('Fx'); xlabel('Time (s)');
 subplot(3,1,2); grid on; hold on;
-plot(t, Br(:,1:nplt:end));
+plot(t, Br_net(:,1:nplt:end));
 % plot(t, Br_lrt(:,1:nplt:end), '--');
 plot(t, Br_liu(:,1:nplt:end), ':');
 title('Br'); xlabel('Time (s)');
 subplot(3,1,3); grid on; hold on;
-plot(t, Bz(:,1:nplt:end));
+plot(t, Bz_net(:,1:nplt:end));
 % plot(t, Bz_lrt(:,1:nplt:end), '--');
 plot(t, Bz_liu(:,1:nplt:end), ':');
 title('Bz'); xlabel('Time (s)');
+
+% comparison of the phys inputs
+figure;
+bm_rt = phys_RT(:,1:38); ff_rt = phys_RT(:,39:76); ia_rt = phys_RT(:,77:95); uf_rt = phys_RT(:,96:133); rbt_rt = phys_RT(:,134);
+bm_lx = phys_LX(:,1:38); ff_lx = phys_LX(:,39:76); ia_lx = phys_LX(:,77:95); uf_lx = phys_LX(:,96:133); rbt_lx = phys_LX(:,134);
+e_bm=abs(bm_rt - bm_lx); e_ff=abs(ff_rt - ff_lx); e_ia=abs(ia_rt - ia_lx); e_uf=abs(uf_rt - uf_lx);
+
+% idx = 3;
+% bmrt=bm_rt(idx,:); ffrt=ff_rt(idx,:); iart=ia_rt(idx,:); ufrt=uf_rt(idx,:); bmlx=bm_lx(idx,:); fflx=ff_lx(idx,:); ialx=ia_lx(idx,:); uflx=uf_lx(idx,:);
+% ebm=e_bm(idx,:); eff=e_ff(idx,:); eia=e_ia(idx,:); euf=e_uf(idx,:);
+
+bmrt=mean(bm_rt,1); ffrt=mean(ff_rt,1); iart=mean(ia_rt,1); ufrt=mean(uf_rt,1); bmlx=mean(bm_lx,1); fflx=mean(ff_lx,1); ialx=mean(ia_lx,1); uflx=mean(uf_lx,1);
+ebm=mean(e_bm,1); eff=mean(e_ff,1); eia=mean(e_ia,1); euf=mean(e_uf,1);
+
+subplot(5,2,1); grid on; hold on;
+bar(bmrt, 'FaceAlpha',0.5); bar(bmlx, 'FaceAlpha',0.5); title('Bm'); legend('RT','LX');
+subplot(5,2,2); grid on; hold on; bar(ebm, 'FaceAlpha',0.5); title('Bm Error'); 
+subplot(5,2,3); grid on; hold on;
+bar(ffrt, 'FaceAlpha',0.5); bar(fflx, 'FaceAlpha',0.5); title('Ff'); legend('RT','LX');
+subplot(5,2,4); grid on; hold on; bar(eff, 'FaceAlpha',0.5); title('Ff Error'); 
+subplot(5,2,5); grid on; hold on;
+bar(iart, 'FaceAlpha',0.5); bar(ialx, 'FaceAlpha',0.5); title('Ia'); legend('RT','LX');
+subplot(5,2,6); grid on; hold on; bar(eia, 'FaceAlpha',0.5); title('Ia Error');
+subplot(5,2,7); grid on; hold on;
+bar(ufrt, 'FaceAlpha',0.5); bar(uflx, 'FaceAlpha',0.5); title('Uf'); legend('RT','LX');
+subplot(5,2,8); grid on; hold on; bar(euf, 'FaceAlpha',0.5); title('Uf Error');
+% comment on the plot: ia 17 18 19 are probably in wrong order + Uf errors are big
+
 
 
 function [fx, br, bz] = interp_liuqe(r, z, L, LX, LY, INTERP_METHOD)

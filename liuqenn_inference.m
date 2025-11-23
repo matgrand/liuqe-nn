@@ -17,15 +17,15 @@ function [Fx, Br, Bz] = liuqenn_inference(phys, r, z)
         net_const = coder.load(weights_path); 
         net = coder.const(net_const);
         
-        fields = fieldnames(net);
-        for i = 1:numel(fields)
-            sz = size(net.(fields{i}));
-            sz_str = sprintf('%dx', sz);
-            sz_str = sz_str(1:end-1); % remove trailing 'x'
-            fprintf('net.%s: [%s]\n', fields{i}, sz_str);
-        end
+        % fields = fieldnames(net);
+        % for i = 1:numel(fields)
+        %     sz = size(net.(fields{i}));
+        %     sz_str = sprintf('%dx', sz);
+        %     sz_str = sz_str(1:end-1); % remove trailing 'x'
+        %     fprintf('net.%s: [%s]\n', fields{i}, sz_str);
+        % end
         
-        fprintf('Success\n');
+        % fprintf('Success\n');
     end
 
     % [Fx, Br, Bz] = direct_net_forward(phys, r, z, net); % standard version
