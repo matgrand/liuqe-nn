@@ -8,7 +8,7 @@ shot = 88567;
 % START_TIME = 0.05 % start time for analysis
 START_TIME = 0.3 % start time for analysis
 STOP_TIME = 1.6 %3.0; % stop time for analysis
-dec = 500; % decimation factor
+dec = 50; % decimation factor
 
 
 nrt = get_scd_mems(shot,'liuqenn');
@@ -16,6 +16,11 @@ Fxn = nrt.liuqenn_Fxn;
 Brn = nrt.liuqenn_Brn;
 Bzn = nrt.liuqenn_Bzn;
 Fx = Fxn.Data; Br = Brn.Data; Bz = Bzn.Data;
+
+figure;
+subplot(3,1,1); grid on; plot(Fxn); title('Fxn');
+subplot(3,1,2); grid on; plot(Brn); title('Brn');
+subplot(3,1,3); grid on; plot(Bzn); title('Bzn');
 
 t = round(Fxn.Time,5); % time vector
 
@@ -165,26 +170,28 @@ bm_lx = phys_LX(:,1:38); ff_lx = phys_LX(:,39:76); ia_lx = phys_LX(:,77:95); uf_
 e_bm=bm_rt-bm_lx; e_ff=ff_rt-ff_lx; e_ia=ia_rt-ia_lx; e_uf=uf_rt-uf_lx; % pure error
 e_bm=abs(e_bm); e_ff=abs(e_ff); e_ia=abs(e_ia); e_uf=abs(e_uf); % absolute error
 
-% idx = 3;
-% bmrt=bm_rt(idx,:); ffrt=ff_rt(idx,:); iart=ia_rt(idx,:); ufrt=uf_rt(idx,:); bmlx=bm_lx(idx,:); fflx=ff_lx(idx,:); ialx=ia_lx(idx,:); uflx=uf_lx(idx,:);
+idx = 3;
+bmrt=bm_rt(idx,:); ffrt=ff_rt(idx,:); iart=ia_rt(idx,:); ufrt=uf_rt(idx,:); bmlx=bm_lx(idx,:); fflx=ff_lx(idx,:); ialx=ia_lx(idx,:); uflx=uf_lx(idx,:);
 % ebm=e_bm(idx,:); eff=e_ff(idx,:); eia=e_ia(idx,:); euf=e_uf(idx,:);
 
-bmrt=mean(bm_rt,1); ffrt=mean(ff_rt,1); iart=mean(ia_rt,1); ufrt=mean(uf_rt,1); bmlx=mean(bm_lx,1); fflx=mean(ff_lx,1); ialx=mean(ia_lx,1); uflx=mean(uf_lx,1);
+% bmrt=mean(bm_rt,1); ffrt=mean(ff_rt,1); iart=mean(ia_rt,1); ufrt=mean(uf_rt,1); bmlx=mean(bm_lx,1); fflx=mean(ff_lx,1); ialx=mean(ia_lx,1); uflx=mean(uf_lx,1);
 ebm=mean(e_bm,1); eff=mean(e_ff,1); eia=mean(e_ia,1); euf=mean(e_uf,1);
 
-subplot(5,2,1); grid on; hold on;
-bar(bmrt, 'FaceAlpha',0.5); bar(bmlx, 'FaceAlpha',0.5); title('Bm'); legend('RT','LX');
-subplot(5,2,2); grid on; hold on; bar(ebm, 'FaceAlpha',0.5); title('Bm Error'); 
-subplot(5,2,3); grid on; hold on;
-bar(ffrt, 'FaceAlpha',0.5); bar(fflx, 'FaceAlpha',0.5); title('Ff'); legend('RT','LX');
-subplot(5,2,4); grid on; hold on; bar(eff, 'FaceAlpha',0.5); title('Ff Error'); 
-subplot(5,2,5); grid on; hold on;
-bar(iart, 'FaceAlpha',0.5); bar(ialx, 'FaceAlpha',0.5); title('Ia'); legend('RT','LX');
-subplot(5,2,6); grid on; hold on; bar(eia, 'FaceAlpha',0.5); title('Ia Error');
-subplot(5,2,7); grid on; hold on;
-bar(ufrt, 'FaceAlpha',0.5); bar(uflx, 'FaceAlpha',0.5); title('Uf'); legend('RT','LX');
-subplot(5,2,8); grid on; hold on; bar(euf, 'FaceAlpha',0.5); title('Uf Error');
+nr=4;nc=2;pli=1;
+subplot(nr,nc,pli); grid on; hold on; pli=pli+1;
+bar(bmrt, 'FaceAlpha',0.5); bar(bmlx, 'FaceAlpha',0.5); title(sprintf('Bm t:%.4f', t(idx))); legend('RT','LX');
+subplot(nr,nc,pli); grid on; hold on; pli=pli+1; bar(ebm, 'FaceAlpha',0.5); title('mean(abs(Bm_{rt}-Bm_{lx}))'); 
+subplot(nr,nc,pli); grid on; hold on; pli=pli+1;
+bar(ffrt, 'FaceAlpha',0.5); bar(fflx, 'FaceAlpha',0.5); title(sprintf('Ff t:%.4f', t(idx))); legend('RT','LX');
+subplot(nr,nc,pli); grid on; hold on; pli=pli+1; bar(eff, 'FaceAlpha',0.5); title('mean(abs(Ff_{rt}-Ff_{lx}))'); 
+subplot(nr,nc,pli); grid on; hold on; pli=pli+1;
+bar(iart, 'FaceAlpha',0.5); bar(ialx, 'FaceAlpha',0.5); title(sprintf('Ia t:%.4f', t(idx))); legend('RT','LX');
+subplot(nr,nc,pli); grid on; hold on; pli=pli+1; bar(eia, 'FaceAlpha',0.5); title('mean(abs(Ia_{rt}-Ia_{lx}))');
+subplot(nr,nc,pli); grid on; hold on; pli=pli+1;
+bar(ufrt, 'FaceAlpha',0.5); bar(uflx, 'FaceAlpha',0.5); title(sprintf('Uf t:%.4f', t(idx))); legend('RT','LX');
+subplot(nr,nc,pli); grid on; hold on; bar(euf, 'FaceAlpha',0.5); title('mean(abs(Uf_{rt}-Uf_{lx}))');
 % comment on the plot: ia 17 18 19 are probably in wrong order + Uf errors are big
+suptitle(sprintf('Shot: %d', shot));
 
 
 
