@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 plt.style.use('dark_background' if DARK_THEME else 'default')
 plt.rcParams['figure.figsize'] = (10, 6)
 plt.rcParams['axes.grid'] = True
-plt.rcParams['grid.alpha'] = 0.3
+plt.rcParams['grid.alpha'] = 0.3 if DARK_THEME else 0.7
 plt.rcParams['font.family'] = 'monospace'
 # plt.rcParams['image.cmap'] = 'inferno'
 plt.rcParams['image.cmap'] = 'plasma'
@@ -553,6 +553,17 @@ def test_plot_vessel():
     plt.savefig(f"{TEST_DIR}/vessel.png")
     # plt.close()s
 
+def prep_plot_tcv(ax):
+    ax.grid(False)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_aspect("equal")
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    plot_vessel(ax) # plot vessel
+
 def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=SAVE_DIR, nplt=2 if LOCAL else 50, use_db=True, use_diy=True):
     assert ds.fg is not None, "Dataset does not have full grid data (fg)"
     if use_diy: assert use_db, "use_diy requires use_db to be True"
@@ -609,37 +620,27 @@ def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=
             limits = [(mfx, Mfx), (miy, Miy), (mbr, Mbr), (mbz, Mbz)] # variable limits
             vals = [(fx, fxp), (iy, iyp), (br, brp), (bz, bzp)]
             names = ["Fx", "Iyd" if use_diy else "Iy", "Brd" if use_db else "Br", "Bzd" if use_db else "Bz"]
-            def prep_plot(ax):
-                ax.grid(False)
-                ax.set_xticks([])
-                ax.set_yticks([])
-                ax.set_aspect("equal")
-                ax.spines['top'].set_visible(False)
-                ax.spines['right'].set_visible(False)
-                ax.spines['left'].set_visible(False)
-                ax.spines['bottom'].set_visible(False)
-                plot_vessel(ax) # plot vessel
             nraws = 2
             ncols = 8 if on_grid else 6 # number of columns
             α_sep = 0.5
             for j, ((v, vp), l, n) in enumerate(zip(vals, limits, names)):
                 plt.subplot(nraws, ncols, j*(ncols//2)+1), plt.title(f"{n} Actual")
                 plt.scatter(p[iv,0], p[iv,1], c=v[iv], s=ms, vmin=l[0], vmax=l[1], cmap=cm)
-                prep_plot(plt.gca()), plt.colorbar(); reverse_cmap and plt.gcf().axes and plt.gcf().axes[-1].invert_yaxis(); 
+                prep_plot_tcv(plt.gca()), plt.colorbar(); reverse_cmap and plt.gcf().axes and plt.gcf().axes[-1].invert_yaxis(); 
                 plt.subplot(nraws, ncols, j*(ncols//2) + 2); plt.title(f"{n} Predicted")
                 plt.scatter(p[iv,0], p[iv,1], c=vp[iv], s=ms, vmin=l[0], vmax=l[1], cmap=cm)
-                prep_plot(plt.gca()), plt.colorbar(); reverse_cmap and plt.gcf().axes and plt.gcf().axes[-1].invert_yaxis();
+                prep_plot_tcv(plt.gca()), plt.colorbar(); reverse_cmap and plt.gcf().axes and plt.gcf().axes[-1].invert_yaxis();
                 plt.subplot(nraws, ncols, j*(ncols//2) + ncols//2), plt.title(f"{n} Error %")
                 ep = 100*np.abs(v[iv]-vp[iv])/(l[1]-l[0]) # error in %
                 # plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep)) # variable bar for everything
                 plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=np.max(ep) if n in [IY, IYD] else 1.0) # fixed bar but not for Iy
-                prep_plot(plt.gca()), plt.colorbar()
+                prep_plot_tcv(plt.gca()), plt.colorbar()
 
                 if on_grid: # plot contours if on grid
                     plt.subplot(nraws, ncols, j*(ncols//2) + 3), plt.title(f"{n} Contours")
                     plt.contour(RRD, ZZD, v.reshape(65,28), levels=20, linestyles='solid', cmap=cm)
                     plt.contour(RRD, ZZD, vp.reshape(65,28), levels=20, linestyles='dashed', cmap=cm)
-                    prep_plot(plt.gca()), plt.colorbar()
+                    prep_plot_tcv(plt.gca()), plt.colorbar()
             fig = plt.gcf() # Get the current figure
             dx, xoff = 0.004, 0.01 #0.005, 0.008
             # dy, yoff = dx*fs[0]/fs[1], -0.012 #dx*fs[0]/fs[1], 0.003
