@@ -30,3 +30,4 @@ codegen/*
 *.tar.gz
 SCDalgo_liuqenn/codegen/*
 *.sldd
+shots_time.json

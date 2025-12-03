@@ -85,6 +85,11 @@ DS_SIZES = {
     BM:(38,), FF:(38,), IA:(19,), UF:(38,), RBT:(1,),  # input sizes
     FX:(65,28), IY:(63,26), BR:(65,28), BZ:(65,28),  # output sizes
 }
+INPUT_MASKS = {
+    name: np.arange(sum(DS_SIZES[n][0] for n in INPUT_NAMES[:i]), 
+                    sum(DS_SIZES[n][0] for n in INPUT_NAMES[:i+1]))
+    for i, name in enumerate(INPUT_NAMES)
+}
 DTYPE = 'float32'
 
 π = torch.pi # constant pi
@@ -186,9 +191,9 @@ class ActF(Module): # swish
 # PHYSICS_LS, PTSH, PHYSH, HEADH = 64, 64, 128, 128 # medium (old baseline)
 # PHYSICS_LS, PTSH, PHYSH, HEADH = 48, 48, 64, 64 
 # PHYSICS_LS, PTSH, PHYSH, HEADH = 48, 48, 48, 48 
-# PHYSICS_LS, PTSH, PHYSH, HEADH = 32, 32, 48, 48 # small (new baseline) <- 
+PHYSICS_LS, PTSH, PHYSH, HEADH = 32, 32, 48, 48 # small (new baseline) <- 
 # PHYSICS_LS, PTSH, PHYSH, HEADH = 32, 32, 32, 32 
-PHYSICS_LS, PTSH, PHYSH, HEADH = 16, 16, 32, 32 # turbosmall 
+# PHYSICS_LS, PTSH, PHYSH, HEADH = 16, 16, 32, 32 # turbosmall 
 # PHYSICS_LS, PTSH, PHYSH, HEADH = 3, 16, 32, 32 # for shot mapping
 print(f"Using PHYSICS_LS = {PHYSICS_LS}, PTSH = {PTSH}, PHYSH = {PHYSH}, HEADH = {HEADH}")
 
@@ -436,6 +441,13 @@ def filter_zeros(r,z, thrs=1e-7):
     m = ~((r == 0) & (z == 0)) # exact zeros
     # m = ~((np.abs(r) < thrs) & (np.abs(z) < thrs)) # near zeros
     return r[m], z[m]
+
+def get_in_masks(names:list):
+    assert all(name in INPUT_NAMES for name in names), f"All names must be in INPUT_NAMES: {INPUT_NAMES}"
+    mask = np.zeros(NIN, dtype=bool)
+    if len(names) == 0: return mask
+    mask[np.hstack([INPUT_MASKS[name] for name in names])] = True
+    return mask
 
 # calculate Br, Bz from the flux map (Fx)
 def meqBrBz(f:np.ndarray, rr=RRD, zz=ZZD):
