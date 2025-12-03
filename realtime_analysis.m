@@ -1,9 +1,12 @@
 clc; clear all; close all;
 
 % load mems from liuqenn
+% shot = 88719; %inverted currents
+% shot = 88564; 
 % shot = 88566;
-shot = 88567;
-% shot = 88564;
+% shot = 88567;
+% shot = 88741;
+shot = 88742; 
 
 % START_TIME = 0.05 % start time for analysis
 START_TIME = 0.3 % start time for analysis
@@ -34,6 +37,13 @@ Bmdot = fmagin.Bmdot.Data;
 Ff = fmagin.Ff.Data;
 IPHI = fmagin.IPHI.Data;
 Ia = fmagin.Ia.Data;
+% swap 17,18,19 to correct order
+Ia_17 = Ia(:,17);
+Ia_18 = Ia(:,18);
+Ia_19 = Ia(:,19); 
+Ia(:,17) = Ia_19;
+Ia(:,18) = Ia_17;
+Ia(:,19) = Ia_18;
 Uf = fmagin.Uf.Data;
 Va = fmagin.Va.Data;
 enable_exec = fmagin.enable_exec.Data;
@@ -70,13 +80,16 @@ Bz = Bz(1:dec:end,:);
 t = t(1:dec:end);
 phys = phys(1:dec:end, :);
 
-
-% figure; grid on; bar(log(abs(phys(1,:)))); title('Bar Plot of phys 1 (RT)');
-% fprintf('phys (rt): %s \n', mat2str(phys(1,:),4));
 phys_RT = phys;
 
+rt_lx.Bm = phys_RT(:,1:38)';
+rt_lx.Ff = phys_RT(:,39:76)';
+rt_lx.Ia = phys_RT(:,77:95)';
+rt_lx.Uf = phys_RT(:,96:133)';
+rt_lx.rBt = phys_RT(:,134)';
 
 INTERP_METHOD = 'linear'; % interpolation method for interp2
+% INTERP_METHOD = 'spline'; % interpolation method for interp2
 
 r = [1.0864 1.0313 0.9357 0.8253 0.7297 0.6746 0.6746 0.7297 0.8253 0.9357 1.0313 1.0864 1.0137 0.9747 0.8805 0.7863 0.7473 0.7863 0.8805 0.9747 0.9182 0.9182 0.8428 0.8428 0.8805];
 z = [0.1574  0.4299  0.5873  0.5873  0.4299  0.1574 -0.1574 -0.4299 -0.5873 -0.5873 -0.4299 -0.1574 0. 0.2687 0.38 0.2687 0. -0.2687 -0.38 -0.2687 -0.1075 0.1075 0.1075 -0.1075  0.];
@@ -86,25 +99,29 @@ Fx_net = Fx; Br_net = Br; Bz_net = Bz;
 
 fprintf('Running LIUQE versions...\n');
 
+[L,LX] = liuqe(shot,t);
+LX.Bm=rt_lx.Bm; LX.Ff=rt_lx.Ff; LX.Uf=rt_lx.Uf;% LX.rBt=rt_lx.rBt; % use phys_RT inputs
+LX_liuqe = LX; % save for later
+
 % rtliuqe (approx)
-[L,LX,LY] = liuqe(shot,t,'itert',1);
-[Fx_lrt, Br_lrt, Bz_lrt] = interp_liuqe(r,z, L, LX, LY, INTERP_METHOD);
+% [Lrt,LXrt,LYrt] = liuqe(shot,t,'itert',1);
+% LYrt = liut(L,LX, 'itert', 1); % double check that itert=1 is the same as rtliuqe (too good like this)
+[Lrt,LXrt,LYrt] = liuqe(shot,t, 'LX', LX, 'itert',1); % double check that this is correct (seems correct)
+[Fx_lrt, Br_lrt, Bz_lrt] = interp_liuqe(r,z, L, LX, LYrt, INTERP_METHOD);
 
 % lih
-[L,LX,LY] = lih('tcv', shot, t, 'debug', 1);
-[Fx_lih, Br_lih, Bz_lih] = interp_liuqe(r,z, L, LX, LY, INTERP_METHOD);
+[Lih,LXih,LYih] = lih('tcv', shot, t, 'debug', 1);
+[Fx_lih, Br_lih, Bz_lih] = interp_liuqe(r,z, L, LX, LYih, INTERP_METHOD);
 
 % standard liuqe
-[L,LX,LY] = liuqe(shot,t);
+LY = liut(L,LX);
 [Fx_liu, Br_liu, Bz_liu] = interp_liuqe(r,z, L, LX, LY, INTERP_METHOD);
 
-% recalculated net
-[Fx_rec, Br_rec, Bz_rec] = liuqe_nn_LX(LX, single(r'), single(z'));
+% recalculated on phys_RT inputs
+[Fx_rec2, Br_rec2, Bz_rec2] = liuqe_nn_LX(rt_lx, single(r'), single(z'));
 
-
-% recalculated on rt phys
-
-
+% recalculated net on LX
+[Fx_rec, Br_rec, Bz_rec] = liuqe_nn_LX(LX_liuqe, single(r'), single(z')); % this assigns to base phys_LX
 
 
 % print abs err, std of the err and max err of Fx, Br, Bz between liuqe and liuqenn
@@ -143,24 +160,33 @@ fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_rec(:)),
 fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_rec(:)), std(e_Br_rec(:)), max(e_Br_rec(:)));
 fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_rec(:)), std(e_Bz_rec(:)), max(e_Bz_rec(:)));
 
+% recalculated net on phys_RT vs liuqe
+e_Fx_rec2 = abs(Fx_rec2 - Fx_liu);
+e_Br_rec2 = abs(Br_rec2 - Br_liu);
+e_Bz_rec2 = abs(Bz_rec2 - Bz_liu);
+fprintf('RECALCULATED NET on phys_RT vs LIUQE:\n');
+fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_rec2(:)), std(e_Fx_rec2(:)), max(e_Fx_rec2(:)));
+fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_rec2(:)), std(e_Br_rec2(:)), max(e_Br_rec2(:)));
+fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_rec2(:)), std(e_Bz_rec2(:)), max(e_Bz_rec2(:)));    
+
 %plotting
-nplt = 5; % number of points to plot
+plt_dec = 2; % number of points to plot
 
 figure;
 subplot(3,1,1); grid on; hold on;
-plot(t, Fx_net(:,1:nplt:end));
-% plot(t, Fx_lrt(:,1:nplt:end), '--');
-plot(t, Fx_liu(:,1:nplt:end), ':');
+plot(t, Fx_net(:,1:plt_dec:end));
+% plot(t, Fx_lrt(:,1:plt_dec:end), '--');
+plot(t, Fx_liu(:,1:plt_dec:end), ':');
 title('Fx'); xlabel('Time (s)');
 subplot(3,1,2); grid on; hold on;
-plot(t, Br_net(:,1:nplt:end));
-% plot(t, Br_lrt(:,1:nplt:end), '--');
-plot(t, Br_liu(:,1:nplt:end), ':');
+plot(t, Br_net(:,1:plt_dec:end));
+% plot(t, Br_lrt(:,1:plt_dec:end), '--');
+plot(t, Br_liu(:,1:plt_dec:end), ':');
 title('Br'); xlabel('Time (s)');
 subplot(3,1,3); grid on; hold on;
-plot(t, Bz_net(:,1:nplt:end));
-% plot(t, Bz_lrt(:,1:nplt:end), '--');
-plot(t, Bz_liu(:,1:nplt:end), ':');
+plot(t, Bz_net(:,1:plt_dec:end));
+% plot(t, Bz_lrt(:,1:plt_dec:end), '--');
+plot(t, Bz_liu(:,1:plt_dec:end), ':');
 title('Bz'); xlabel('Time (s)');
 
 % comparison of the phys inputs
@@ -168,7 +194,7 @@ figure;
 bm_rt = phys_RT(:,1:38); ff_rt = phys_RT(:,39:76); ia_rt = phys_RT(:,77:95); uf_rt = phys_RT(:,96:133); rbt_rt = phys_RT(:,134);
 bm_lx = phys_LX(:,1:38); ff_lx = phys_LX(:,39:76); ia_lx = phys_LX(:,77:95); uf_lx = phys_LX(:,96:133); rbt_lx = phys_LX(:,134);
 e_bm=bm_rt-bm_lx; e_ff=ff_rt-ff_lx; e_ia=ia_rt-ia_lx; e_uf=uf_rt-uf_lx; % pure error
-e_bm=abs(e_bm); e_ff=abs(e_ff); e_ia=abs(e_ia); e_uf=abs(e_uf); % absolute error
+% e_bm=abs(e_bm); e_ff=abs(e_ff); e_ia=abs(e_ia); e_uf=abs(e_uf); % absolute error
 
 idx = 3;
 bmrt=bm_rt(idx,:); ffrt=ff_rt(idx,:); iart=ia_rt(idx,:); ufrt=uf_rt(idx,:); bmlx=bm_lx(idx,:); fflx=ff_lx(idx,:); ialx=ia_lx(idx,:); uflx=uf_lx(idx,:);
@@ -234,7 +260,7 @@ function [Br,Bz] = meqBrBz(Fx,i4pirdz,i4pirdr,nz,nr)
 
     % Bz = 1/(2*pi*R)* dF/dr
     Bz(:,2:end-1,:) =  i4pirdr(2:end-1) .* (+Fx(:,  3:end,:) - Fx(:,1:end-2,:));
-    % Same as for Br
+    % Same as for Brs'; %
     Bz(:,end    ,:) =  i4pirdr(end)     .* (+Fx(:,end-2,:) - 4*Fx(:,end-1,:) + 3*Fx(:,end,:));
     Bz(:,1      ,:) =  i4pirdr(1)       .* (-Fx(:,    3,:) + 4*Fx(:,    2,:) - 3*Fx(:,  1,:));
 end
