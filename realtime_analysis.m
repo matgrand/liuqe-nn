@@ -3,10 +3,15 @@ clc; clear all; close all;
 % load mems from liuqenn
 % shot = 88719; %inverted currents
 % shot = 88564; 
-% shot = 88566;
+shot = 88566;
 % shot = 88567;
 % shot = 88741;
-shot = 88742; 
+% shot = 88742; 
+shot = 88647
+
+% possible shots (4/12/2025)
+shots = [88564  88565  88566  88567  88577  88579  88582  88583  88584  88586  88646  88647  88734  88736  88737  88738  88739  88740  88741  88742];
+
 
 % START_TIME = 0.05 % start time for analysis
 START_TIME = 0.3 % start time for analysis
@@ -100,7 +105,7 @@ Fx_net = Fx; Br_net = Br; Bz_net = Bz;
 fprintf('Running LIUQE versions...\n');
 
 [L,LX] = liuqe(shot,t);
-LX.Bm=rt_lx.Bm; LX.Ff=rt_lx.Ff; LX.Uf=rt_lx.Uf;% LX.rBt=rt_lx.rBt; % use phys_RT inputs
+LX.Bm=rt_lx.Bm; LX.Ff=rt_lx.Ff; LX.Uf=rt_lx.Uf; LX.Ia=rt_lx.Ia;% LX.rBt=rt_lx.rBt; % use phys_RT inputs
 LX_liuqe = LX; % save for later
 
 % rtliuqe (approx)
