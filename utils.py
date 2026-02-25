@@ -276,6 +276,11 @@ def test_network_io(verbose=True):
     if v: print(f"batched liuqeML -> in: [{x.shape}, {pts.shape}], \n            out: [{fx.shape}, {brz.shape}, {iy.shape}]")
     # if v: print(f"No batched versions of LiuqeRTNet and LiuqeIyNet (meant for single sample inference only)")
 
+def load_net_from_data(data_dir='data/3535303', model='best_Fx.pth'):
+    x_mean_std = to_tensor(np.load(f'{data_dir}/x_mean_std.npz')['x_mean_std'], device=DEV)
+    lnn = liuqeML(x_mean_std=x_mean_std).to(DEV)
+    lnn.load_state_dict(torch.load(f'{data_dir}/{model}', map_location=DEV))
+    return lnn
 def save_weights_to_mat(net, title="", save_dir=[SAVE_DIR]):
     weights = {}
     weights['x_mean_std'] = net.x_mean_std.cpu().numpy()  # save normalization parameters
