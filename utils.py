@@ -12,10 +12,10 @@ plt.rcParams['figure.figsize'] = (10, 6)
 plt.rcParams['axes.grid'] = True
 plt.rcParams['grid.alpha'] = 0.3 if DARK_THEME else 0.7
 plt.rcParams['font.family'] = 'monospace'
-# plt.rcParams['image.cmap'] = 'inferno'
-plt.rcParams['image.cmap'] = 'plasma'
+plt.rcParams['image.cmap'] = 'inferno'
+# plt.rcParams['image.cmap'] = 'plasma'
 # plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.colormaps['plasma'](np.array([0.2,0.4,0.6,0.8,1.0])))
-plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.colormaps['plasma'](np.array([.1,.5,.2,.6,.3,.7,.4,.8,.9,1.0])))
+# plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.colormaps['plasma'](np.array([.1,.5,.2,.6,.3,.7,.4,.8,.9,1.0]))) # <-
 
 # print("Current savefig.dpi:", plt.rcParams['savefig.dpi'])
 # plt.rcParams['savefig.dpi'] = 300
