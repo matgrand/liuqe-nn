@@ -28,9 +28,11 @@ function [Fx, Br, Bz] = liuqenn_inference(phys, r, z)
         % fprintf('Success\n');
     end
 
+    % make sure all r > 0
+    r(r <= 0) = 1e-3;
+
     % [Fx, Br, Bz] = direct_net_forward(phys, r, z, net); % standard version
     [Fx, Br, Bz] = grad_net_forward(phys, r, z, net); % gradient version
-    
 end
 
 function [Fx, Br, Bz] = direct_net_forward(phys, r, z, net)
