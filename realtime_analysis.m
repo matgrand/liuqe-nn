@@ -95,8 +95,9 @@ rt_lx.Ia = phys_RT(:,77:95)';
 rt_lx.Uf = phys_RT(:,96:133)';
 rt_lx.rBt = phys_RT(:,134)';
 
-INTERP_METHOD = 'linear'; % interpolation method for interp2
+% INTERP_METHOD = 'linear'; % interpolation method for interp2
 % INTERP_METHOD = 'spline'; % interpolation method for interp2
+INTERP_METHOD = 'cubic'; % interpolation method for interp2
 
 r = [1.0864 1.0313 0.9357 0.8253 0.7297 0.6746 0.6746 0.7297 0.8253 0.9357 1.0313 1.0864 1.0137 0.9747 0.8805 0.7863 0.7473 0.7863 0.8805 0.9747 0.9182 0.9182 0.8428 0.8428 0.8805];
 z = [0.1574  0.4299  0.5873  0.5873  0.4299  0.1574 -0.1574 -0.4299 -0.5873 -0.5873 -0.4299 -0.1574 0. 0.2687 0.38 0.2687 0. -0.2687 -0.38 -0.2687 -0.1075 0.1075 0.1075 -0.1075  0.];

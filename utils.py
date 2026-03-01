@@ -494,7 +494,7 @@ def find_approx_lcfs(Iy):
 ## PLOTTING
 from matplotlib.patches import PathPatch
 from matplotlib.path import Path
-def _fill_between_polygons(ax, inner_poly, outer_poly, **kwargs):
+def fill_between_polygons(ax, inner_poly, outer_poly, **kwargs):
     """
     Fill the area between two polygons.
     
@@ -538,14 +538,13 @@ def _fill_between_polygons(ax, inner_poly, outer_poly, **kwargs):
     ax.add_patch(patch)
     return patch
 
-def plot_vessel(ax=None, lw=1.5, alpha=0.3):
+def plot_vessel(ax=None, lw=1.5, alpha=0.3, c='white' if DARK_THEME else 'black'):
     if ax is None: ax = plt.gca()
-    c = 'white' if DARK_THEME else 'black'
     ax.plot(VESS[:,0], VESS[:,1], color=c, lw=lw, alpha=alpha) # most inner
     ax.plot(VESSI[:,0], VESSI[:,1], color=c, lw=lw, alpha=alpha) # inner
     ax.plot(VESSO[:,0], VESSO[:,1], color=c, lw=lw, alpha=alpha) # outer
-    _fill_between_polygons(ax, VESSI, VESSO, color='gray', alpha=alpha*0.8, lw=0)
-    _fill_between_polygons(ax, VESS, VESSI, color='gray', alpha=alpha*0.3, lw=0)
+    fill_between_polygons(ax, VESSI, VESSO, color='gray', alpha=alpha*0.8, lw=0)
+    fill_between_polygons(ax, VESS, VESSI, color='gray', alpha=alpha*0.3, lw=0)
     return ax
 
 def test_plot_vessel():
@@ -558,7 +557,7 @@ def test_plot_vessel():
     plt.savefig(f"{TEST_DIR}/vessel.png")
     # plt.close()s
 
-def prep_plot_tcv(ax):
+def prep_plot_tcv(ax, lw=1.5, alpha=0.3, c='white' if DARK_THEME else 'black'):
     ax.grid(False)
     ax.set_xticks([])
     ax.set_yticks([])
@@ -567,7 +566,7 @@ def prep_plot_tcv(ax):
     ax.spines['right'].set_visible(False)
     ax.spines['left'].set_visible(False)
     ax.spines['bottom'].set_visible(False)
-    plot_vessel(ax) # plot vessel
+    plot_vessel(ax, lw=lw, alpha=alpha, c=c) # plot vessel
 
 def plot_network_outputs(ds:LiuqeDataset, model:liuqeML, title="test", save_dir=SAVE_DIR, nplt=2 if LOCAL else 50, use_db=True, use_diy=True):
     assert ds.fg is not None, "Dataset does not have full grid data (fg)"
