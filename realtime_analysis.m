@@ -180,9 +180,9 @@ fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_rec2(:))
 fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_rec2(:)), std(e_Bz_rec2(:)), max(e_Bz_rec2(:)));    
 
 % save data
-save(sprintf('realtime_analysis_shot%d.mat', shot), 't', 't_or', 'phys', 'phys_or', 'Fx_net', 'Br_net', 'Bz_net', ...
-    'Fx_lrt', 'Br_lrt', 'Bz_lrt', 'Fx_lih', 'Br_lih', 'Bz_lih', 'Fx_liu', 'Br_liu', 'Bz_liu', ...
-    'Fx_rec', 'Br_rec', 'Bz_rec', 'Fx_rec2', 'Br_rec2', 'Bz_rec2');
+save(sprintf('realtime_analysis_shot%d.mat', shot), 't_or', 'phys_or', 'Fx_or', 'Br_or', 'Bz_or',
+    'Fx_net', 'Br_net', 'Bz_net', 'Fx_lrt', 'Br_lrt', 'Bz_lrt', 'Fx_lih', 'Br_lih', 'Bz_lih', 'Fx_liu', 'Br_liu', 'Bz_liu', ...
+    'Fx_rec', 'Br_rec', 'Bz_rec', 'Fx_rec2', 'Br_rec2', 'Bz_rec2', 't', 'phys');
 
 
 %plotting
