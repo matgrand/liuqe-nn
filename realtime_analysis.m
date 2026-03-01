@@ -17,8 +17,8 @@ shots = [88564  88565  88566  88567  88577  88579  88582  88583  88584  88586  8
 
 % START_TIME = 0.05 % start time for analysis
 START_TIME = 0.2 % start time for analysis
-STOP_TIME = 0.6 %1.6 %3.0; % stop time for analysis
-dec = 50; % decimation factor
+STOP_TIME = 1.6 %1.6 %3.0; % stop time for analysis
+dec = 10; % decimation factor
 
 
 nrt = get_scd_mems(shot,'liuqenn');
@@ -75,6 +75,8 @@ phys = phys(valid_phys_mask, :);
 phys_t = phys_t(valid_phys_mask);
 assert(max(abs(phys_t - t)) < 1e-8, 'Time vectors do not coincide');
 
+Fx_or = Fx; Br_or = Br; Bz_or = Bz; % save original net outputs before decimation for later comparison
+t_or = t; phys_or = phys;
 
 
 %% analysis
@@ -177,6 +179,12 @@ fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_rec2(:))
 fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_rec2(:)), std(e_Br_rec2(:)), max(e_Br_rec2(:)));
 fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_rec2(:)), std(e_Bz_rec2(:)), max(e_Bz_rec2(:)));    
 
+% save data
+save(sprintf('realtime_analysis_shot%d.mat', shot), 't', 't_or', 'phys', 'phys_or', 'Fx_net', 'Br_net', 'Bz_net', ...
+    'Fx_lrt', 'Br_lrt', 'Bz_lrt', 'Fx_lih', 'Br_lih', 'Bz_lih', 'Fx_liu', 'Br_liu', 'Bz_liu', ...
+    'Fx_rec', 'Br_rec', 'Bz_rec', 'Fx_rec2', 'Br_rec2', 'Bz_rec2');
+
+
 %plotting
 plt_dec = 2; % number of points to plot
 
@@ -226,6 +234,7 @@ bar(ufrt, 'FaceAlpha',0.5); bar(uflx, 'FaceAlpha',0.5); title(sprintf('Uf t:%.4f
 subplot(nr,nc,pli); grid on; hold on; bar(euf, 'FaceAlpha',0.5); title('mean(abs(Uf_{rt}-Uf_{lx}))');
 % comment on the plot: ia 17 18 19 are probably in wrong order + Uf errors are big
 suptitle(sprintf('Shot: %d', shot));
+
 
 
 
