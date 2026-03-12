@@ -32,3 +32,4 @@ SCDalgo_liuqenn/codegen/*
 *.sldd
 shots_time.json
 *.h5
+paper_figures/*
