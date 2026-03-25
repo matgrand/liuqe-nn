@@ -28,6 +28,10 @@ warnings.filterwarnings("ignore", category=SyntaxWarning)
 
 # create defualt colors
 C1, C2, C3, C4 = _cmap(32/255), _cmap(140/255), _cmap(200/255), _cmap(254/255)
+
+# print rgb triplet for each color as integers (0-255)
+print(f"C1: {[int(C1[i]*255) for i in range(3)]}, C2: {[int(C2[i]*255) for i in range(3)]}, C3: {[int(C3[i]*255) for i in range(3)]}, C4: {[int(C4[i]*255) for i in range(3)]}") 
+
 # plot 4 big sqares with these colors
 plt.figure(figsize=(8,2))
 plt.subplot(241), plt.imshow([[C1]], aspect='auto'), plt.axis('off'), plt.title('C1')
@@ -237,21 +241,21 @@ for cp in reversed(range(n_ctrl_pts)):
     er = eFx[:, cp] + zero_line
     plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
 plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(f'Error $\psi$')
+plt.ylabel(r'Error $\psi \; [\mathrm{Wb}]$')
 plt.subplot(*spl, 2)
 for cp in reversed(range(n_ctrl_pts)):
     zero_line = 0.0025 * cp * np.ones_like(t)
     er = eBr[:, cp] + zero_line
     plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
 plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(f'Error $B_r$')
+plt.ylabel(r'Error $B_r \; [\mathrm{T}]$')
 plt.subplot(*spl, 3)
 for cp in reversed(range(n_ctrl_pts)):
     zero_line = 0.0025 * cp * np.ones_like(t)
     er = eBz[:, cp] + zero_line
     plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
 plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(f'Error $B_z$')
+plt.ylabel(r'Error $B_z \; [\mathrm{T}]$')
 
 plt.subplot(*spl, 4)
 colors = _cmap(np.linspace(0, 1, seN.shape[1]))
@@ -259,7 +263,7 @@ for i in range(seN.shape[1]):
     plt.plot(t, seN[:, i], color=colors[i])
     plt.plot(t, seL[:, i], std_style, color=colors[i])
 plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(f'Shape Err')
+plt.ylabel(r'Shape Err $[\mathrm{m}]$')
 
 plt.subplot(*spl, 5)
 colors = _cmap(np.linspace(0, 1, peN.shape[1]))
@@ -267,7 +271,7 @@ for i in range(peN.shape[1]):
     plt.plot(t, peN[:, i], color=colors[i])
     plt.plot(t, peL[:, i], std_style, color=colors[i])
 plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(f'Proj Err')
+plt.ylabel(r'Proj Err $[\mathrm{m}]$')
 
 plt.subplot(*spl, 6)
 colors = _cmap(np.linspace(0, 1, IaN.shape[1]))
@@ -275,7 +279,7 @@ for i in range(IaN.shape[1]):
     plt.plot(t, IaN[:, i], color=colors[i])
     plt.plot(t, IaL[:, i], std_style, color=colors[i])
 plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(f'Currents')
+plt.ylabel(r'Currents $[\mathrm{kA}]$')
 
 plt.tight_layout()
 plt.savefig(f"{FIGS_DIR}/control_simulation.pdf")
@@ -409,7 +413,7 @@ elih = list(map(lambda a, b: np.abs(a-b), lih, liu))
 
 plt.figure(figsize=(10, 5))
 cols = [C2, C1, C3]
-titles = ['$\psi$', '$B_r$', '$B_z$']
+titles = ['$\psi \; [\mathrm{Wb}]$', '$B_r \; [\mathrm{T}]$', '$B_z \; [\mathrm{T}]$']
 for k in range(3):
     plt.subplot(3, 1, k+1)
     for i, (errs, name) in enumerate(zip([enet, elrt, elih], ['Surrogate', 'Liuqe-RT', 'LIH'])):
