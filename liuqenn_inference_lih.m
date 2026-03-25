@@ -1,4 +1,4 @@
-function [Fx, dFx_dr, dFx_dt, d2Fx_dr2, d2Fx_dz2] = liuqenn_inference_lih(phys, r, z)
+function [Fx, dFx_dr, dFx_dt, d2Fx_dr2, d2Fx_dz2, d2Fx_drdz] = liuqenn_inference_lih(phys, r, z)
     %#codegen
 
     % Load the network weights at COMPILE TIME.
@@ -30,10 +30,10 @@ function [Fx, dFx_dr, dFx_dt, d2Fx_dr2, d2Fx_dz2] = liuqenn_inference_lih(phys, 
     % make sure all r > 0
     r(r <= 0) = 1e-3;
 
-    [Fx, dFx_dr, dFx_dt, d2Fx_dr2, d2Fx_dz2] = grad_net_forward(phys, r, z, net); % gradient version
+    [Fx, dFx_dr, dFx_dt, d2Fx_dr2, d2Fx_dz2, d2Fx_drdz] = grad_net_forward(phys, r, z, net); % gradient version
 end
 
-function [Fx, dFx_dr, dFx_dt, d2Fx_dr2, d2Fx_dz2] = grad_net_forward(phys, r, z, net)
+function [Fx, dFx_dr, dFx_dt, d2Fx_dr2, d2Fx_dz2, d2Fx_drdz] = grad_net_forward(phys, r, z, net)
 
     %% pts net
     pts = [r', z'];
@@ -79,12 +79,14 @@ function [Fx, dFx_dr, dFx_dt, d2Fx_dr2, d2Fx_dz2] = grad_net_forward(phys, r, z,
     dz_ap1  = d1_a1 .* dz_p0;
     dr2_ap1 = d2_a1 .* (dr_p0 .^ 2);   % d²p0/dr²=0 term vanishes
     dz2_ap1 = d2_a1 .* (dz_p0 .^ 2);
+    drz_ap1 = d2_a1 .* (dr_p0 .* dz_p0); % d²p0/drdz=0 term vanishes
 
     % Layer pts_enc_2 (linear)
     dr_p2  = dr_ap1  * net.pts_enc_2_weight';
     dz_p2  = dz_ap1  * net.pts_enc_2_weight';
     dr2_p2 = dr2_ap1 * net.pts_enc_2_weight';
     dz2_p2 = dz2_ap1 * net.pts_enc_2_weight';
+    drz_p2 = drz_ap1 * net.pts_enc_2_weight';
 
     % Layer pts_enc_3 (swish)
     d1_pe  = d_act_fast(p2, pts_embs, sp2, net.pts_enc_3_beta);  % [n×h2]
@@ -93,18 +95,21 @@ function [Fx, dFx_dr, dFx_dt, d2Fx_dr2, d2Fx_dz2] = grad_net_forward(phys, r, z,
     dz_pe  = d1_pe .* dz_p2;
     dr2_pe = d2_pe .* (dr_p2 .^ 2) + d1_pe .* dr2_p2;
     dz2_pe = d2_pe .* (dz_p2 .^ 2) + d1_pe .* dz2_p2;
+    drz_pe = d2_pe .* (dr_p2 .* dz_p2) + d1_pe .* drz_p2;
 
     % Aggregation: x = phys_emb .* pts_embs  (phys_emb constant w.r.t. r, z)
     dr_x  = phys_emb .* dr_pe;
     dz_x  = phys_emb .* dz_pe;
     dr2_x = phys_emb .* dr2_pe;
     dz2_x = phys_emb .* dz2_pe;
+    drz_x = phys_emb .* drz_pe;
 
     % Layer fx_head_0 (linear)
     dr_fx1  = dr_x  * net.fx_head_0_weight';
     dz_fx1  = dz_x  * net.fx_head_0_weight';
     dr2_fx1 = dr2_x * net.fx_head_0_weight';
     dz2_fx1 = dz2_x * net.fx_head_0_weight';
+    drz_fx1 = drz_x * net.fx_head_0_weight';
 
     % Layer fx_head_1 (swish)
     d1_a2  = d_act_fast(fx1, afx1, sfx1, net.fx_head_1_beta);  % [n×hfx]
@@ -113,12 +118,14 @@ function [Fx, dFx_dr, dFx_dt, d2Fx_dr2, d2Fx_dz2] = grad_net_forward(phys, r, z,
     dz_afx1  = d1_a2 .* dz_fx1;
     dr2_afx1 = d2_a2 .* (dr_fx1 .^ 2) + d1_a2 .* dr2_fx1;
     dz2_afx1 = d2_a2 .* (dz_fx1 .^ 2) + d1_a2 .* dz2_fx1;
+    drz_afx1 = d2_a2 .* (dr_fx1 .* dz_fx1) + d1_a2 .* drz_fx1;
 
     % Layer fx_head_2 (linear)
     dr_fx2  = dr_afx1  * net.fx_head_2_weight';
     dz_fx2  = dz_afx1  * net.fx_head_2_weight';
     dr2_fx2 = dr2_afx1 * net.fx_head_2_weight';
     dz2_fx2 = dz2_afx1 * net.fx_head_2_weight';
+    drz_fx2 = drz_afx1 * net.fx_head_2_weight';
 
     % Layer fx_head_3 (swish)
     d1_fx3v = d_act_fast(fx2, fx3, sfx3, net.fx_head_3_beta);  % [n×1]
@@ -127,11 +134,13 @@ function [Fx, dFx_dr, dFx_dt, d2Fx_dr2, d2Fx_dz2] = grad_net_forward(phys, r, z,
     dz_fx3  = d1_fx3v .* dz_fx2;
     dr2_fx3 = d2_fx3v .* (dr_fx2 .^ 2) + d1_fx3v .* dr2_fx2;
     dz2_fx3 = d2_fx3v .* (dz_fx2 .^ 2) + d1_fx3v .* dz2_fx2;
+    drz_fx3 = d2_fx3v .* (dr_fx2 .* dz_fx2) + d1_fx3v .* drz_fx2;
 
-    dFx_dr   = dr_fx3';   % [1×n]
-    dFx_dt   = dz_fx3';   % [1×n]
-    d2Fx_dr2 = dr2_fx3';  % [1×n]
-    d2Fx_dz2 = dz2_fx3';  % [1×n]
+    dFx_dr    = dr_fx3';   % [1×n]
+    dFx_dt    = dz_fx3';   % [1×n]
+    d2Fx_dr2  = dr2_fx3';  % [1×n]
+    d2Fx_dz2  = dz2_fx3';  % [1×n]
+    d2Fx_drdz = drz_fx3';  % [1×n]
 
 end
 

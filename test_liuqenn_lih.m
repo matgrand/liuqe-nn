@@ -40,15 +40,16 @@ r_flat = RR(:)';   % [1×1820]
 z_flat = ZZ(:)';   % [1×1820]
 
 %% inference
-[Fx, dFx_dr, dFx_dz, d2Fx_dr2, d2Fx_dz2] = liuqenn_inference_lih(phys, r_flat, z_flat);
+[Fx, dFx_dr, dFx_dz, d2Fx_dr2, d2Fx_dz2, d2Fx_drdz] = liuqenn_inference_lih(phys, r_flat, z_flat);
 
 %% reshape outputs back to grid [nz×nr]
 to_grid = @(v) reshape(v, [nz, nr]);
-Fx_g      = to_grid(Fx);
-dFx_dr_g  = to_grid(dFx_dr);
-dFx_dz_g  = to_grid(dFx_dz);
-d2Fx_dr2_g = to_grid(d2Fx_dr2);
-d2Fx_dz2_g = to_grid(d2Fx_dz2);
+Fx_g        = to_grid(Fx);
+dFx_dr_g    = to_grid(dFx_dr);
+dFx_dz_g    = to_grid(dFx_dz);
+d2Fx_dr2_g  = to_grid(d2Fx_dr2);
+d2Fx_dz2_g  = to_grid(d2Fx_dz2);
+d2Fx_drdz_g = to_grid(d2Fx_drdz);
 
 %% derived quantities (same as Python)
 mu0 = 4e-7 * pi;
@@ -60,8 +61,8 @@ Iy_g  = -(1./(2*pi_*RR) .* d2Fx_dz2_g ...
          - 1./(2*pi_*RR.^2) .* dFx_dr_g);
 
 %% plot
-fields  = {Fx_g, dFx_dr_g, dFx_dz_g, d2Fx_dr2_g, d2Fx_dz2_g, Br_g, Bz_g, Iy_g};
-titles_ = {'F_\psi', 'dF/dr', 'dF/dz', 'd^2F/dr^2', 'd^2F/dz^2', 'B_r', 'B_z', 'j_\phi'};
+fields  = {Fx_g, dFx_dr_g, dFx_dz_g, d2Fx_dr2_g, d2Fx_dz2_g, d2Fx_drdz_g, Br_g, Bz_g, Iy_g};
+titles_ = {'F_\psi', 'dF/dr', 'dF/dz', 'd^2F/dr^2', 'd^2F/dz^2', 'd^2F/drdz', 'B_r', 'B_z', 'j_\phi'};
 
 n_fields = numel(fields);
 nc = 4; nr_plot = ceil(n_fields / nc);
