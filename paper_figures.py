@@ -546,7 +546,7 @@ def plot_network_outputs_paper(ds:LiuqeDataset, model:liuqeML, idxs=[0], ylab=['
         iy = iy*μ0/GRA # workaround, on grid points dont have the conversion applied
         r = p.clone()[:,0]; p.requires_grad = True # need r for PINN
         reverse_cmap = iy.mean() < 0  # reverse cmap if current density is negative
-        fxp, brzp, iyp = model(x.unsqueeze(0), p.unsqueeze(0))
+        fxp, _, _ = model(x.unsqueeze(0), p.unsqueeze(0))
         dfx_drz = torch.autograd.grad(outputs=fxp.sum(), inputs=p, create_graph=True)[0].unsqueeze(0) # compute gradients wrt p
         π = torch.pi
         dfx_dr, dfx_dz = dfx_drz[:,:,0], dfx_drz[:,:,1]  # shape (1, n)
