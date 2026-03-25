@@ -18,25 +18,27 @@ plt.rcParams["text.latex.preamble"] = r"\usepackage{bm}"
 plt.rcParams['font.size'] = 12
 
 from matplotlib.colors import LinearSegmentedColormap
-_cmap = LinearSegmentedColormap.from_list('my_custom_colormap', plt.cm.inferno(np.linspace(0.1, 0.85, 256)))
+# _cmap = LinearSegmentedColormap.from_list('my_custom_colormap', plt.cm.inferno(np.linspace(0.1, 0.85, 256)))
+_cmap = LinearSegmentedColormap.from_list('my_custom_colormap', plt.cm.inferno(np.linspace(0.05, 0.9, 256)))
 # _cmap = LinearSegmentedColormap.from_list('my_custom_colormap', plt.cm.plasma(np.linspace(0.1, 0.85, 256)))
-
-# create defualt colors
-C1, C2, C3, C4 = _cmap(0.0), _cmap(0.5), _cmap(0.7), _cmap(0.999)
-
-# plot 4 big sqares with these colors
-plt.figure(figsize=(8,2))
-plt.subplot(1,4,1), plt.imshow([[C1]], aspect='auto'), plt.axis('off'), plt.title('C1')
-plt.subplot(1,4,2), plt.imshow([[C2]], aspect='auto'), plt.axis('off'), plt.title('C2')
-plt.subplot(1,4,3), plt.imshow([[C3]], aspect='auto'), plt.axis('off'), plt.title('C3')
-plt.subplot(1,4,4), plt.imshow([[C4]], aspect='auto'), plt.axis('off'), plt.title('C4')
-plt.tight_layout()
-# plt.savefig(f"{FIGS_DIR}/colors.pdf")
-plt.show()
 
 # suppress SyntaxWarning
 import warnings
 warnings.filterwarnings("ignore", category=SyntaxWarning)
+
+# create defualt colors
+C1, C2, C3, C4 = _cmap(32/255), _cmap(140/255), _cmap(200/255), _cmap(254/255)
+# plot 4 big sqares with these colors
+plt.figure(figsize=(8,2))
+plt.subplot(241), plt.imshow([[C1]], aspect='auto'), plt.axis('off'), plt.title('C1')
+plt.subplot(242), plt.imshow([[C2]], aspect='auto'), plt.axis('off'), plt.title('C2')
+plt.subplot(243), plt.imshow([[C3]], aspect='auto'), plt.axis('off'), plt.title('C3')
+plt.subplot(244), plt.imshow([[C4]], aspect='auto'), plt.axis('off'), plt.title('C4')
+# full-width colormap (manual axes instead of broken span)
+gradient = np.linspace(0, 1, 256).reshape(1, -1)
+plt.axes([0.125, 0.1, 0.775, 0.35]), plt.imshow(gradient, aspect='auto', cmap=_cmap), plt.yticks([])
+plt.show()
+
 
 # list all colormaps
 # print(plt.colormaps())
@@ -63,15 +65,17 @@ eval_loss = np.load(f"{DATA_DIR_TEST}eval_losses.npy")
 
 plt.figure(figsize=(8, 4))
 plt.subplot(2,1,1)
-# plt.plot(train_loss[:, 0], label='train $\psi$', color='tab:blue')
-plt.plot(train_loss[:, 0], label=r'train $\bm\psi$', color='tab:blue')
-plt.plot(eval_loss[:, 0], label='eval $\psi$', color='tab:red')
+# plt.plot(train_loss[:, 0], label='train $\psi$', color=C1)
+plt.plot(train_loss[:, 0], label=r'train $\bm\psi$', color=C1)
+plt.plot(eval_loss[:, 0], label='eval $\psi$', color=C2)
 plt.yscale('log'), plt.xlabel('Epoch'), plt.ylabel('$\psi$ Loss'), plt.legend(), plt.ylim(4e-4, 1e-2)
+plt.gca().grid(True, which='both', axis='y')
 
 plt.subplot(2,1,2)
-plt.plot(train_loss[:, 3], label='train $\mathbf{B_d}$', color='tab:blue')
-plt.plot(eval_loss[:, 3], label='eval $\mathbf{B_d}$', color='tab:red')
-plt.yscale('log'), plt.xlabel('Epoch'), plt.ylabel('$\mathbf{B_d}$ Loss'), plt.legend(), plt.ylim(1e-3, 1e-2)
+plt.plot(train_loss[:, 3], label='train $\mathbf{B_d}$', color=C1)
+plt.plot(eval_loss[:, 3], label='eval $\mathbf{B_d}$', color=C2)
+plt.yscale('log'), plt.xlabel('Epoch'), plt.ylabel('$\mathbf{B_d}$ Loss'), plt.legend(), plt.ylim(4e-4, 1e-2)#plt.ylim(1e-3, 1e-2)
+plt.gca().grid(True, which='both', axis='y')
 
 # plt.subplot(1, 2, 3)
 # plt.plot(train_loss[:, 4], label='train_Iyd')
@@ -404,7 +408,7 @@ elrt = list(map(lambda a, b: np.abs(a-b), lrt, liu))
 elih = list(map(lambda a, b: np.abs(a-b), lih, liu))
 
 plt.figure(figsize=(10, 5))
-cols = ['tab:red', 'tab:blue', 'tab:orange']
+cols = [C2, C1, C3]
 titles = ['$\psi$', '$B_r$', '$B_z$']
 for k in range(3):
     plt.subplot(3, 1, k+1)
