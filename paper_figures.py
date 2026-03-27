@@ -66,25 +66,20 @@ N = len(ds.fg)
 ## Plot the losses [FX, IY, B, BD, IYD]
 train_loss = np.load(f"{DATA_DIR_TEST}train_losses.npy")
 eval_loss = np.load(f"{DATA_DIR_TEST}eval_losses.npy")
-
-plt.figure(figsize=(8, 4))
-plt.subplot(2,1,1)
-# plt.plot(train_loss[:, 0], label='train $\psi$', color=C1)
-plt.plot(train_loss[:, 0], label=r'train $\bm\psi$', color=C1)
-plt.plot(eval_loss[:, 0], label='eval $\psi$', color=C2)
+lw = 0.75
+plt.figure(figsize=(8, 3))
+plt.subplot(1,2,1)
+# plt.plot(train_loss[:, 0], label='train $\psi$', color=C1, lw=lw)
+plt.plot(train_loss[:, 0], label=r'train $\bm\psi$', color=C1, lw=lw)
+plt.plot(eval_loss[:, 0], label=r'eval $\bm\psi$', color=C2, lw=lw)
 plt.yscale('log'), plt.xlabel('Epoch'), plt.ylabel('$\psi$ Loss'), plt.legend(), plt.ylim(4e-4, 1e-2)
 plt.gca().grid(True, which='both', axis='y')
 
-plt.subplot(2,1,2)
-plt.plot(train_loss[:, 3], label='train $\mathbf{B_d}$', color=C1)
-plt.plot(eval_loss[:, 3], label='eval $\mathbf{B_d}$', color=C2)
+plt.subplot(1,2,2)
+plt.plot(train_loss[:, 3], label=r'train $\mathbf{B_d}$', color=C1, lw=lw)
+plt.plot(eval_loss[:, 3], label=r'eval $\mathbf{B_d}$', color=C2, lw=lw)
 plt.yscale('log'), plt.xlabel('Epoch'), plt.ylabel('$\mathbf{B_d}$ Loss'), plt.legend(), plt.ylim(4e-4, 1e-2)#plt.ylim(1e-3, 1e-2)
 plt.gca().grid(True, which='both', axis='y')
-
-# plt.subplot(1, 2, 3)
-# plt.plot(train_loss[:, 4], label='train_Iyd')
-# plt.plot(eval_loss[:, 4], label='eval_Iyd')
-# plt.yscale('log'), plt.xlabel('Epoch'), plt.ylabel('Loss'), plt.legend()
 
 plt.tight_layout()
 plt.savefig(f"{FIGS_DIR}/losses.pdf")
@@ -170,123 +165,123 @@ plt.tight_layout()
 plt.savefig(f"{FIGS_DIR}/error_heatmaps.pdf")
 plt.show()
 
-# %% ## Control simulation
-## Control simulation
-CTRL_SIM_SMALL = 'data/sim_res_small.mat'
-CTRL_SIM_TURBO = 'data/sim_res_turbo.mat'
-CTRL_SIM_STD = 'data/sim_res_std.mat'
-# 'Br', 'Br2', 'Bz', 'Bz2', 'Fx', 'Fx2', 'currs', 'proj_errs', 'rz', 'shape_errs'
+# %% ## Control simulation (old version)
+# ## Control simulation
+# CTRL_SIM_SMALL = 'data/sim_res_small.mat'
+# CTRL_SIM_TURBO = 'data/sim_res_turbo.mat'
+# CTRL_SIM_STD = 'data/sim_res_std.mat'
+# # 'Br', 'Br2', 'Bz', 'Bz2', 'Fx', 'Fx2', 'currs', 'proj_errs', 'rz', 'shape_errs'
 
-ctrl_start = 0.6 # controller start time
-vlinec = 'gray'
-vlines = '--'
+# ctrl_start = 0.6 # controller start time
+# vlinec = 'gray'
+# vlines = '--'
 
-sim_net = loadmat(CTRL_SIM_SMALL)
-# sim_net = loadmat(CTRL_SIM_TURBO)
-sim_std = loadmat(CTRL_SIM_STD)
+# sim_net = loadmat(CTRL_SIM_SMALL)
+# # sim_net = loadmat(CTRL_SIM_TURBO)
+# sim_std = loadmat(CTRL_SIM_STD)
 
-FxN, BrN, BzN, IaN, peN, seN = sim_net['Fx'], sim_net['Br'], sim_net['Bz'], sim_net['currs'], sim_net['proj_errs'], sim_net['shape_errs']
-FxL, BrL, BzL, IaL, peL, seL = sim_std['Fx'], sim_std['Br'], sim_std['Bz'], sim_std['currs'], sim_std['proj_errs'], sim_std['shape_errs']
-FxNL, BrNL, BzNL, IaNL, peNL, seNL = sim_net['Fx2'], sim_net['Br2'], sim_net['Bz2'], sim_net['currs'], sim_net['proj_errs2'], sim_net['shape_errs2']
-t = loadmat(CTRL_SIM_SMALL)['t'].reshape(-1)
+# FxN, BrN, BzN, IaN, peN, seN = sim_net['Fx'], sim_net['Br'], sim_net['Bz'], sim_net['currs'], sim_net['proj_errs'], sim_net['shape_errs']
+# FxL, BrL, BzL, IaL, peL, seL = sim_std['Fx'], sim_std['Br'], sim_std['Bz'], sim_std['currs'], sim_std['proj_errs'], sim_std['shape_errs']
+# FxNL, BrNL, BzNL, IaNL, peNL, seNL = sim_net['Fx2'], sim_net['Br2'], sim_net['Bz2'], sim_net['currs'], sim_net['proj_errs2'], sim_net['shape_errs2']
+# t = loadmat(CTRL_SIM_SMALL)['t'].reshape(-1)
 
-# print shapes of all the variables
-print(f'FxN:{FxN.shape}, BrN:{BrN.shape}, BzN:{BzN.shape}, IaN:{IaN.shape}, peN:{peN.shape}, seN:{seN.shape}')
-print(f'FxL:{FxL.shape}, BrL:{BrL.shape}, BzL:{BzL.shape}, IaL:{IaL.shape}, peL:{peL.shape}, seL:{seL.shape}')
-print(f'FxNL:{FxNL.shape}, BrNL:{BrNL.shape}, BzNL:{BzNL.shape}, t:{t.shape}')
+# # print shapes of all the variables
+# print(f'FxN:{FxN.shape}, BrN:{BrN.shape}, BzN:{BzN.shape}, IaN:{IaN.shape}, peN:{peN.shape}, seN:{seN.shape}')
+# print(f'FxL:{FxL.shape}, BrL:{BrL.shape}, BzL:{BzL.shape}, IaL:{IaL.shape}, peL:{peL.shape}, seL:{seL.shape}')
+# print(f'FxNL:{FxNL.shape}, BrNL:{BrNL.shape}, BzNL:{BzNL.shape}, t:{t.shape}')
 
-# analyze Ia, pe, se, to remove the 0 raws
-μIaN, μpeN, μseN = np.mean(IaN, axis=1), np.mean(peN, axis=1), np.mean(seN, axis=1)
-μIaL, μpeL, μseL = np.mean(IaL, axis=1), np.mean(peL, axis=1), np.mean(seL, axis=1)
-idxIaN = np.where(np.abs(μIaN) > 0)[0]
-idxpeN = np.where(np.abs(μpeN) > 0)[0]
-idxseN = np.where(np.abs(μseN) > 0)[0]
-idxIaL = np.where(np.abs(μIaL) > 0)[0]
-idxpeL = np.where(np.abs(μpeL) > 0)[0]
-idxseL = np.where(np.abs(μseL) > 0)[0]
-assert np.array_equal(idxIaN, idxIaL), f'idxIaN: {idxIaN}, idxIaL: {idxIaL}'
-assert np.array_equal(idxpeN, idxpeL), f'idxpeN: {idxpeN}, idxpeL: {idxpeL}'
-assert np.array_equal(idxseN, idxseL), f'idxseN: {idxseN}, idxseL: {idxseL}'
-print(f'Non-zero rows indices: Ia: {idxIaN}, pe: {idxpeN}, se: {idxseN}')
-IaN, peN, seN, IaL, peL, seL = IaN[idxIaN], peN[idxpeN], seN[idxseN], IaL[idxIaL], peL[idxpeL], seL[idxseL]
+# # analyze Ia, pe, se, to remove the 0 raws
+# μIaN, μpeN, μseN = np.mean(IaN, axis=1), np.mean(peN, axis=1), np.mean(seN, axis=1)
+# μIaL, μpeL, μseL = np.mean(IaL, axis=1), np.mean(peL, axis=1), np.mean(seL, axis=1)
+# idxIaN = np.where(np.abs(μIaN) > 0)[0]
+# idxpeN = np.where(np.abs(μpeN) > 0)[0]
+# idxseN = np.where(np.abs(μseN) > 0)[0]
+# idxIaL = np.where(np.abs(μIaL) > 0)[0]
+# idxpeL = np.where(np.abs(μpeL) > 0)[0]
+# idxseL = np.where(np.abs(μseL) > 0)[0]
+# assert np.array_equal(idxIaN, idxIaL), f'idxIaN: {idxIaN}, idxIaL: {idxIaL}'
+# assert np.array_equal(idxpeN, idxpeL), f'idxpeN: {idxpeN}, idxpeL: {idxpeL}'
+# assert np.array_equal(idxseN, idxseL), f'idxseN: {idxseN}, idxseL: {idxseL}'
+# print(f'Non-zero rows indices: Ia: {idxIaN}, pe: {idxpeN}, se: {idxseN}')
+# IaN, peN, seN, IaL, peL, seL = IaN[idxIaN], peN[idxpeN], seN[idxseN], IaL[idxIaL], peL[idxpeL], seL[idxseL]
 
-# assert False
+# # assert False
 
-dec = 5
-n_ctrl_pts = 10
-t = t[::dec]
-FxN, BrN, BzN, FxL, BrL, BzL, FxNL, BrNL, BzNL = map(lambda x: x[:n_ctrl_pts,::dec].T, [FxN, BrN, BzN, FxL, BrL, BzL, FxNL, BrNL, BzNL])
-IaN, peN, seN, IaL, peL, seL, IaNL, peNL, seNL = map(lambda x: x[:,::dec].T, [IaN, peN, seN, IaL, peL, seL, IaNL, peNL, seNL])
+# dec = 5
+# n_ctrl_pts = 10
+# t = t[::dec]
+# FxN, BrN, BzN, FxL, BrL, BzL, FxNL, BrNL, BzNL = map(lambda x: x[:n_ctrl_pts,::dec].T, [FxN, BrN, BzN, FxL, BrL, BzL, FxNL, BrNL, BzNL])
+# IaN, peN, seN, IaL, peL, seL, IaNL, peNL, seNL = map(lambda x: x[:,::dec].T, [IaN, peN, seN, IaL, peL, seL, IaNL, peNL, seNL])
 
-# # error wrt liuqe on its sim
-# eFx = np.abs(FxN - FxL)
-# eBr = np.abs(BrN - BrL)
-# eBz = np.abs(BzN - BzL)
-# error wrt liuqe on same sim
-eFx = np.abs(FxN - FxNL)
-eBr = np.abs(BrN - BrNL)
-eBz = np.abs(BzN - BzNL)
+# # # error wrt liuqe on its sim
+# # eFx = np.abs(FxN - FxL)
+# # eBr = np.abs(BrN - BrL)
+# # eBz = np.abs(BzN - BzL)
+# # error wrt liuqe on same sim
+# eFx = np.abs(FxN - FxNL)
+# eBr = np.abs(BrN - BrNL)
+# eBz = np.abs(BzN - BzNL)
 
-color_cycle = _cmap(np.linspace(0, 1, n_ctrl_pts))
-α = 0.7
-# spl, fs = (2, 3), (8, 6)
-# spl, fs = (3, 2), (6, 8)
-spl, fs = (3, 2), (8, 8)
+# color_cycle = _cmap(np.linspace(0, 1, n_ctrl_pts))
+# α = 0.7
+# # spl, fs = (2, 3), (8, 6)
+# # spl, fs = (3, 2), (6, 8)
+# spl, fs = (3, 2), (8, 8)
 
-plt.figure(figsize=fs)
-std_style = '--'
-plt.subplot(*spl, 1) # top: Fx Br Bz. bot: se, pe, Ia
-for cp in reversed(range(n_ctrl_pts)):
-    zero_line = 0.0025 * cp * np.ones_like(t)
-    er = eFx[:, cp] + zero_line
-    plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
-plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Error $\psi \; [\mathrm{Wb}]$')
-plt.subplot(*spl, 2)
-for cp in reversed(range(n_ctrl_pts)):
-    zero_line = 0.0025 * cp * np.ones_like(t)
-    er = eBr[:, cp] + zero_line
-    plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
-plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Error $B_r \; [\mathrm{T}]$')
-plt.subplot(*spl, 3)
-for cp in reversed(range(n_ctrl_pts)):
-    zero_line = 0.0025 * cp * np.ones_like(t)
-    er = eBz[:, cp] + zero_line
-    plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
-plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Error $B_z \; [\mathrm{T}]$')
+# plt.figure(figsize=fs)
+# std_style = '--'
+# plt.subplot(*spl, 1) # top: Fx Br Bz. bot: se, pe, Ia
+# for cp in reversed(range(n_ctrl_pts)):
+#     zero_line = 0.0025 * cp * np.ones_like(t)
+#     er = eFx[:, cp] + zero_line
+#     plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
+# plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
+# plt.ylabel(r'Error $\psi \; [\mathrm{Wb}]$')
+# plt.subplot(*spl, 2)
+# for cp in reversed(range(n_ctrl_pts)):
+#     zero_line = 0.0025 * cp * np.ones_like(t)
+#     er = eBr[:, cp] + zero_line
+#     plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
+# plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
+# plt.ylabel(r'Error $B_r \; [\mathrm{T}]$')
+# plt.subplot(*spl, 3)
+# for cp in reversed(range(n_ctrl_pts)):
+#     zero_line = 0.0025 * cp * np.ones_like(t)
+#     er = eBz[:, cp] + zero_line
+#     plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
+# plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
+# plt.ylabel(r'Error $B_z \; [\mathrm{T}]$')
 
-plt.subplot(*spl, 4)
-colors = _cmap(np.linspace(0, 1, seN.shape[1]))
-for i in range(seN.shape[1]):
-    plt.plot(t, seN[:, i], color=colors[i])
-    plt.plot(t, seL[:, i], std_style, color=colors[i])
-plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Shape Err $[\mathrm{m}]$')
+# plt.subplot(*spl, 4)
+# colors = _cmap(np.linspace(0, 1, seN.shape[1]))
+# for i in range(seN.shape[1]):
+#     plt.plot(t, seN[:, i], color=colors[i])
+#     plt.plot(t, seL[:, i], std_style, color=colors[i])
+# plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
+# plt.ylabel(r'Shape Err $[\mathrm{m}]$')
 
-plt.subplot(*spl, 5)
-colors = _cmap(np.linspace(0, 1, peN.shape[1]))
-for i in range(peN.shape[1]):
-    plt.plot(t, peN[:, i], color=colors[i])
-    plt.plot(t, peL[:, i], std_style, color=colors[i])
-plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Proj Err $[\mathrm{m}]$')
+# plt.subplot(*spl, 5)
+# colors = _cmap(np.linspace(0, 1, peN.shape[1]))
+# for i in range(peN.shape[1]):
+#     plt.plot(t, peN[:, i], color=colors[i])
+#     plt.plot(t, peL[:, i], std_style, color=colors[i])
+# plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
+# plt.ylabel(r'Proj Err $[\mathrm{m}]$')
 
-plt.subplot(*spl, 6)
-colors = _cmap(np.linspace(0, 1, IaN.shape[1]))
-for i in range(IaN.shape[1]):
-    plt.plot(t, IaN[:, i], color=colors[i])
-    plt.plot(t, IaL[:, i], std_style, color=colors[i])
-plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Currents $[\mathrm{kA}]$')
+# plt.subplot(*spl, 6)
+# colors = _cmap(np.linspace(0, 1, IaN.shape[1]))
+# for i in range(IaN.shape[1]):
+#     plt.plot(t, IaN[:, i], color=colors[i])
+#     plt.plot(t, IaL[:, i], std_style, color=colors[i])
+# plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
+# plt.ylabel(r'Currents $[\mathrm{kA}]$')
 
-plt.tight_layout()
-plt.savefig(f"{FIGS_DIR}/control_simulation.pdf")
-plt.show()
+# plt.tight_layout()
+# plt.savefig(f"{FIGS_DIR}/control_simulation.pdf")
+# plt.show()
 
-# %% ## PID shape control simulation (same as before)
-## PID shape control simulation (same as before)
+# %% ## PID shape control simulation 
+## PID shape control simulation
 CTRL_SIM_SMALL = 'data/pid_shape_net.mat'
 CTRL_SIM_STD = 'data/pid_shape_std.mat'
 # 'Br', 'Br2', 'Bz', 'Bz2', 'Fx', 'Fx2', 'currs', 'proj_errs', 'rz', 'shape_errs'
@@ -323,97 +318,64 @@ assert np.array_equal(idxseN, idxseL), f'idxseN: {idxseN}, idxseL: {idxseL}'
 print(f'Non-zero rows indices: Ia: {idxIaN}, pe: {idxpeN}, se: {idxseN}')
 IaN, peN, seN, IaL, peL, seL = IaN[idxIaN], peN[idxpeN], seN[idxseN], IaL[idxIaL], peL[idxpeL], seL[idxseL]
 
-# assert False
-
 dec = 5
 n_ctrl_pts = 10
 t = t[::dec]
 FxN, BrN, BzN, FxL, BrL, BzL, FxNL, BrNL, BzNL = map(lambda x: x[:n_ctrl_pts,::dec].T, [FxN, BrN, BzN, FxL, BrL, BzL, FxNL, BrNL, BzNL])
 IaN, peN, seN, IaL, peL, seL, IaNL, peNL, seNL = map(lambda x: x[:,::dec].T, [IaN, peN, seN, IaL, peL, seL, IaNL, peNL, seNL])
 
-# # error wrt liuqe on its sim
-# eFx = np.abs(FxN - FxL)
-# eBr = np.abs(BrN - BrL)
-# eBz = np.abs(BzN - BzL)
-# error wrt liuqe on same sim
-eFx = np.abs(FxN - FxNL)
-eBr = np.abs(BrN - BrNL)
-eBz = np.abs(BzN - BzNL)
-
 color_cycle = _cmap(np.linspace(0, 1, n_ctrl_pts))
-α = 0.7
-# spl, fs = (2, 3), (8, 6)
-# spl, fs = (3, 2), (6, 8)
-spl, fs = (3, 2), (8, 8)
+α, lw = 0.7, .75
+spl, fs = (1,2), (8,3)
 
 plt.figure(figsize=fs)
 std_style = '--'
-plt.subplot(*spl, 1) # top: Fx Br Bz. bot: se, pe, Ia
-for cp in reversed(range(n_ctrl_pts)):
-    zero_line = 0.0025 * cp * np.ones_like(t)
-    er = eFx[:, cp] + zero_line
-    plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
-plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Error $\psi \; [\mathrm{Wb}]$')
-plt.subplot(*spl, 2)
-for cp in reversed(range(n_ctrl_pts)):
-    zero_line = 0.0025 * cp * np.ones_like(t)
-    er = eBr[:, cp] + zero_line
-    plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
-plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Error $B_r \; [\mathrm{T}]$')
-plt.subplot(*spl, 3)
-for cp in reversed(range(n_ctrl_pts)):
-    zero_line = 0.0025 * cp * np.ones_like(t)
-    er = eBz[:, cp] + zero_line
-    plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
-plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Error $B_z \; [\mathrm{T}]$')
 
-plt.subplot(*spl, 4)
+plt.subplot(*spl, 1)
 colors = _cmap(np.linspace(0, 1, seN.shape[1]))
 for i in range(seN.shape[1]):
-    plt.plot(t, seN[:, i], color=colors[i])
-    plt.plot(t, seL[:, i], std_style, color=colors[i])
+    plt.plot(t, seN[:, i], color=colors[i], label='Surrogate' if i==0 else None, lw=lw)
+    plt.plot(t, seL[:, i], std_style, color=colors[i], label='Liuqe-RT' if i==0 else None, lw=lw)
 plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Shape Err $[\mathrm{m}]$')
+plt.ylabel(r'Shape Err $[\mathrm{m}]$'), plt.legend()
 
-plt.subplot(*spl, 5)
+plt.subplot(*spl, 2)
 colors = _cmap(np.linspace(0, 1, peN.shape[1]))
 for i in range(peN.shape[1]):
-    plt.plot(t, peN[:, i], color=colors[i])
-    plt.plot(t, peL[:, i], std_style, color=colors[i])
+    plt.plot(t, peN[:, i], color=colors[i], label='Surrogate' if i==0 else None, lw=lw)
+    plt.plot(t, peL[:, i], std_style, color=colors[i], label='Liuqe-RT' if i==0 else None, lw=lw)
 plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Proj Err $[\mathrm{m}]$')
+plt.ylabel(r'Proj Err $[\mathrm{m}]$'), plt.legend()
 
-plt.subplot(*spl, 6)
-colors = _cmap(np.linspace(0, 1, IaN.shape[1]))
-for i in range(IaN.shape[1]):
-    plt.plot(t, IaN[:, i], color=colors[i])
-    plt.plot(t, IaL[:, i], std_style, color=colors[i])
-plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Currents $[\mathrm{kA}]$')
+# plt.subplot(*spl, 3)
+# colors = _cmap(np.linspace(0, 1, IaN.shape[1]))
+# for i in range(IaN.shape[1]):
+#     plt.plot(t, IaN[:, i], color=colors[i], label='Surrogate' if i==0 else None, lw=lw)
+#     plt.plot(t, IaL[:, i], std_style, color=colors[i], label='Liuqe-RT' if i==0 else None, lw=lw)
+# plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
+# plt.ylabel(r'Currents $[\mathrm{kA}]$'), plt.legend()
 
 plt.tight_layout()
-plt.savefig(f"{FIGS_DIR}/control_pid_shape_simulation.pdf")
+plt.savefig(f"{FIGS_DIR}/pid_shape_control_simulation.pdf")
 plt.show()
 
 # %% ## MPC shape control simulation
 ## MPC shape control simulation
 CTRL_SIM_SMALL = 'data/mpc_shape_net.mat'
 CTRL_SIM_STD = 'data/mpc_shape_std.mat'
-# 'Br', 'Br2', 'Bz', 'Bz2', 'Fx', 'Fx2', 'currs', 'proj_errs', 'rz', 'shape_errs'
+# 'shape_errs', 'shape_errs2', 'Fx', 'Fx2', 'Br', 'Bz', 'Br2', 'Bz2', 't', 'currs', 'rz', 'niter', 'mpc_cost', 'duopt'
 
 ctrl_start = 0.6 # controller start time
 vlinec = 'gray'
 vlines = '--'
+n_svd = 6 
 
 sim_net = loadmat(CTRL_SIM_SMALL)
 sim_std = loadmat(CTRL_SIM_STD)
 
-FxN, BrN, BzN, IaN, peN, seN = sim_net['Fx'], sim_net['Br'], sim_net['Bz'], sim_net['currs'], sim_net['proj_errs'], sim_net['shape_errs']
-FxL, BrL, BzL, IaL, peL, seL = sim_std['Fx'], sim_std['Br'], sim_std['Bz'], sim_std['currs'], sim_std['proj_errs'], sim_std['shape_errs']
-FxNL, BrNL, BzNL, IaNL, peNL, seNL = sim_net['Fx2'], sim_net['Br2'], sim_net['Bz2'], sim_net['currs'], sim_net['proj_errs2'], sim_net['shape_errs2']
+FxN, BrN, BzN, IaN, peN, seN = sim_net['Fx'], sim_net['Br'], sim_net['Bz'], sim_net['currs'], sim_net['duopt'][-n_svd:,:], sim_net['shape_errs']
+FxL, BrL, BzL, IaL, peL, seL = sim_std['Fx'], sim_std['Br'], sim_std['Bz'], sim_std['currs'], sim_std['duopt'][-n_svd:,:], sim_std['shape_errs']
+FxNL, BrNL, BzNL, IaNL, peNL, seNL = sim_net['Fx2'], sim_net['Br2'], sim_net['Bz2'], sim_net['currs'], sim_net['duopt'][-n_svd:,:], sim_net['shape_errs2']
 t = loadmat(CTRL_SIM_SMALL)['t'].reshape(-1)
 
 # print shapes of all the variables
@@ -436,81 +398,108 @@ assert np.array_equal(idxseN, idxseL), f'idxseN: {idxseN}, idxseL: {idxseL}'
 print(f'Non-zero rows indices: Ia: {idxIaN}, pe: {idxpeN}, se: {idxseN}')
 IaN, peN, seN, IaL, peL, seL = IaN[idxIaN], peN[idxpeN], seN[idxseN], IaL[idxIaL], peL[idxpeL], seL[idxseL]
 
-# assert False
-
 dec = 5
 n_ctrl_pts = 10
 t = t[::dec]
 FxN, BrN, BzN, FxL, BrL, BzL, FxNL, BrNL, BzNL = map(lambda x: x[:n_ctrl_pts,::dec].T, [FxN, BrN, BzN, FxL, BrL, BzL, FxNL, BrNL, BzNL])
 IaN, peN, seN, IaL, peL, seL, IaNL, peNL, seNL = map(lambda x: x[:,::dec].T, [IaN, peN, seN, IaL, peL, seL, IaNL, peNL, seNL])
 
-# # error wrt liuqe on its sim
-# eFx = np.abs(FxN - FxL)
-# eBr = np.abs(BrN - BrL)
-# eBz = np.abs(BzN - BzL)
-# error wrt liuqe on same sim
-eFx = np.abs(FxN - FxNL)
-eBr = np.abs(BrN - BrNL)
-eBz = np.abs(BzN - BzNL)
-
 color_cycle = _cmap(np.linspace(0, 1, n_ctrl_pts))
-α = 0.7
-# spl, fs = (2, 3), (8, 6)
-# spl, fs = (3, 2), (6, 8)
-spl, fs = (3, 2), (8, 8)
+α, lw = 0.7, .75
+spl, fs = (1,2), (8,3)
 
 plt.figure(figsize=fs)
 std_style = '--'
-plt.subplot(*spl, 1) # top: Fx Br Bz. bot: se, pe, Ia
-for cp in reversed(range(n_ctrl_pts)):
-    zero_line = 0.0025 * cp * np.ones_like(t)
-    er = eFx[:, cp] + zero_line
-    plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
-plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Error $\psi \; [\mathrm{Wb}]$')
-plt.subplot(*spl, 2)
-for cp in reversed(range(n_ctrl_pts)):
-    zero_line = 0.0025 * cp * np.ones_like(t)
-    er = eBr[:, cp] + zero_line
-    plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
-plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Error $B_r \; [\mathrm{T}]$')
-plt.subplot(*spl, 3)
-for cp in reversed(range(n_ctrl_pts)):
-    zero_line = 0.0025 * cp * np.ones_like(t)
-    er = eBz[:, cp] + zero_line
-    plt.fill_between(t, zero_line, er, alpha=α, color=color_cycle[cp])
-plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Error $B_z \; [\mathrm{T}]$')
 
-plt.subplot(*spl, 4)
+plt.subplot(*spl, 1)
 colors = _cmap(np.linspace(0, 1, seN.shape[1]))
 for i in range(seN.shape[1]):
-    plt.plot(t, seN[:, i], color=colors[i])
-    plt.plot(t, seL[:, i], std_style, color=colors[i])
+    plt.plot(t, seN[:, i], color=colors[i], label='Surrogate' if i==0 else None, lw=lw)
+    plt.plot(t, seL[:, i], std_style, color=colors[i], label='Liuqe-RT' if i==0 else None, lw=lw)
 plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Shape Err $[\mathrm{m}]$')
+plt.ylabel(r'Shape Err $[\mathrm{m}]$'), plt.legend()
 
-plt.subplot(*spl, 5)
+plt.subplot(*spl, 2)
 colors = _cmap(np.linspace(0, 1, peN.shape[1]))
 for i in range(peN.shape[1]):
-    plt.plot(t, peN[:, i], color=colors[i])
-    plt.plot(t, peL[:, i], std_style, color=colors[i])
+    plt.plot(t, peN[:, i], color=colors[i], label='Surrogate' if i==0 else None, lw=lw)
+    plt.plot(t, peL[:, i], std_style, color=colors[i], label='Liuqe-RT' if i==0 else None, lw=lw)
 plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Proj Err $[\mathrm{m}]$')
+plt.ylabel(r'Opt $\Delta U$ (6 SVD) $[\mathrm{kA/s}]$'), plt.legend()
 
-plt.subplot(*spl, 6)
-colors = _cmap(np.linspace(0, 1, IaN.shape[1]))
-for i in range(IaN.shape[1]):
-    plt.plot(t, IaN[:, i], color=colors[i])
-    plt.plot(t, IaL[:, i], std_style, color=colors[i])
-plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-plt.ylabel(r'Currents $[\mathrm{kA}]$')
+# plt.subplot(*spl, 3)
+# colors = _cmap(np.linspace(0, 1, IaN.shape[1]))
+# for i in range(IaN.shape[1]):
+#     plt.plot(t, IaN[:, i], color=colors[i], label='Surrogate' if i==0 else None, lw=lw)
+#     plt.plot(t, IaL[:, i], std_style, color=colors[i], label='Liuqe-RT' if i==0 else None, lw=lw)
+# plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
+# plt.ylabel(r'Currents $[\mathrm{kA}]$'), plt.legend()
 
 plt.tight_layout()
-plt.savefig(f"{FIGS_DIR}/control_mpc_shape_simulation.pdf")
+plt.savefig(f"{FIGS_DIR}/mpc_shape_control_simulation.pdf")
 plt.show()
 
+# %% ## FMAG control simulation
+## FMAG control simulation
+CTRL_SIM_SMALL = 'data/fmag_net.mat'
+CTRL_SIM_STD = 'data/fmag_std.mat'
+# expected keys: 't', 'rY', 'zY', 'Ip', 'Va', 'mixed_errors', 'observables', 'xpt_flux', 'xpt_flux_lih'
+ctrl_start = 0.6  # controller start time
+vlinec = 'gray'
+vlines = '--'
+
+sim_net = loadmat(CTRL_SIM_SMALL)
+sim_std = loadmat(CTRL_SIM_STD)
+
+def _vec(x): return np.asarray(x).reshape(-1)
+
+def _ch_time(x):
+    """Return array shaped (n_channels, n_time)."""
+    a = np.asarray(x)
+    if a.ndim == 1:
+        return a.reshape(1, -1)
+    if a.shape[0] > a.shape[1]:
+        # likely time x channels -> transpose
+        return a.T
+    return a
+
+tN = _vec(sim_net['t'])
+tL = _vec(sim_std['t'])
+IpN, IpL = _vec(sim_net['Ip']), _vec(sim_std['Ip'])
+mixN = sim_net['mixed_errors'].T 
+mixL = sim_std['mixed_errors'].T
+err_dr_net = _vec(sim_net['xpt_err_delta_r'])
+err_dr_std = _vec(sim_std['xpt_err_delta_r'])
+err_dz_net = _vec(sim_net['xpt_err_delta_z'])
+err_dz_std = _vec(sim_std['xpt_err_delta_z'])
+
+# Figure 4: Mixed errors (first 6 channels)
+n_show = 6
+plt.figure(figsize=(8,3))
+
+plt.subplot(1,2,1)
+plt.plot(tN, 100*err_dr_net / IpN, color=C1, lw=lw, label=r'$\Delta r$ surrogate')
+plt.plot(tL, 100*err_dr_std / IpL, '--', color=C1, lw=lw, label=r'$\Delta r$ LIH')
+plt.plot(tN, -100*err_dz_net / IpN, color=C2, lw=lw, label=r'$\Delta z$ surrogate')
+plt.plot(tL, -100*err_dz_std / IpL, '--', color=C2, lw=lw, label=r'$\Delta z$ LIH')
+plt.axhline(y=0, color='k', linestyle=':', lw=lw)
+plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines, lw=0.8)
+plt.ylabel('X-pt Err [cm]')
+plt.legend(loc='best')
+
+plt.subplot(1,2,2)
+colors = _cmap(np.linspace(0, 1, n_show))
+print(f'max values: {np.max(mixN[:, :n_show], axis=0)}')
+scalings = [2e3, 1e3, 1e1, 1e1, 1, 1] # scale first channel (shape error) to be visible
+for i in range(n_show):
+    plt.plot(tN, mixN[:, i]/scalings[i], color=colors[i], lw=lw, label='Surrogate' if i==0 else None)
+    plt.plot(tL, mixL[:, i]/scalings[i], std_style, color=colors[i], lw=lw, label='LIH' if i==0 else None)
+# plt.plot(tN, mixN[:, :n_show], lw=lw)
+plt.ylabel('Mixed Err [a.u.]'), plt.legend(loc='best')
+
+plt.tight_layout()
+plt.savefig(f"{FIGS_DIR}/fmag_control_simulation.pdf")
+plt.show()
 
 # %% ## plot network outputs for the paper
 ## plot network outputs for the paper
@@ -606,8 +595,8 @@ idxs = list(np.random.choice(len(ds), size=10, replace=False))
 # interesting_idxs = [297, 250, 317, 28, 347, 12, 65]
 # interesting_idxs = [297, 250, 123, 28, 347, 12, 157]
 # interesting_idxs = [297, 250, 123, 28, 347, 157]
-interesting_idxs = [297, 123, 28, 347, 157]
-labels = ["single null", "double null", "limiter", "negative triangularity", "high vertical position"]
+# interesting_idxs, labels = [297, 123, 28, 347, 157], ["single null", "double null", "limiter", "negative triangularity", "high vertical position"]
+interesting_idxs, labels = [297, 123, 347, 157], ["single null", "double null", "negative triangularity", "high vertical position"]
 plot_network_outputs_paper(ds, lnn, idxs=interesting_idxs, ylab=labels)
 # plot_network_outputs_paper(ds, lnn, idxs=idxs, ylab=labels)
 
@@ -619,12 +608,11 @@ realtime_file_path = 'data/realtime_analysis_shot88566.mat'
 # 't_or', 'phys_or', 'Fx_or', 'Br_or', 'Bz_or', 'Fx_net', 'Br_net', 'Bz_net', 'Fx_lrt', 'Br_lrt', 'Bz_lrt', 'Fx_lih', 'Br_lih', 'Bz_lih', 'Fx_liu', 'Br_liu', 'Bz_liu', 'Fx_rec', 'Br_rec', 'Bz_rec', 'Fx_rec2', 'Br_rec2', 'Bz_rec2', 't', 'phys');
 
 m = loadmat(realtime_file_path)
-net = (m['Fx_net'], m['Br_net'], m['Bz_net'])
-lrt = (m['Fx_lrt'], m['Br_lrt'], m['Bz_lrt'])
-lih = (m['Fx_lih'], m['Br_lih'], m['Bz_lih'])
-liu = (m['Fx_liu'], m['Br_liu'], m['Bz_liu'])
-# rec = (m['Fx_rec'], m['Br_rec'], m['Bz_rec'])
-# rec2 = (m['Fx_rec2'], m['Br_rec2'], m['Bz_rec2'])
+
+net = (m['Fx_net'], np.sqrt(m['Br_net']**2 + m['Bz_net']**2))
+lrt = (m['Fx_lrt'], np.sqrt(m['Br_lrt']**2 + m['Bz_lrt']**2))
+lih = (m['Fx_lih'], np.sqrt(m['Br_lih']**2 + m['Bz_lih']**2))
+liu = (m['Fx_liu'], np.sqrt(m['Br_liu']**2 + m['Bz_liu']**2))
 
 t, phys = m['t'].reshape(-1), m['phys']
 
@@ -638,14 +626,14 @@ enet = list(map(lambda a, b: np.abs(a-b), net, liu))
 elrt = list(map(lambda a, b: np.abs(a-b), lrt, liu))
 elih = list(map(lambda a, b: np.abs(a-b), lih, liu))
 
-plt.figure(figsize=(10, 5))
+plt.figure(figsize=(8, 5*len(net)/3))
 cols = [C2, C1, C3]
-titles = ['$\psi \; [\mathrm{Wb}]$', '$B_r \; [\mathrm{T}]$', '$B_z \; [\mathrm{T}]$']
-for k in range(3):
-    plt.subplot(3, 1, k+1)
+titles = ['$\psi \; [\mathrm{Wb}]$', '$B \; [\mathrm{T}]$']
+for k in range(len(net)):
+    plt.subplot(len(net), 1, k+1)
     for i, (errs, name) in enumerate(zip([enet, elrt, elih], ['Surrogate', 'Liuqe-RT', 'LIH'])):
         min_err, max_err, avg_err = np.min(errs[k], axis=1), np.max(errs[k], axis=1), np.mean(errs[k], axis=1)
-        plt.plot(t, avg_err, label=name, color=cols[i], linewidth=1.5)
+        plt.plot(t, avg_err, label=name, color=cols[i], lw=lw)
         plt.fill_between(t, avg_err, max_err, color=cols[i], alpha=0.3)
     plt.ylim(2e-4, 1e-1)
     plt.yscale('log')
