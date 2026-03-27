@@ -478,9 +478,9 @@ n_show = 6
 plt.figure(figsize=(8,3))
 
 plt.subplot(1,2,1)
-plt.plot(tN, 100*err_dr_net / IpN, color=C1, lw=lw, label=r'$\Delta r$ surrogate')
+plt.plot(tN, 100*err_dr_net / IpN, color=C1, lw=lw, label=r'$\Delta r$ Surrogate')
 plt.plot(tL, 100*err_dr_std / IpL, '--', color=C1, lw=lw, label=r'$\Delta r$ LIH')
-plt.plot(tN, -100*err_dz_net / IpN, color=C2, lw=lw, label=r'$\Delta z$ surrogate')
+plt.plot(tN, -100*err_dz_net / IpN, color=C2, lw=lw, label=r'$\Delta z$ Surrogate')
 plt.plot(tL, -100*err_dz_std / IpL, '--', color=C2, lw=lw, label=r'$\Delta z$ LIH')
 plt.axhline(y=0, color='k', linestyle=':', lw=lw)
 plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines, lw=0.8)
