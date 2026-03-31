@@ -525,6 +525,9 @@ def plot_network_outputs_paper(ds:LiuqeDataset, model:liuqeML, idxs=[0], ylab=['
         fill_between_polygons(ax, VESS, VESSI, color='gray', alpha=alpha*0.3, lw=0)
         return ax
 
+    from matplotlib.cm import ScalarMappable
+    from matplotlib.colors import Normalize
+
     plt.figure(figsize=(14, 3*n_plt))
     for pi, i in enumerate(idxs):
         x, p, fx, iy, br, bz = ds[i]
@@ -565,23 +568,25 @@ def plot_network_outputs_paper(ds:LiuqeDataset, model:liuqeML, idxs=[0], ylab=['
         vals = [(fx, fxp), (br, brp), (bz, bzp), (iy, iyp)]
         perc_max = [1.0, 2.0, 2.0, 5] # max percentage error for colorbar scaling, set higher for Fx and Iy which have larger ranges
         names = ['$\psi(r,z)$', '$B_r(r,z)$', '$B_z(r,z)$', '$I_y(r,z)$']
-        lvls = [15, 12, 12, 8]
-        lw = 1
+        # lvls = [15, 12, 12, 8] # <-
+        lvls = [20, 16, 16, 12]
+        lw, shrink = 0.75, 0.9
         for j, ((v, vp), l, n) in enumerate(zip(vals, limits, names)):
             plt.subplot(n_plt, 8, pi*8+2*j+1),
             if pi==0: plt.title(f"{n}")
             plt.contour(RRD, ZZD, vp.reshape(65,28), levels=lvls[j], linestyles='solid', cmap=cm, linewidths=lw)
             plt.contour(RRD, ZZD, v.reshape(65,28), levels=lvls[j], linestyles='dashed', cmap=cm, linewidths=lw)
-            prep_plot_tcv(plt.gca(), cols=['k','k','gray']); cbar = plt.colorbar()
+            prep_plot_tcv(plt.gca(), cols=['k','k','gray'])
+            sm = ScalarMappable(cmap=cm, norm=Normalize(vmin=l[0], vmax=l[1]))
+            sm.set_array([])
+            cbar = plt.colorbar(sm, ax=plt.gca(), shrink=shrink)
             cbar.ax.tick_params(labelsize=8)  # smaller tick labels
-
             if j==0: plt.ylabel(ylab[pi])
-
             plt.subplot(n_plt, 8, pi*8+2*j+2)
             if pi==0: plt.title(f"{n} $\%$ err")
             ep = 100*np.abs(v[iv]-vp[iv])/(l[1]-l[0]) # error in %
             plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=perc_max[j], marker='s') # fixed bar but not for Iy
-            prep_plot_tcv(plt.gca(), cols=['k','k','gray']); cbar = plt.colorbar()
+            prep_plot_tcv(plt.gca(), cols=['k','k','gray']); cbar = plt.colorbar(shrink=shrink)
             cbar.ax.tick_params(labelsize=8)  # smaller tick labels
 
     plt.tight_layout()
@@ -626,7 +631,7 @@ enet = list(map(lambda a, b: np.abs(a-b), net, liu))
 elrt = list(map(lambda a, b: np.abs(a-b), lrt, liu))
 elih = list(map(lambda a, b: np.abs(a-b), lih, liu))
 
-plt.figure(figsize=(8, 5*len(net)/3))
+plt.figure(figsize=(8, 7*len(net)/3))
 cols = [C2, C1, C3]
 titles = ['$\psi \; [\mathrm{Wb}]$', '$B \; [\mathrm{T}]$']
 for k in range(len(net)):
