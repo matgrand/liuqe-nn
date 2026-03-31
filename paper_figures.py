@@ -591,6 +591,7 @@ def plot_network_outputs_paper(ds:LiuqeDataset, model:liuqeML, idxs=[0], ylab=['
 
     plt.tight_layout()
     plt.savefig(f"{FIGS_DIR}/net_example.pdf")
+    print(f'Note: this figure in vector format is heavy, to reduce size consider using this command: \ngs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -dDetectDuplicateImages -r150x150 -sOutputFile=optimized_net_example.pdf net_example.pdf')
     if LOCAL: plt.show()
     plt.close()
     return
