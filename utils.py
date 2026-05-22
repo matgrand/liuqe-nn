@@ -201,7 +201,7 @@ USE_BIAS = True # whether to use bias in the linear layers
 print(f"BIAS = {USE_BIAS}")
 
 class liuqeML(Module):
-    def __init__(self, x_mean_std=torch.tensor([[0.0]*NIN, [1.0]*NIN], dtype=torch.float32)):
+    def __init__(self, x_mean_std=torch.tensor([[0.0]*NIN, [1.0]*NIN], dtype=torch.float32), return_emb=False):
         super(liuqeML, self).__init__()
         self.pts_enc = Sequential(
             Linear(2, PTSH, bias=USE_BIAS), ActF(PTSH),
@@ -229,6 +229,7 @@ class liuqeML(Module):
             # Linear(HEADH, HEADH, bias=USE_BIAS), ActF(HEADH),
             Linear(HEADH, 1, bias=USE_BIAS), ActF(1),
         )
+        self.return_emb = return_emb
     def to(self, device):
         super(liuqeML, self).to(device)
         self.x_mean_std = self.x_mean_std.to(device)
@@ -250,7 +251,8 @@ class liuqeML(Module):
         fx = self.fx_head(psh).view(-1, npts) # get flux
         brz = self.brz_head(psh).view(-1, npts, 2) # get Br, Bz
         iy = self.iy_head(psh).view(-1, npts) # get current density
-        return fx, brz, iy
+        if self.return_emb: return fx, brz, iy, ph
+        else: return fx, brz, iy
 
 def test_network_io(verbose=True):
     v = verbose
