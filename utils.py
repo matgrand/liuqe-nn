@@ -43,7 +43,8 @@ try:
     LOCAL = False # for plotting or saving images
 except:
     if torch.backends.mps.is_available():
-        DEV = MPS
+        # DEV = MPS # <-
+        DEV = CPU
         GPU_MEM = 16 * 1024**3  # 16 GB in bytes
     JOBID = "local"
     LOCAL = True
