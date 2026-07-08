@@ -4,7 +4,7 @@ This is the repository for the `liuqe-nn` (or `liuqe-ml`) code.
 `liuqe-nn` is a matlab super fast (20~70 microseconds cpu inference) neural network surrogate for the equilibrium reconstruction code `liuqe`. It is meant for fast shape control, as an alternative to the `LIUQE-RT` block.
 
 ## Test the pretrained models
-- First of all build the mex functions: to build the surrogate mex function (from `liuqenn_inference.m` and `liuqe_Iy_nn_inference`) do the following steps (after cloning the repo, in `matlab` (use `matlab960` if inside `lac`)):
+- First of all build the mex functions: to build the surrogate mex function (from `liuqenn_inference.m` and `liuqe_Iy_nn_inference`) do the following steps (after cloning the repo (and switching to branch `paper`), in `matlab` (use `matlab960` if inside `lac`)):
   - convert the pretrained weights from `.json` to `.mat`:
     ```matlab
     run('pretrained/json2mat.m'); 
