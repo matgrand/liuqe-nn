@@ -1,4 +1,5 @@
 clc; clear all; close all;
+warning('off', 'all');
 
 % load mems from liuqenn
 % shot = 88719; %inverted currents

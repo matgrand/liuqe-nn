@@ -1,7 +1,5 @@
 torch
 numpy
-onnx
-onnxscript
 tqdm
 matplotlib
 scipy
