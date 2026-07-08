@@ -39,7 +39,7 @@ This is the repository for the `liuqe-nn` (or `liuqe-ml`) code.
 
 
 - to generate the raw dataset (in a `lac` server with `liuqe` and `mdsplus`) run the script `create_ds.m`. This script goes through the "saved" `liuqe` snapshots of many shots and performs basic filtering using time vector and plasma current to keep only "good" equilibria. It uses the script `ds_prep_save_shot.m` to filter out `nan`s and `inf`s and saves the dataset in `.mat` format. 
-    > "saved" means that we do not re-run `liuqe`, but we use the after-shot calculated one saved in `mdsplus`, this drastically reduces dataset generation time.
+    > "saved" means that we do not re-run `liuqe` to get the equilibrium, but we use the after-shot calculated one saved in `mdsplus`, this drastically reduces dataset generation time.
 
 - to convert the raw dataset in a format suitable for training run the jupyter notebook `prepare_dataset.ipynb`. This will also create a demo dataset that can be tested using `speed_test`.
 - to train a model: `train.ipynb`
