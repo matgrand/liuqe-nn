@@ -1,9 +1,7 @@
 # LIUQE-NN: a 10kHz LIUQE surrogate model
 
 This is the repository for the `liuqe-nn` (or `liuqe-ml`) code. 
-`liuqe-nn` is a matlab super fast (30~70 microseconds) neural network surrogate for the equilibrium reconstruction code `liuqe`. It is meant for fast shape control, as an alternative to the `LIUQE-RT` block.
-
-Here there are some
+`liuqe-nn` is a matlab super fast (20~70 microseconds cpu inference) neural network surrogate for the equilibrium reconstruction code `liuqe`. It is meant for fast shape control, as an alternative to the `LIUQE-RT` block.
 
 ## Test the pretrained models
 To build the surrogate mex function (from `liuqenn_inference.m`) do the following steps (after cloning the repo, in matlab):
@@ -16,7 +14,7 @@ To build the surrogate mex function (from `liuqenn_inference.m`) do the followin
     build_liuqenn_inference_mex
     ```
 - you should now see `liuqenn_inference_mex.mexa64` and `liuqe_Iy_nn_inference.m` mex functions
-
+****
 To run a speed test :
 ```matlab
     speed_test
