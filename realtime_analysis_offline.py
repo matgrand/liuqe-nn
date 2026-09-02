@@ -92,7 +92,7 @@ def error_stats(errors):
 def plot_errors(shots, stats, flux_maps):
     """Plot comparison statistics, midpoint flat-top flux maps, and plasma current traces."""
     n = len(COMPARISONS)
-    centers = np.arange(len(shots)); width = 0.8 / n; rows, cols = len(FIELDS) + 2, len(shots)
+    centers = np.arange(len(shots)); width = 0.8 / n; rows, cols = len(FIELDS) + 2, len(shots); bar_colors = PAPER_CMAP(np.linspace(32 / 255, 254 / 255, n))
 
     plt.figure(figsize=(max(10, 1.8 * len(shots)), 12))
     for i, field in enumerate(FIELDS):
@@ -102,8 +102,8 @@ def plot_errors(shots, stats, flux_maps):
             mean = [shot_stats[comparison][field][0] for shot_stats in stats]
             std = [shot_stats[comparison][field][1] for shot_stats in stats]
             maximum = [shot_stats[comparison][field][2] for shot_stats in stats]
-            bars = plt.bar(x, mean, width, yerr=std, capsize=2, label=version)
-            plt.scatter(x, maximum, marker="x", s=18, color=bars.patches[0].get_facecolor())
+            plt.bar(x, mean, width, yerr=std, capsize=2, color=bar_colors[j], label=version)
+            plt.scatter(x, maximum, marker="x", s=18, color=bar_colors[j])
         plt.xticks(centers, shots if i == len(FIELDS) - 1 else [])
         plt.yscale("log"); plt.ylabel(f"{field} absolute error"); plt.ylim(MIN_ERROR, FIELD_MAX[field]); plt.legend()
 

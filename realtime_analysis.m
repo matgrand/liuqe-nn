@@ -20,8 +20,8 @@ for shot = shots
     fprintf('Running analysis for shot %d...\n', shot);
 
     % START_TIME = 0.05 % start time for analysis
-    START_TIME = 0.2 % start time for analysis
-    STOP_TIME = 1.6 %1.6 %3.0; % stop time for analysis
+    START_TIME = 0.0 %0.2 % start time for analysis
+    STOP_TIME = 3.0 %1.6 %3.0; % stop time for analysis
     dec = 10; % decimation factor 10
 
     
