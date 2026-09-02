@@ -7,9 +7,13 @@ phys_arg = coder.typeof(single(0), [1 134], [0 0]);
 upper_bound = 25; % Define a max number of points <- for speed_test
 r_arg = coder.typeof(single(0), [1 upper_bound], [0 1]);
 z_arg = coder.typeof(single(0), [1 upper_bound], [0 1]);
+weights_arg = coder.typeof('small', [1 5], [0 0]);
 
-% LiuqeRT inference mex -> outputs Fx, Br, Bz
-codegen liuqenn_inference -args {phys_arg, r_arg, z_arg} -args {phys_arg, r_arg, z_arg, false} -report -rowmajor
+% Small-default MEX used by LiuqeRT
+codegen liuqenn_inference -args {phys_arg, r_arg, z_arg} -report -rowmajor
 
 % Iy inference MEX
 codegen liuqe_Iy_nn_inference -args {phys_arg, r_arg, z_arg} -report -rowmajor 
+
+% Selectable small/turbo MEX for analysis
+codegen liuqenn_inference_select -args {phys_arg, r_arg, z_arg, weights_arg} -report -rowmajor

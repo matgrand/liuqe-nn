@@ -139,11 +139,11 @@ for shot = shots
     
     % small and turbo recalculated on phys_RT inputs
     [Fx_small2, Br_small2, Bz_small2] = liuqe_nn_LX(rt_lx, single(r'), single(z'));
-    [Fx_turbo2, Br_turbo2, Bz_turbo2] = liuqe_nn_LX(rt_lx, single(r'), single(z'), true);
+    [Fx_turbo2, Br_turbo2, Bz_turbo2] = liuqe_nn_LX(rt_lx, single(r'), single(z'), 'turbo');
     
     % small and turbo recalculated on LX
     [Fx_small, Br_small, Bz_small] = liuqe_nn_LX(LX_liuqe, single(r'), single(z')); % this assigns to base phys_LX
-    [Fx_turbo, Br_turbo, Bz_turbo] = liuqe_nn_LX(LX_liuqe, single(r'), single(z'), true);
+    [Fx_turbo, Br_turbo, Bz_turbo] = liuqe_nn_LX(LX_liuqe, single(r'), single(z'), 'turbo');
     
     
     % print abs err, std of the err and max err of Fx, Br, Bz between liuqe and liuqenn

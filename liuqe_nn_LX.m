@@ -1,8 +1,8 @@
-function [Fx, Br, Bz] = liuqe_nn_LX(LX, r, z, use_turbo)
+function [Fx, Br, Bz] = liuqe_nn_LX(LX, r, z, weights)
 
     % run liuqenn_inference on standard meq LX struct inputs
     if nargin < 4
-        use_turbo = false;
+        weights = 'small';
     end
     phys = [LX.Bm; LX.Ff; LX.Ia; LX.Uf; LX.rBt];
     
@@ -14,7 +14,7 @@ function [Fx, Br, Bz] = liuqe_nn_LX(LX, r, z, use_turbo)
         r_i = r(:);
         z_i = z(:);
         % [Fxi, Bri, Bzi] = liuqenn_inference_mex(single(phys_i)', single(r_i)', single(z_i)');
-        [Fxi, Bri, Bzi] = liuqenn_inference(single(phys_i)', single(r_i)', single(z_i)', use_turbo); % we can use the non-mex version here
+        [Fxi, Bri, Bzi] = liuqenn_inference(single(phys_i)', single(r_i)', single(z_i)', weights); % we can use the non-mex version here
         Fx(i,:) = Fxi; Br(i,:) = Bri; Bz(i,:) = Bzi;
     end
     phys = phys';

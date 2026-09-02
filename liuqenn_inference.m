@@ -1,9 +1,9 @@
 % old version direct calculation of Br and Bz, no backward pass
-function [Fx, Br, Bz] = liuqenn_inference(phys, r, z, use_turbo)
+function [Fx, Br, Bz] = liuqenn_inference(phys, r, z, weights)
     %#codegen
 
     if nargin < 4
-        use_turbo = false;
+        weights = 'small';
     end
 
     % Load both networks at COMPILE TIME so the runtime flag only selects embedded weights.
@@ -35,10 +35,12 @@ function [Fx, Br, Bz] = liuqenn_inference(phys, r, z, use_turbo)
     r(r <= 0) = 1e-3;
 
     % Replace grad_net_forward with direct_net_forward in both branches to use the direct version.
-    if use_turbo
+    if strcmp(weights, 'turbo')
         [Fx, Br, Bz] = grad_net_forward(phys, r, z, net_turbo);
-    else
+    elseif strcmp(weights, 'small')
         [Fx, Br, Bz] = grad_net_forward(phys, r, z, net_small);
+    else
+        error('weights must be ''small'' or ''turbo''');
     end
 end
 
