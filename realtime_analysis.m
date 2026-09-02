@@ -30,10 +30,10 @@ for shot = shots
     Bzn = nrt.liuqenn_Bzn;
     Fx = Fxn.Data; Br = Brn.Data; Bz = Bzn.Data;
     
-    figure;
-    subplot(3,1,1); grid on; plot(Fxn); title('Fxn');
-    subplot(3,1,2); grid on; plot(Brn); title('Brn');
-    subplot(3,1,3); grid on; plot(Bzn); title('Bzn');
+    % figure;
+    % subplot(3,1,1); grid on; plot(Fxn); title('Fxn');
+    % subplot(3,1,2); grid on; plot(Brn); title('Brn');
+    % subplot(3,1,3); grid on; plot(Bzn); title('Bzn');
     
     t = round(Fxn.Time,5); % time vector
     
