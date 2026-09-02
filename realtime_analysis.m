@@ -16,8 +16,10 @@ shot = 88903
 shots = [88564  88565  88566  88567  88577  88579  88582  88583  88584  88586  88646  88647  88734  88736  88737  88738  88739  88740  88741  88742];
 
 mdsconnect('tcvdata.epfl.ch');
+successful_shots = 0;
 for shot = shots
     fprintf('Running analysis for shot %d...\n', shot);
+    try
 
     % START_TIME = 0.05 % start time for analysis
     START_TIME = 0.0 %0.2 % start time for analysis
@@ -219,9 +221,19 @@ for shot = shots
         save_data.(save_names{i}) = single(eval(save_names{i}));
     end
     save(sprintf('realtime_analysis/rt_shot%d.mat', shot), '-struct', 'save_data');
+    successful_shots = successful_shots + 1;
             
+    catch ME
+        fprintf(2, 'Skipping shot %d: %s\n', shot, ME.message);
+        continue;
+    end
 end
 mdsdisconnect;
+
+if successful_shots == 0
+    fprintf('No shots completed successfully; skipping plots.\n');
+    return;
+end
 
 %plotting
 plt_dec = 2; % number of points to plot
