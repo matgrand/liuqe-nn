@@ -609,14 +609,14 @@ plot_network_outputs_paper(ds, lnn, idxs=interesting_idxs, ylab=labels)
 # %% ## Comparison with LIUQE LIUQE-RT and LIH
 ## Comparison with LIUQE LIUQE-RT and LIH
 # realtime_file_path = 'data/realtime_analysis_shot88903.mat'
-realtime_file_path = 'data/realtime_analysis_shot88566.mat'
-# realtime_file_path = 'realtime_analysis/rt_shot88564.mat'
+# realtime_file_path = 'data/realtime_analysis_shot88566.mat'
+realtime_file_path = 'realtime_analysis/rt_shot88564.mat'
 
-# 't_or', 'phys_or', 'Fx_or', 'Br_or', 'Bz_or', 'Fx_net', 'Br_net', 'Bz_net', 'Fx_lrt', 'Br_lrt', 'Bz_lrt', 'Fx_lih', 'Br_lih', 'Bz_lih', 'Fx_liu', 'Br_liu', 'Bz_liu', 'Fx_rec', 'Br_rec', 'Bz_rec', 'Fx_rec2', 'Br_rec2', 'Bz_rec2', 't', 'phys');
+# 't_or', 'phys_or', 'Fx_or', 'Br_or', 'Bz_or', 'Fx_online', 'Br_online', 'Bz_online', 'Fx_lrt', 'Br_lrt', 'Bz_lrt', 'Fx_lih', 'Br_lih', 'Bz_lih', 'Fx_liu', 'Br_liu', 'Bz_liu', 'Fx_small', 'Br_small', 'Bz_small', 'Fx_small2', 'Br_small2', 'Bz_small2', 'Fx_turbo', 'Br_turbo', 'Bz_turbo', 'Fx_turbo2', 'Br_turbo2', 'Bz_turbo2', 't', 'phys', 'Fx_map', 'Iy_map', 't_map', 'Ip_map', 'r_map', 'z_map');
 
 m = loadmat(realtime_file_path)
 
-net = (m['Fx_net'], np.sqrt(m['Br_net']**2 + m['Bz_net']**2))
+online = (m['Fx_online'], np.sqrt(m['Br_online']**2 + m['Bz_online']**2))
 lrt = (m['Fx_lrt'], np.sqrt(m['Br_lrt']**2 + m['Bz_lrt']**2))
 lih = (m['Fx_lih'], np.sqrt(m['Br_lih']**2 + m['Bz_lih']**2))
 liu = (m['Fx_liu'], np.sqrt(m['Br_liu']**2 + m['Bz_liu']**2))
@@ -627,18 +627,18 @@ t, phys = m['t'].reshape(-1), m['phys']
 # phys_or = m['phys_or']
 # orig = (m['Fx_or'], m['Br_or'], m['Bz_or'])
 
-# print(f'net: {net[0].shape}|{net[1].shape}|{net[2].shape}, lrt: {lrt[0].shape}|{lrt[1].shape}|{lrt[2].shape}, lih: {lih[0].shape}|{lih[1].shape}|{lih[2].shape}, liu: {liu[0].shape}|{liu[1].shape}|{liu[2].shape}')
+# print(f'online: {online[0].shape}|{online[1].shape}, lrt: {lrt[0].shape}|{lrt[1].shape}, lih: {lih[0].shape}|{lih[1].shape}, liu: {liu[0].shape}|{liu[1].shape}')
 
-enet = list(map(lambda a, b: np.abs(a-b), net, liu))
+eonline = list(map(lambda a, b: np.abs(a-b), online, liu))
 elrt = list(map(lambda a, b: np.abs(a-b), lrt, liu))
 elih = list(map(lambda a, b: np.abs(a-b), lih, liu))
 
-plt.figure(figsize=(8, 7*len(net)/3))
+plt.figure(figsize=(8, 7*len(online)/3))
 cols = [C2, C1, C3]
 titles = ['$\psi \; [\mathrm{Wb}]$', '$B \; [\mathrm{T}]$']
-for k in range(len(net)):
-    plt.subplot(len(net), 1, k+1)
-    for i, (errs, name) in enumerate(zip([enet, elrt, elih], ['Surrogate', 'Liuqe-RT', 'LIH'])):
+for k in range(len(online)):
+    plt.subplot(len(online), 1, k+1)
+    for i, (errs, name) in enumerate(zip([eonline, elrt, elih], ['Surrogate', 'Liuqe-RT', 'LIH'])):
         min_err, max_err, avg_err = np.min(errs[k], axis=1), np.max(errs[k], axis=1), np.mean(errs[k], axis=1)
         plt.plot(t, avg_err, label=name, color=cols[i], lw=lw)
         plt.fill_between(t, avg_err, max_err, color=cols[i], alpha=0.3)

@@ -9,7 +9,7 @@ r_arg = coder.typeof(single(0), [1 upper_bound], [0 1]);
 z_arg = coder.typeof(single(0), [1 upper_bound], [0 1]);
 
 % LiuqeRT inference mex -> outputs Fx, Br, Bz
-codegen liuqenn_inference -args {phys_arg, r_arg, z_arg} -report -rowmajor 
+codegen liuqenn_inference -args {phys_arg, r_arg, z_arg} -args {phys_arg, r_arg, z_arg, false} -report -rowmajor
 
 % Iy inference MEX
 codegen liuqe_Iy_nn_inference -args {phys_arg, r_arg, z_arg} -report -rowmajor 

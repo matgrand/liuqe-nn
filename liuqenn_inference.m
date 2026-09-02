@@ -1,28 +1,31 @@
 % old version direct calculation of Br and Bz, no backward pass
-function [Fx, Br, Bz] = liuqenn_inference(phys, r, z)
+function [Fx, Br, Bz] = liuqenn_inference(phys, r, z, use_turbo)
     %#codegen
 
-    % Load the network weights at COMPILE TIME.
-    % The 'coder.const' ensures the 'net' struct is embedded as a constant
-    % into the final MEX file.
-    persistent net;
-    if isempty(net)
-        %% NOTE: to generate the MAT file from JSON weights, run the script: pretrained/json2mat.m
-        % uncomment one of the following weight files to use different models
-        weights_path = 'pretrained/weights_small_l1.mat'; % <- best
-        % weights_path = 'pretrained/weights_small_l2.mat'; 
-        % weights_path = 'pretrained/weights_turbo_l1.mat'; 
+    if nargin < 4
+        use_turbo = false;
+    end
 
-        fprintf('Loading weights from %s...   (make sure to run the script pretrained/json2mat.m to convert JSON weights to MAT files)\n', weights_path);
-        net_const = coder.load(weights_path); 
-        net = coder.const(net_const);
+    % Load both networks at COMPILE TIME so the runtime flag only selects embedded weights.
+    persistent net_small net_turbo;
+    if isempty(net_small)
+        %% NOTE: to generate the MAT file from JSON weights, run the script: pretrained/json2mat.m
+        weights_small_path = 'pretrained/weights_small_l1.mat'; % <- best
+        % weights_small_path = 'pretrained/weights_small_l2.mat';
+        weights_turbo_path = 'pretrained/weights_turbo_l1.mat';
+
+        fprintf('Loading weights from %s and %s...   (make sure to run the script pretrained/json2mat.m to convert JSON weights to MAT files)\n', weights_small_path, weights_turbo_path);
+        net_small_const = coder.load(weights_small_path);
+        net_turbo_const = coder.load(weights_turbo_path);
+        net_small = coder.const(net_small_const);
+        net_turbo = coder.const(net_turbo_const);
         
-        % fields = fieldnames(net);
+        % fields = fieldnames(net_small);
         % for i = 1:numel(fields)
-        %     sz = size(net.(fields{i}));
+        %     sz = size(net_small.(fields{i}));
         %     sz_str = sprintf('%dx', sz);
         %     sz_str = sz_str(1:end-1); % remove trailing 'x'
-        %     fprintf('net.%s: [%s]\n', fields{i}, sz_str);
+        %     fprintf('net_small.%s: [%s]\n', fields{i}, sz_str);
         % end
         
         % fprintf('Success\n');
@@ -31,8 +34,12 @@ function [Fx, Br, Bz] = liuqenn_inference(phys, r, z)
     % make sure all r > 0
     r(r <= 0) = 1e-3;
 
-    % [Fx, Br, Bz] = direct_net_forward(phys, r, z, net); % standard version
-    [Fx, Br, Bz] = grad_net_forward(phys, r, z, net); % gradient version
+    % Replace grad_net_forward with direct_net_forward in both branches to use the direct version.
+    if use_turbo
+        [Fx, Br, Bz] = grad_net_forward(phys, r, z, net_turbo);
+    else
+        [Fx, Br, Bz] = grad_net_forward(phys, r, z, net_small);
+    end
 end
 
 function [Fx, Br, Bz] = direct_net_forward(phys, r, z, net)

@@ -14,15 +14,17 @@ shot = 88903
 
 % possible shots (4/12/2025)
 shots = [88564  88565  88566  88567  88577  88579  88582  88583  88584  88586  88646  88647  88734  88736  88737  88738  88739  88740  88741  88742];
+shots = [88564  88740]; % quick testing
 
+mdsconnect('tcvdata.epfl.ch');
 for shot = shots
     fprintf('Running analysis for shot %d...\n', shot);
-    
+
     % START_TIME = 0.05 % start time for analysis
     START_TIME = 0.2 % start time for analysis
     STOP_TIME = 1.6 %1.6 %3.0; % stop time for analysis
-    dec = 10; % decimation factor
-    
+    dec = 50; % decimation factor 10
+
     
     nrt = get_scd_mems(shot,'liuqenn');
     Fxn = nrt.liuqenn_Fxn;
@@ -78,7 +80,7 @@ for shot = shots
     phys_t = phys_t(valid_phys_mask);
     assert(max(abs(phys_t - t)) < 1e-8, 'Time vectors do not coincide');
     
-    Fx_or = Fx; Br_or = Br; Bz_or = Bz; % save original net outputs before decimation for later comparison
+    Fx_or = Fx; Br_or = Br; Bz_or = Bz; % save original online outputs before decimation for later comparison
     t_or = t; phys_or = phys;
     
     
@@ -107,11 +109,16 @@ for shot = shots
     r = [1.0864 1.0313 0.9357 0.8253 0.7297 0.6746 0.6746 0.7297 0.8253 0.9357 1.0313 1.0864 1.0137 0.9747 0.8805 0.7863 0.7473 0.7863 0.8805 0.9747 0.9182 0.9182 0.8428 0.8428 0.8805];
     z = [0.1574  0.4299  0.5873  0.5873  0.4299  0.1574 -0.1574 -0.4299 -0.5873 -0.5873 -0.4299 -0.1574 0. 0.2687 0.38 0.2687 0. -0.2687 -0.38 -0.2687 -0.1075 0.1075 0.1075 -0.1075  0.];
     
-    % net inference realtime
-    Fx_net = Fx; Br_net = Br; Bz_net = Bz;
+    % online inference captured in real time
+    Fx_online = Fx; Br_online = Br; Bz_online = Bz;
     
     fprintf('Running LIUQE versions...\n');
     
+    [L_map, LY_map] = mds2meq(shot, 'LIUQE.M'); % full maps from the precalculated LIUQE output
+    Fx_map = LY_map.Fx; Iy_map = LY_map.Iy; t_map = LY_map.t; Ip_map = LY_map.Ip;
+    r_map = L_map.rx; z_map = L_map.zx;
+    assert(size(Fx_map, 3) == numel(t_map) && size(Iy_map, 3) == numel(t_map) && numel(Ip_map) == numel(t_map), 'Precalculated LIUQE output sizes do not match');
+
     [L,LX] = liuqe(shot,t);
     LX.Bm=rt_lx.Bm; LX.Ff=rt_lx.Ff; LX.Uf=rt_lx.Uf; LX.Ia=rt_lx.Ia;% LX.rBt=rt_lx.rBt; % use phys_RT inputs
     LX_liuqe = LX; % save for later
@@ -130,21 +137,23 @@ for shot = shots
     LY = liut(L,LX);
     [Fx_liu, Br_liu, Bz_liu] = interp_liuqe(r,z, L, LX, LY, INTERP_METHOD);
     
-    % recalculated on phys_RT inputs
-    [Fx_rec2, Br_rec2, Bz_rec2] = liuqe_nn_LX(rt_lx, single(r'), single(z'));
+    % small and turbo recalculated on phys_RT inputs
+    [Fx_small2, Br_small2, Bz_small2] = liuqe_nn_LX(rt_lx, single(r'), single(z'));
+    [Fx_turbo2, Br_turbo2, Bz_turbo2] = liuqe_nn_LX(rt_lx, single(r'), single(z'), true);
     
-    % recalculated net on LX
-    [Fx_rec, Br_rec, Bz_rec] = liuqe_nn_LX(LX_liuqe, single(r'), single(z')); % this assigns to base phys_LX
+    % small and turbo recalculated on LX
+    [Fx_small, Br_small, Bz_small] = liuqe_nn_LX(LX_liuqe, single(r'), single(z')); % this assigns to base phys_LX
+    [Fx_turbo, Br_turbo, Bz_turbo] = liuqe_nn_LX(LX_liuqe, single(r'), single(z'), true);
     
     
     % print abs err, std of the err and max err of Fx, Br, Bz between liuqe and liuqenn
-    e_Fx_nn = abs(Fx_liu - Fx_net);
-    e_Br_nn = abs(Br_liu - Br_net);
-    e_Bz_nn = abs(Bz_liu - Bz_net);
-    fprintf('LIUQENN vs LIUQE:\n');
-    fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_nn(:)), std(e_Fx_nn(:)), max(e_Fx_nn(:)));
-    fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_nn(:)), std(e_Br_nn(:)), max(e_Br_nn(:)));
-    fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_nn(:)), std(e_Bz_nn(:)), max(e_Bz_nn(:)));
+    e_Fx_online = abs(Fx_liu - Fx_online);
+    e_Br_online = abs(Br_liu - Br_online);
+    e_Bz_online = abs(Bz_liu - Bz_online);
+    fprintf('LIUQENN ONLINE vs LIUQE:\n');
+    fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_online(:)), std(e_Fx_online(:)), max(e_Fx_online(:)));
+    fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_online(:)), std(e_Br_online(:)), max(e_Br_online(:)));
+    fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_online(:)), std(e_Bz_online(:)), max(e_Bz_online(:)));
     
     % liuqert vs liuqe
     e_Fx_lrt = abs(Fx_lrt - Fx_liu);
@@ -164,47 +173,73 @@ for shot = shots
     fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_lih(:)), std(e_Br_lih(:)), max(e_Br_lih(:)));
     fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_lih(:)), std(e_Bz_lih(:)), max(e_Bz_lih(:)));
     
-    % recalculated net vs liuqe
-    e_Fx_rec = abs(Fx_rec - Fx_liu);
-    e_Br_rec = abs(Br_rec - Br_liu);
-    e_Bz_rec = abs(Bz_rec - Bz_liu);
-    fprintf('RECALCULATED NET vs LIUQE:\n');
-    fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_rec(:)), std(e_Fx_rec(:)), max(e_Fx_rec(:)));
-    fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_rec(:)), std(e_Br_rec(:)), max(e_Br_rec(:)));
-    fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_rec(:)), std(e_Bz_rec(:)), max(e_Bz_rec(:)));
-    
-    % recalculated net on phys_RT vs liuqe
-    e_Fx_rec2 = abs(Fx_rec2 - Fx_liu);
-    e_Br_rec2 = abs(Br_rec2 - Br_liu);
-    e_Bz_rec2 = abs(Bz_rec2 - Bz_liu);
-    fprintf('RECALCULATED NET on phys_RT vs LIUQE:\n');
-    fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_rec2(:)), std(e_Fx_rec2(:)), max(e_Fx_rec2(:)));
-    fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_rec2(:)), std(e_Br_rec2(:)), max(e_Br_rec2(:)));
-    fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_rec2(:)), std(e_Bz_rec2(:)), max(e_Bz_rec2(:)));    
-    
-    % save data
-    save(sprintf('realtime_analysis/rt_shot%d.mat', shot), 't_or', 'phys_or', 'Fx_or', 'Br_or', 'Bz_or', ...
-        'Fx_net', 'Br_net', 'Bz_net', 'Fx_lrt', 'Br_lrt', 'Bz_lrt', 'Fx_lih', 'Br_lih', 'Bz_lih', 'Fx_liu', 'Br_liu', 'Bz_liu', ...
-            'Fx_rec', 'Br_rec', 'Bz_rec', 'Fx_rec2', 'Br_rec2', 'Bz_rec2', 't', 'phys');
+    % small on LX vs liuqe
+    e_Fx_small = abs(Fx_small - Fx_liu);
+    e_Br_small = abs(Br_small - Br_liu);
+    e_Bz_small = abs(Bz_small - Bz_liu);
+    fprintf('SMALL vs LIUQE:\n');
+    fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_small(:)), std(e_Fx_small(:)), max(e_Fx_small(:)));
+    fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_small(:)), std(e_Br_small(:)), max(e_Br_small(:)));
+    fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_small(:)), std(e_Bz_small(:)), max(e_Bz_small(:)));
+
+    % small on phys_RT vs liuqe
+    e_Fx_small2 = abs(Fx_small2 - Fx_liu);
+    e_Br_small2 = abs(Br_small2 - Br_liu);
+    e_Bz_small2 = abs(Bz_small2 - Bz_liu);
+    fprintf('SMALL on phys_RT vs LIUQE:\n');
+    fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_small2(:)), std(e_Fx_small2(:)), max(e_Fx_small2(:)));
+    fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_small2(:)), std(e_Br_small2(:)), max(e_Br_small2(:)));
+    fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_small2(:)), std(e_Bz_small2(:)), max(e_Bz_small2(:)));
+
+    % turbo on LX vs liuqe
+    e_Fx_turbo = abs(Fx_turbo - Fx_liu);
+    e_Br_turbo = abs(Br_turbo - Br_liu);
+    e_Bz_turbo = abs(Bz_turbo - Bz_liu);
+    fprintf('TURBO vs LIUQE:\n');
+    fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_turbo(:)), std(e_Fx_turbo(:)), max(e_Fx_turbo(:)));
+    fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_turbo(:)), std(e_Br_turbo(:)), max(e_Br_turbo(:)));
+    fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_turbo(:)), std(e_Bz_turbo(:)), max(e_Bz_turbo(:)));
+
+    % turbo on phys_RT vs liuqe
+    e_Fx_turbo2 = abs(Fx_turbo2 - Fx_liu);
+    e_Br_turbo2 = abs(Br_turbo2 - Br_liu);
+    e_Bz_turbo2 = abs(Bz_turbo2 - Bz_liu);
+    fprintf('TURBO on phys_RT vs LIUQE:\n');
+    fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_turbo2(:)), std(e_Fx_turbo2(:)), max(e_Fx_turbo2(:)));
+    fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_turbo2(:)), std(e_Br_turbo2(:)), max(e_Br_turbo2(:)));
+    fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_turbo2(:)), std(e_Bz_turbo2(:)), max(e_Bz_turbo2(:)));
+
+    % save every numeric array as single precision
+    save_names = {'t_or', 'phys_or', 'Fx_or', 'Br_or', 'Bz_or', 'Fx_online', 'Br_online', 'Bz_online', ...
+        'Fx_lrt', 'Br_lrt', 'Bz_lrt', 'Fx_lih', 'Br_lih', 'Bz_lih', 'Fx_liu', 'Br_liu', 'Bz_liu', ...
+        'Fx_small', 'Br_small', 'Bz_small', 'Fx_small2', 'Br_small2', 'Bz_small2', ...
+        'Fx_turbo', 'Br_turbo', 'Bz_turbo', 'Fx_turbo2', 'Br_turbo2', 'Bz_turbo2', 't', 'phys', ...
+        'Fx_map', 'Iy_map', 't_map', 'Ip_map', 'r_map', 'z_map'};
+    save_data = struct();
+    for i = 1:numel(save_names)
+        save_data.(save_names{i}) = single(eval(save_names{i}));
+    end
+    save(sprintf('realtime_analysis/rt_shot%d.mat', shot), '-struct', 'save_data');
             
 end
+mdsdisconnect;
 
 %plotting
 plt_dec = 2; % number of points to plot
 
 figure;
 subplot(3,1,1); grid on; hold on;
-plot(t, Fx_net(:,1:plt_dec:end));
+plot(t, Fx_online(:,1:plt_dec:end));
 % plot(t, Fx_lrt(:,1:plt_dec:end), '--');
 plot(t, Fx_liu(:,1:plt_dec:end), ':');
 title('Fx'); xlabel('Time (s)');
 subplot(3,1,2); grid on; hold on;
-plot(t, Br_net(:,1:plt_dec:end));
+plot(t, Br_online(:,1:plt_dec:end));
 % plot(t, Br_lrt(:,1:plt_dec:end), '--');
 plot(t, Br_liu(:,1:plt_dec:end), ':');
 title('Br'); xlabel('Time (s)');
 subplot(3,1,3); grid on; hold on;
-plot(t, Bz_net(:,1:plt_dec:end));
+plot(t, Bz_online(:,1:plt_dec:end));
 % plot(t, Bz_lrt(:,1:plt_dec:end), '--');
 plot(t, Bz_liu(:,1:plt_dec:end), ':');
 title('Bz'); xlabel('Time (s)');
