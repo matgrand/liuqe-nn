@@ -3,19 +3,40 @@
 from argparse import ArgumentParser
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+plt.style.use('default')
+plt.rcParams['figure.figsize'] = (8,3)
+plt.rcParams['axes.grid'] = True
+plt.rcParams['grid.alpha'] = 0.7
+plt.rcParams['font.family'] = 'monospace'
+plt.rcParams['image.cmap'] = 'inferno'
+# plt.rcParams['image.cmap'] = 'plasma'
+# plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.colormaps['plasma'](np.array([0.2,0.4,0.6,0.8,1.0])))
+# plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.colormaps['plasma'](np.array([.1,.5,.2,.6,.3,.7,.4,.8,.9,1.0]))) # <-
+plt.rcParams['text.usetex'] = True
+plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath}"
+plt.rcParams["text.latex.preamble"] = r"\usepackage{bm}"
+plt.rcParams['font.size'] = 12
+
 import numpy as np
 from scipy.io import loadmat
 
 
 DATA_DIR = Path(__file__).parent / "realtime_analysis"
-FILE_PATTERN = "rt_shot*.mat"
+FILE_PATTERN = "rt_small_shot*.mat"
+# FILE_PATTERN = "rt_small_turbo*.mat"
+SHOW_PLOTS = True
+MIN_ERROR = 5e-4 #5e-4
+MAX_FX, MAX_BR, MAX_BZ = 1e-1, 1e-1, 1e-1
+# MAX_FX, MAX_BR, MAX_BZ = 1e2, 1e2, 1e2
 FIELDS = ("Fx", "Br", "Bz")
+FIELD_MAX = {"Fx": MAX_FX, "Br": MAX_BR, "Bz": MAX_BZ}
 COMPARISONS = (
-    # ("LIUQENN vs LIUQE", "net"),
+    ("LIUQENN vs LIUQE", "net"),
     ("RECALCULATED NET vs LIUQE", "rec"),
+    ("RECALCULATED NET on phys_RT vs LIUQE", "rec2"),
     ("LIUQERT vs LIUQE", "lrt"),
     ("LIH vs LIUQE", "lih"),
-    # ("RECALCULATED NET on phys_RT vs LIUQE", "rec2"),
 )
 VARIABLES = tuple(f"{field}_{version}" for field in FIELDS for version in ("liu", *(version for _, version in COMPARISONS)))
 
@@ -37,6 +58,37 @@ def print_errors(errors):
             print(f"{field}: mean err: {np.mean(error):.2e}, std err: {np.std(error, ddof=1):.2e}, max err: {np.max(error):.2e}")
 
 
+def error_stats(errors):
+    """Return mean, standard deviation, and maximum for every error array."""
+    return {
+        label: {field: (np.mean(error), np.std(error, ddof=1), np.max(error)) for field, error in fields.items()}
+        for label, fields in errors.items()
+    }
+
+
+def plot_errors(shots, stats):
+    """Plot comparison statistics in one row per physical field."""
+    n = len(COMPARISONS)
+    centers = np.arange(len(shots)); width = 0.8 / n; colors = plt.colormaps["inferno"](np.linspace(0.15, 0.9, n))
+
+    plt.figure(figsize=(max(10, 1.5 * len(shots)), 9))
+    for i, field in enumerate(FIELDS):
+        plt.subplot(len(FIELDS), 1, i + 1)
+        for j, (comparison, version) in enumerate(COMPARISONS):
+            x = centers - 0.4 + (j + 0.5) * width
+            mean = [shot_stats[comparison][field][0] for shot_stats in stats]
+            std = [shot_stats[comparison][field][1] for shot_stats in stats]
+            maximum = [shot_stats[comparison][field][2] for shot_stats in stats]
+            plt.bar(x, mean, width, yerr=std, capsize=2, color=colors[j], label=version)
+            plt.scatter(x, maximum, marker="x", s=18, color=colors[j])
+        plt.xticks(centers, shots if i == len(FIELDS) - 1 else [])
+        plt.yscale("log"); plt.ylabel(f"{field} absolute error"); plt.ylim(MIN_ERROR, FIELD_MAX[field]); plt.legend()
+
+    plt.xlabel("Shot number")
+    plt.suptitle("Mean error (bars), standard deviation (error bars), and maximum error (x)")
+    plt.tight_layout(); plt.show()
+
+
 def main():
     parser = ArgumentParser(description=__doc__)
     parser.add_argument("directory", nargs="?", type=Path, default=DATA_DIR, help=f"MAT-file directory (default: {DATA_DIR})")
@@ -47,6 +99,7 @@ def main():
     if not paths: parser.error(f"no files matching {args.pattern!r} in {args.directory}")
 
     cumulative = {label: {field: [] for field in FIELDS} for label, _ in COMPARISONS}
+    shots, stats = [], []
     for path in paths:
         print(f"Running analysis for file {path.name}...")
         data = loadmat(path, variable_names=VARIABLES)
@@ -54,12 +107,14 @@ def main():
         if missing: raise KeyError(f"{path}: missing variables: {', '.join(missing)}")
         errors = error_arrays(data)
         print_errors(errors)
+        shots.append(path.stem.rsplit("shot", 1)[-1]); stats.append(error_stats(errors))
         for label, _ in COMPARISONS:
             for field in FIELDS: cumulative[label][field].append(errors[label][field])
         print()
 
     print(f"CUMULATIVE ACROSS ALL FILES ({len(paths)} files):")
     print_errors({label: {field: np.concatenate(values) for field, values in fields.items()} for label, fields in cumulative.items()})
+    if SHOW_PLOTS: plot_errors(shots, stats)
 
 
 if __name__ == "__main__":

@@ -608,8 +608,9 @@ plot_network_outputs_paper(ds, lnn, idxs=interesting_idxs, ylab=labels)
 
 # %% ## Comparison with LIUQE LIUQE-RT and LIH
 ## Comparison with LIUQE LIUQE-RT and LIH
-realtime_file_path = 'data/realtime_analysis_shot88903.mat'
+# realtime_file_path = 'data/realtime_analysis_shot88903.mat'
 realtime_file_path = 'data/realtime_analysis_shot88566.mat'
+# realtime_file_path = 'realtime_analysis/rt_shot88564.mat'
 
 # 't_or', 'phys_or', 'Fx_or', 'Br_or', 'Bz_or', 'Fx_net', 'Br_net', 'Bz_net', 'Fx_lrt', 'Br_lrt', 'Bz_lrt', 'Fx_lih', 'Br_lih', 'Bz_lih', 'Fx_liu', 'Br_liu', 'Bz_liu', 'Fx_rec', 'Br_rec', 'Bz_rec', 'Fx_rec2', 'Br_rec2', 'Bz_rec2', 't', 'phys');
 
