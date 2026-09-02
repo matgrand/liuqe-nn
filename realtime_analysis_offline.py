@@ -4,6 +4,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 plt.style.use('default')
 plt.rcParams['figure.figsize'] = (8,3)
 plt.rcParams['axes.grid'] = True
@@ -20,12 +21,17 @@ plt.rcParams['font.size'] = 12
 
 import numpy as np
 from scipy.io import loadmat
+import utils as ut
+
+
+PAPER_CMAP = LinearSegmentedColormap.from_list("paper_inferno", plt.cm.inferno(np.linspace(0.05, 0.9, 256)))
+PAPER_COLORS = PAPER_CMAP(np.array([32, 140, 200, 254]) / 255)
 
 
 DATA_DIR = Path(__file__).parent / "realtime_analysis"
 FILE_PATTERN = "rt_shot*.mat"
 SHOW_PLOTS = True
-FLAT_TOP_FRACTION = 0.95
+FLAT_TOP_FRACTION = 0.9 #0.95
 MIN_ERROR = 5e-4 #5e-4
 MAX_FX, MAX_BR, MAX_BZ = 1e-1, 1e-1, 1e-1
 # MAX_FX, MAX_BR, MAX_BZ = 1e2, 1e2, 1e2
@@ -34,9 +40,9 @@ FIELD_MAX = {"Fx": MAX_FX, "Br": MAX_BR, "Bz": MAX_BZ}
 COMPARISONS = (
     ("LIUQENN ONLINE vs LIUQE", "online"),
     ("SMALL vs LIUQE", "small"),
-    ("SMALL on phys_RT vs LIUQE", "small2"),
+    # ("SMALL on phys_RT vs LIUQE", "small2"),
     ("TURBO vs LIUQE", "turbo"),
-    ("TURBO on phys_RT vs LIUQE", "turbo2"),
+    # ("TURBO on phys_RT vs LIUQE", "turbo2"),
     ("LIUQERT vs LIUQE", "lrt"),
     ("LIH vs LIUQE", "lih"),
 )
@@ -84,9 +90,9 @@ def error_stats(errors):
 
 
 def plot_errors(shots, stats, flux_maps):
-    """Plot comparison statistics and the midpoint flat-top flux map for each shot."""
+    """Plot comparison statistics, midpoint flat-top flux maps, and plasma current traces."""
     n = len(COMPARISONS)
-    centers = np.arange(len(shots)); width = 0.8 / n; rows, cols = len(FIELDS) + 1, len(shots)
+    centers = np.arange(len(shots)); width = 0.8 / n; rows, cols = len(FIELDS) + 2, len(shots)
 
     plt.figure(figsize=(max(10, 1.8 * len(shots)), 12))
     for i, field in enumerate(FIELDS):
@@ -102,12 +108,19 @@ def plot_errors(shots, stats, flux_maps):
         plt.yscale("log"); plt.ylabel(f"{field} absolute error"); plt.ylim(MIN_ERROR, FIELD_MAX[field]); plt.legend()
 
     plt.xlabel("Shot number")
-    for i, (flux, r, z, time) in enumerate(flux_maps):
+    for i, (flux, r, z, time, current_t, current, flat_top) in enumerate(flux_maps):
         plt.subplot(rows, cols, len(FIELDS) * cols + i + 1)
-        if len(r) == flux.shape[1] and len(z) == flux.shape[0]: plt.contourf(r, z, flux, 20)
-        else: plt.imshow(flux, origin="lower", aspect="auto")
+        if len(r) == flux.shape[1] and len(z) == flux.shape[0]: plt.contourf(r, z, flux, 20, cmap=PAPER_CMAP)
+        else: plt.imshow(flux, origin="lower", aspect="auto", cmap=PAPER_CMAP)
+        ut.prep_plot_tcv(plt.gca())
         if i == 0: plt.ylabel(r"Mid-flat-top $\psi$")
         plt.xlabel("R [m]"); plt.title(f"{shots[i]} at {time:.3f} s"); plt.colorbar()
+    for i, (_, _, _, _, current_t, current, flat_top) in enumerate(flux_maps):
+        plt.subplot(rows, cols, (len(FIELDS) + 1) * cols + i + 1)
+        plt.axvspan(flat_top[0], flat_top[1], color=PAPER_COLORS[1], alpha=0.3, label="flat top")
+        plt.plot(current_t, current / 1e3, color=PAPER_COLORS[0], lw=0.75, label="$I_p$")
+        plt.xlabel("Time [s]"); plt.ylabel("$I_p$ [kA]"); plt.title(f"{shots[i]} plasma current")
+        if i == 0: plt.legend()
     plt.suptitle("Mean error (bars), standard deviation (error bars), and maximum error (x)")
     plt.tight_layout(); plt.show()
 
@@ -133,7 +146,7 @@ def main():
         if not np.any(time_mask): raise ValueError(f"{path}: no comparison samples in flat-top interval {flat_top}")
         errors = error_arrays(data, time_mask)
         map_times = np.ravel(data["t_map"]); map_i = np.argmin(np.abs(map_times - np.mean(flat_top)))
-        flux_maps.append((data["Fx_map"][:, :, map_i].copy(), np.ravel(data["r_map"]), np.ravel(data["z_map"]), map_times[map_i]))
+        flux_maps.append((data["Fx_map"][:, :, map_i].copy(), np.ravel(data["r_map"]), np.ravel(data["z_map"]), map_times[map_i], map_times, np.ravel(data["Ip_map"]), flat_top))
         print(f"Flat top: {flat_top[0]:.5f}--{flat_top[1]:.5f} s ({np.sum(time_mask)} comparison samples)")
         print_errors(errors)
         shots.append(path.stem.rsplit("shot", 1)[-1]); stats.append(error_stats(errors))

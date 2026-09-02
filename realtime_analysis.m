@@ -14,7 +14,6 @@ shot = 88903
 
 % possible shots (4/12/2025)
 shots = [88564  88565  88566  88567  88577  88579  88582  88583  88584  88586  88646  88647  88734  88736  88737  88738  88739  88740  88741  88742];
-shots = [88564  88740]; % quick testing
 
 mdsconnect('tcvdata.epfl.ch');
 for shot = shots
@@ -23,7 +22,7 @@ for shot = shots
     % START_TIME = 0.05 % start time for analysis
     START_TIME = 0.2 % start time for analysis
     STOP_TIME = 1.6 %1.6 %3.0; % stop time for analysis
-    dec = 50; % decimation factor 10
+    dec = 10; % decimation factor 10
 
     
     nrt = get_scd_mems(shot,'liuqenn');
