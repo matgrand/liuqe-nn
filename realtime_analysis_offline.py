@@ -31,14 +31,14 @@ PAPER_COLORS = PAPER_CMAP(np.array([32, 140, 200, 254]) / 255)
 DATA_DIR = Path(__file__).parent / "realtime_analysis"
 FILE_PATTERN = "rt_shot*.mat"
 SHOW_PLOTS = True
-FLAT_TOP_FRACTION = 0.9 #0.95
+FLAT_TOP_FRACTION = 0.85 #0.95
 MIN_ERROR = 5e-4 #5e-4
 MAX_FX, MAX_BR, MAX_BZ = 1e-1, 1e-1, 1e-1
 # MAX_FX, MAX_BR, MAX_BZ = 1e2, 1e2, 1e2
 FIELDS = ("Fx", "Br", "Bz")
 FIELD_MAX = {"Fx": MAX_FX, "Br": MAX_BR, "Bz": MAX_BZ}
 COMPARISONS = (
-    ("LIUQENN ONLINE vs LIUQE", "online"),
+    # ("LIUQENN ONLINE vs LIUQE", "online"),
     ("SMALL vs LIUQE", "small"),
     # ("SMALL on phys_RT vs LIUQE", "small2"),
     ("TURBO vs LIUQE", "turbo"),
@@ -63,6 +63,16 @@ def flat_top_interval(t, ip):
     durations = t[stops] - t[starts]; i = np.argmax(durations)
     return float(t[starts[i]]), float(t[stops[i]])
 
+def flat_top_interval(t, ip, Ip_threshold=110e3):
+    """Return the longest interval where abs(Ip) > Ip_threshold."""
+    t, ip = np.ravel(t), np.abs(np.ravel(ip)); valid = np.isfinite(t) & np.isfinite(ip)
+    if not np.any(valid): raise ValueError("plasma-current trace has no finite samples")
+    mask = valid & (ip >= Ip_threshold)
+    edges = np.diff(np.r_[False, mask, False].astype(np.int8))
+    starts, stops = np.flatnonzero(edges == 1), np.flatnonzero(edges == -1) - 1
+    if not len(starts): raise ValueError("could not identify a flat-top interval")
+    durations = t[stops] - t[starts]; i = np.argmax(durations)
+    return float(t[starts[i]]), float(t[stops[i]])
 
 def error_arrays(data, time_mask):
     """Return flat-top absolute errors indexed by comparison label and field."""
@@ -114,12 +124,12 @@ def plot_errors(shots, stats, flux_maps):
         else: plt.imshow(flux, origin="lower", aspect="auto", cmap=PAPER_CMAP)
         ut.prep_plot_tcv(plt.gca())
         if i == 0: plt.ylabel(r"Mid-flat-top $\psi$")
-        plt.xlabel("R [m]"); plt.title(f"{shots[i]} at {time:.3f} s"); plt.colorbar()
+        plt.xlabel("R [m]"); plt.title(shots[i])
     for i, (_, _, _, _, current_t, current, flat_top) in enumerate(flux_maps):
         plt.subplot(rows, cols, (len(FIELDS) + 1) * cols + i + 1)
         plt.axvspan(flat_top[0], flat_top[1], color=PAPER_COLORS[1], alpha=0.3, label="flat top")
         plt.plot(current_t, current / 1e3, color=PAPER_COLORS[0], lw=0.75, label="$I_p$")
-        plt.xlabel("Time [s]"); plt.ylabel("$I_p$ [kA]"); plt.title(f"{shots[i]} plasma current")
+        plt.xlabel("Time [s]"); plt.ylabel("$I_p$ [kA]"); plt.title(shots[i])
         if i == 0: plt.legend()
     plt.suptitle("Mean error (bars), standard deviation (error bars), and maximum error (x)")
     plt.tight_layout(); plt.show()
