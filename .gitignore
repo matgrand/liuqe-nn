@@ -33,4 +33,5 @@ SCDalgo_liuqenn/codegen/*
 shots_time.json
 *.h5
 paper_figures/*
+dissertation_figures/*
 *.zip
