@@ -491,14 +491,13 @@ save_figure('fmag_control_simulation.pdf')
 
 # %% ## Plot network outputs for the dissertation
 ## Plot network outputs for the dissertation
-def plot_network_outputs_dissertation(ds:LiuqeDataset, model:liuqeML, idxs=[0], ylab=['']):
+def plot_network_outputs_dissertation(ds:LiuqeDataset, model:liuqeML, idxs=[0], ylab=[''], save_name='net_example.pdf'):
     assert ds.fg is not None, "Dataset does not have full grid data (fg)"
     assert len(idxs) == len(ylab), "Length of idxs and ylab must be the same"
     model.to(CPU)
     n_plt = len(idxs)
 
     def prep_plot_tcv(ax, cols=['black','black','gray'], lw=1.5, alpha=0.5):
-        ax.grid(False)
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_aspect('equal', adjustable='box')
@@ -515,9 +514,8 @@ def plot_network_outputs_dissertation(ds:LiuqeDataset, model:liuqeML, idxs=[0], 
 
     from matplotlib.cm import ScalarMappable
     from matplotlib.colors import Normalize
-    # plt.figure(figsize=(THESIS_W, 3*n_plt*THESIS_W/14))
-    # plt.figure(figsize=(14, 3*n_plt))
-    plt.figure(figsize=(.6*14, .6*3*n_plt))
+    plt.figure(figsize=(THESIS_W, 4*n_plt))
+    gs = plt.GridSpec(n_plt, 1)
     for pi, i in enumerate(idxs):
         x, p, fx, iy, br, bz = ds[i]
         x, p, fx, iy, br, bz = map(lambda x: x.to(CPU), [x, p, fx, iy, br, bz])
@@ -553,43 +551,50 @@ def plot_network_outputs_dissertation(ds:LiuqeDataset, model:liuqeML, idxs=[0], 
         # mbr, Mbr = np.min(brp[iv]), np.max(brp[iv])
         # mbz, Mbz = np.min(bzp[iv]), np.max(bzp[iv])
         ms, cm = 4, plt.rcParams['image.cmap'] + ('_r' if reverse_cmap else '') # line width, color, marker size, colormap
-        limits = [(mfx, Mfx), (mbr, Mbr), (mbz, Mbz), (miy, Miy)] # variable limits
-        vals = [(fx, fxp), (br, brp), (bz, bzp), (iy, iyp)]
-        perc_max = [1.0, 2.0, 2.0, 5] # max percentage error for colorbar scaling, set higher for Fx and Iy which have larger ranges
-        names = [r'$\psi(r,z)$', r'$B_r(r,z)$', r'$B_z(r,z)$', r'$I_y(r,z)$'] # with (r,z)
+        limits = [(mfx, Mfx), (miy, Miy), (mbr, Mbr), (mbz, Mbz)] # variable limits
+        vals = [(fx, fxp), (iy, iyp), (br, brp), (bz, bzp)]
+        perc_max = [1.0, 5, 2.0, 2.0] # max percentage error for colorbar scaling, set higher for Fx and Iy which have larger ranges
+        names = [r'$\psi(r,z)$', r'$I_y(r,z)$', r'$B_r(r,z)$', r'$B_z(r,z)$'] # with (r,z)
         # names = [r'$\psi$', r'$B_r$', r'$B_z$', r'$I_y$'] # without (r,z)
         # lvls = [15, 12, 12, 8] # <-
-        lvls = [20, 16, 16, 12]
+        lvls = [20, 12, 16, 16]
         lw, shrink = 0.75, 0.9
+        group = gs[pi].subgridspec(2, 4)
+        plt.subplot(gs[pi], frameon=False); plt.axis('off'); plt.title(ylab[pi].capitalize())
         for j, ((v, vp), l, n) in enumerate(zip(vals, limits, names)):
-            plt.subplot(n_plt, 8, pi*8+2*j+1)
-            if pi==0: plt.title(n)
+            row, col = j//2, 2*(j % 2)
+            plt.subplot(group[row, col])
             plt.contour(RRD, ZZD, vp.reshape(65,28), levels=lvls[j], linestyles='solid', cmap=cm, linewidths=lw)
             plt.contour(RRD, ZZD, v.reshape(65,28), levels=lvls[j], linestyles='dashed', cmap=cm, linewidths=lw)
             prep_plot_tcv(plt.gca(), cols=['k','k','gray'])
             sm = ScalarMappable(cmap=cm, norm=Normalize(vmin=l[0], vmax=l[1]))
             sm.set_array([])
-            cbar = plt.colorbar(sm, ax=plt.gca(), shrink=shrink)
-            cbar.ax.tick_params(labelsize=4)  # intentionally tiny for the dense eight-column layout
-            if j==0: plt.ylabel(ylab[pi].capitalize())
-            plt.subplot(n_plt, 8, pi*8+2*j+2)
-            if pi==0: plt.title(n + r' $\%$ err')
+            plt.colorbar(sm, ax=plt.gca(), shrink=shrink, fraction=0.08, pad=0.03)
+            plt.ylabel(n)
+            plt.subplot(group[row, col+1])
             ep = 100*np.abs(v[iv]-vp[iv])/(l[1]-l[0]) # error in %
             plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=perc_max[j], marker='s', rasterized=True) # fixed bar but not for Iy
-            prep_plot_tcv(plt.gca(), cols=['k','k','gray']); cbar = plt.colorbar(shrink=shrink)
-            cbar.ax.tick_params(labelsize=4)  # intentionally tiny for the dense eight-column layout
+            prep_plot_tcv(plt.gca(), cols=['k','k','gray']); plt.colorbar(shrink=shrink, fraction=0.08, pad=0.03); plt.ylabel(n + r' $\%$ err')
 
-    save_figure('net_example.pdf')
+    save_figure(save_name)
     return
 
 
 # interesting_idxs = [297, 250, 317, 28, 347, 12, 65]
 # interesting_idxs = [297, 250, 123, 28, 347, 12, 157]
 # interesting_idxs = [297, 250, 123, 28, 347, 157]
-interesting_idxs, labels = [297, 123, 28, 347, 157], ["single null", "double null", "limiter", "negative triang.", "high vertical pos."]
-# interesting_idxs, labels = [297, 123, 347, 157], ['single null', 'double null', 'negative\ntriangularity', 'high vertical\nposition']
-plot_network_outputs_dissertation(ds, lnn, idxs=interesting_idxs, ylab=labels)
-# plot_network_outputs_paper(ds, lnn, idxs=idxs, ylab=labels)
+# interesting_idxs, labels = [297, 123, 28, 347, 157], ["single null", "double null", "limiter", 'negative\ntriangularity', 'high vertical\nposition']
+# interesting_idxs, labels = [297, 123, 347, 157], ['single null', 'double null', 'negative triangularity', 'high vertical position']
+# interesting_idxs, labels = [297, 123, 347], ['single null', 'double null', 'negative triangularity']
+
+interesting_idxs1, labels1 = [297, 123], ["single null", "double null", ]
+interesting_idxs2, labels2 = [28, 347], ["limiter", 'negative triangularity']
+interesting_idxs3, labels3 = [157], ['high vertical position']
+
+plot_network_outputs_dissertation(ds, lnn, idxs=interesting_idxs1, ylab=labels1, save_name='net_example1.pdf')
+plot_network_outputs_dissertation(ds, lnn, idxs=interesting_idxs2, ylab=labels2, save_name='net_example2.pdf')
+plot_network_outputs_dissertation(ds, lnn, idxs=interesting_idxs3, ylab=labels3, save_name='net_example3.pdf')
+
 
 # %% ## Comparison with LIUQE LIUQE-RT and LIH
 ## Comparison with LIUQE LIUQE-RT and LIH
