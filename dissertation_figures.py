@@ -589,7 +589,7 @@ def plot_network_outputs_dissertation(ds:LiuqeDataset, model:liuqeML, idxs=[0], 
 
 interesting_idxs1, labels1 = [297, 123], ["single null", "double null", ]
 interesting_idxs2, labels2 = [28, 347], ["limiter", 'negative triangularity']
-interesting_idxs3, labels3 = [157], ['high vertical position']
+interesting_idxs3, labels3 = [157, 250], ['high vertical position', 'tbd']
 
 plot_network_outputs_dissertation(ds, lnn, idxs=interesting_idxs1, ylab=labels1, save_name='net_example1.pdf')
 plot_network_outputs_dissertation(ds, lnn, idxs=interesting_idxs2, ylab=labels2, save_name='net_example2.pdf')
