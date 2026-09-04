@@ -4,6 +4,7 @@ from utils import *
 FIGS_DIR = 'dissertation_figures'
 THESIS_W = 6.30  # [in]
 SHOW_PLOTS = True
+# SHOW_PLOTS = False
 WAIT_FOR_PLOTS = False
 os.makedirs(FIGS_DIR, exist_ok=True)
 
