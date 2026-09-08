@@ -9,6 +9,7 @@
 # DISSERTATION PLOT INSTRUCTIONS
 ## Dissertation Plotting
 These rules apply to figures intended for the dissertation. They override the generic plotting rules above when there is a conflict.
+Note: if, in the context of dissertation figures, the agent is asked to read "the guides" or a specific "guide" read `/home/mg/repos/phd_thesis/guides/guides.md` and the relative "specific guide/s" afterward, for additional context. 
 
 ### Style
 
