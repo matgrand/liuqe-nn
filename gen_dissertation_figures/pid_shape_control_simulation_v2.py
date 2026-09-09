@@ -1,3 +1,5 @@
+from matplotlib.lines import Line2D
+
 from ._common import *
 from ._common import _cmap
 
@@ -11,8 +13,9 @@ def generate():
     """Plot the extended PID dataset produced by pid_shape_liuqenn_comparison_v2.m."""
     net = loadmat('data/pid_shape_net_v2.mat')
     std = loadmat('data/pid_shape_std_v2.mat')
-    _required(net, 't', 'controller_on', 'shape_errs', 'proj_errs', 'active_shape_mask', 'active_projected_mask', 'fge_boundary_r', 'fge_boundary_z', 'sc_t', 'sc_r', 'sc_z', 'coil_voltages')
-    _required(std, 't', 'shape_errs', 'proj_errs', 'fge_boundary_r', 'fge_boundary_z', 'coil_voltages')
+    geometry_keys = ('fge_grid_r', 'fge_grid_z', 'fge_final_flux', 'fge_final_boundary_flux', 'limiter_r', 'limiter_z')
+    _required(net, 't', 'controller_on', 'shape_errs', 'proj_errs', 'active_shape_mask', 'active_projected_mask', 'sc_t', 'sc_r', 'sc_z', 'coil_voltages', *geometry_keys)
+    _required(std, 't', 'shape_errs', 'proj_errs', 'coil_voltages', *geometry_keys)
 
     t = net['t'].reshape(-1); t_std = std['t'].reshape(-1)
     if not np.allclose(t, t_std): raise ValueError('PID v2 runs do not have matching time vectors.')
@@ -56,14 +59,24 @@ def generate():
     plt.xticks(channels); plt.xlabel('Saved shape-error channel'); plt.ylabel('Post-activation RMS [mm]'); plt.legend()
 
     plt.subplot(3, 2, 5)
-    rb_net, zb_net = net['fge_boundary_r'][:,-1], net['fge_boundary_z'][:,-1]
-    rb_std, zb_std = std['fge_boundary_r'][:,-1], std['fge_boundary_z'][:,-1]
+    grid_r = net['fge_grid_r'].reshape(-1); grid_z = net['fge_grid_z'].reshape(-1)
+    flux_net = np.squeeze(net['fge_final_flux']); flux_std = np.squeeze(std['fge_final_flux'])
+    boundary_flux_net = float(net['fge_final_boundary_flux'].reshape(-1)[0]); boundary_flux_std = float(std['fge_final_boundary_flux'].reshape(-1)[0])
     i_sc = np.argmin(np.abs(net['sc_t'].reshape(-1)-t[-1])); rc, zc = net['sc_r'][:,i_sc], net['sc_z'][:,i_sc]
     valid = (rc > 0) & net['active_shape_mask'].reshape(-1).astype(bool)
-    plt.plot(rb_net, zb_net, color=C1, label='Surrogate-run FGE boundary')
-    plt.plot(rb_std, zb_std, '--', color=C3, label='Baseline-run FGE boundary')
-    plt.plot(rc[valid], zc[valid], 'x', color=C2, label='Active control points')
-    plt.xlabel(r'Radial coordinate $R$ [m]'); plt.ylabel(r'Vertical coordinate $Z$ [m]'); plt.axis('equal'); plt.legend()
+    plt.plot(net['limiter_r'].reshape(-1), net['limiter_z'].reshape(-1), color='gray', linewidth=0.8, label='Limiter')
+    plt.contour(grid_r, grid_z, flux_net, levels=[boundary_flux_net], colors=[C1], linewidths=1.4)
+    plt.contour(grid_r, grid_z, flux_std, levels=[boundary_flux_std], colors=[C3], linewidths=1.4, linestyles='--')
+    plt.plot(rc[valid], zc[valid], 'x', color=C2, label='Control points')
+    boundary_handles = [Line2D([0],[0],color=C1,label='Surrogate LCFS'), Line2D([0],[0],color=C3,linestyle='--',label='FGE/qintmex LCFS')]
+    handles, labels = plt.gca().get_legend_handles_labels(); plt.xlabel(r'Radial coordinate $R$ [m]'); plt.ylabel(r'Vertical coordinate $Z$ [m]'); plt.axis('equal')
+    geometry_axis = plt.gca(); limiter_r = net['limiter_r'].reshape(-1); limiter_z = net['limiter_z'].reshape(-1)
+    vertical_span = np.ptp(limiter_z); horizontal_span = max(1.25*vertical_span, 1.10*np.ptp(limiter_r))
+    shifted_left = np.min(limiter_r) - 0.04*horizontal_span
+    geometry_axis.set_xlim(shifted_left, shifted_left+horizontal_span); geometry_axis.set_ylim(np.min(limiter_z)-0.04*vertical_span, np.max(limiter_z)+0.04*vertical_span)
+    geometry_axis.set_aspect('equal', adjustable='box')
+    geometry_axis.yaxis.tick_left(); geometry_axis.yaxis.set_label_position('left')
+    plt.legend(boundary_handles + handles, [h.get_label() for h in boundary_handles] + labels, loc='center right')
 
     plt.subplot(3, 2, 6)
     plt.plot(t[::dec], np.linalg.norm(va_net,axis=0)[::dec], color=C1, label=r'$\|V_a^{\mathrm{sur}}\|_2$')

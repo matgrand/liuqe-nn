@@ -9,7 +9,7 @@ figures.configure(SHOW_PLOTS=True) # uncomment to show plots
 # figures.losses.generate()
 # figures.error_heatmaps.generate()
 # figures.control_simulation.generate()
-figures.pid_shape_control_simulation.generate()
+# figures.pid_shape_control_simulation.generate()
 # figures.mpc_shape_control_simulation.generate()
 # figures.fmag_control_simulation.generate()
 # figures.tcv_geometry.generate()
@@ -19,8 +19,8 @@ figures.pid_shape_control_simulation.generate()
 # figures.comparison.generate()
 
 figures.pid_shape_control_simulation_v2.generate()
-# figures.mpc_shape_control_simulation_v2.generate()
-# figures.fmag_control_simulation_v2.generate()
+figures.mpc_shape_control_simulation_v2.generate()
+figures.fmag_control_simulation_v2.generate()
 
 
 # figures.tcv_geometry.generate()

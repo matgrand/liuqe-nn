@@ -13,7 +13,7 @@ def generate():
     """Plot regulation, applied MPC moves, solver work, constraints, and geometry."""
     net = loadmat('data/mpc_shape_net_v2.mat')
     std = loadmat('data/mpc_shape_std_v2.mat')
-    keys = ('t','controller_on','optimizer_on','shape_errs','active_shape_mask','qp_first_move','qp_iterations','mpc_update_mask','ief_upper_margin','ief_lower_margin','fge_boundary_r','fge_boundary_z','sc_t','sc_r','sc_z')
+    keys = ('t','controller_on','optimizer_on','shape_errs','active_shape_mask','qp_first_move','qp_iterations','mpc_update_mask','ief_upper_margin','ief_lower_margin','fge_grid_r','fge_grid_z','fge_final_flux','fge_final_boundary_flux','limiter_r','limiter_z','sc_t','sc_r','sc_z')
     _required(net, *keys); _required(std, *keys)
     t = net['t'].reshape(-1); t_std = std['t'].reshape(-1)
     if not np.allclose(t, t_std): raise ValueError('MPC v2 runs do not have matching time vectors.')
@@ -63,10 +63,22 @@ def generate():
     plt.axhline(0,color='gray',linestyle=':'); plt.axvline(opt_on,color='gray',linestyle='--'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel('Minimum E/F-current margin [kA]'); plt.legend()
 
     plt.subplot(3, 2, 6)
-    rb_net,zb_net = net['fge_boundary_r'][:,-1],net['fge_boundary_z'][:,-1]
-    rb_std,zb_std = std['fge_boundary_r'][:,-1],std['fge_boundary_z'][:,-1]
+    grid_r=net['fge_grid_r'].reshape(-1); grid_z=net['fge_grid_z'].reshape(-1)
+    flux_net=np.squeeze(net['fge_final_flux']); flux_std=np.squeeze(std['fge_final_flux'])
+    boundary_flux_net=float(net['fge_final_boundary_flux'].reshape(-1)[0]); boundary_flux_std=float(std['fge_final_boundary_flux'].reshape(-1)[0])
     i_sc = np.argmin(np.abs(net['sc_t'].reshape(-1)-t[-1])); rc,zc = net['sc_r'][:,i_sc],net['sc_z'][:,i_sc]; valid = (rc>0) & net['active_shape_mask'].reshape(-1).astype(bool)
-    plt.plot(rb_net,zb_net,color=C1,label='Surrogate-run boundary'); plt.plot(rb_std,zb_std,'--',color=C3,label='Baseline-run boundary')
-    plt.plot(rc[valid],zc[valid],'x',color=C2,label='Active control points'); plt.xlabel(r'Radial coordinate $R$ [m]'); plt.ylabel(r'Vertical coordinate $Z$ [m]'); plt.axis('equal'); plt.legend()
+    plt.plot(net['limiter_r'].reshape(-1),net['limiter_z'].reshape(-1),color='gray',linewidth=0.8,label='Limiter')
+    plt.contour(grid_r,grid_z,flux_net,levels=[boundary_flux_net],colors=[C1],linewidths=1.4)
+    plt.contour(grid_r,grid_z,flux_std,levels=[boundary_flux_std],colors=[C3],linewidths=1.4,linestyles='--')
+    plt.plot(rc[valid],zc[valid],'x',color=C2,label='Control points')
+    boundary_handles=[Line2D([0],[0],color=C1,label='Surrogate LCFS'),Line2D([0],[0],color=C3,linestyle='--',label='FGE/qintmex LCFS')]
+    handles,labels=plt.gca().get_legend_handles_labels(); plt.xlabel(r'Radial coordinate $R$ [m]'); plt.ylabel(r'Vertical coordinate $Z$ [m]'); plt.axis('equal')
+    geometry_axis=plt.gca(); limiter_r=net['limiter_r'].reshape(-1); limiter_z=net['limiter_z'].reshape(-1)
+    vertical_span=np.ptp(limiter_z); horizontal_span=max(1.25*vertical_span,1.10*np.ptp(limiter_r))
+    shifted_left=np.min(limiter_r)-0.04*horizontal_span
+    geometry_axis.set_xlim(shifted_left,shifted_left+horizontal_span); geometry_axis.set_ylim(np.min(limiter_z)-0.04*vertical_span,np.max(limiter_z)+0.04*vertical_span)
+    geometry_axis.set_aspect('equal',adjustable='box')
+    geometry_axis.yaxis.tick_left(); geometry_axis.yaxis.set_label_position('left')
+    plt.legend(boundary_handles+handles,[h.get_label() for h in boundary_handles]+labels,loc='center right')
 
     save_figure('mpc_shape_control_simulation_v2.pdf')

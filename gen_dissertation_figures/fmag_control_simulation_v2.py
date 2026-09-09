@@ -6,11 +6,23 @@ def _required(data, *keys):
     if missing: raise KeyError(f'Missing FMag v2 fields: {missing}. Run fmag_liuqenn_comparison_v2.m and copy both MAT files into data/.')
 
 
+def _hessian_condition(data, suffix=''):
+    drr = data[f'xpt_raw_d2Fdrr{suffix}'].reshape(-1)
+    drz = data[f'xpt_raw_d2Fdrdz{suffix}'].reshape(-1)
+    dzz = data[f'xpt_raw_d2Fdzz{suffix}'].reshape(-1)
+    discriminant = np.sqrt((drr-dzz)**2 + 4*drz**2)
+    eigenvalue_1 = 0.5*(drr+dzz+discriminant)
+    eigenvalue_2 = 0.5*(drr+dzz-discriminant)
+    largest = np.maximum(np.abs(eigenvalue_1),np.abs(eigenvalue_2))
+    smallest = np.minimum(np.abs(eigenvalue_1),np.abs(eigenvalue_2))
+    return np.divide(largest,smallest,out=np.full_like(largest,np.inf),where=smallest>0)
+
+
 def generate():
     """Plot FMag regulation, observer truth comparison, conditioning, and actuation."""
     net = loadmat('data/fmag_net_v2.mat')
     std = loadmat('data/fmag_std_v2.mat')
-    keys = ('t','ip_scaling_reference','xpt_err_delta_r','xpt_err_delta_z','xpt_delta_r','xpt_delta_z','xpt_delta_r_lih','xpt_delta_z_lih','design_xpoint_r','design_xpoint_z','fge_active_xpoint_r','fge_active_xpoint_z','xpt_hessian_det','xpt_hessian_det_lih','coil_voltages')
+    keys = ('t','ip_scaling_reference','xpt_err_delta_r','xpt_err_delta_z','xpt_delta_r','xpt_delta_z','xpt_delta_r_lih','xpt_delta_z_lih','design_xpoint_r','design_xpoint_z','fge_active_xpoint_r','fge_active_xpoint_z','xpt_raw_d2Fdrr','xpt_raw_d2Fdrdz','xpt_raw_d2Fdzz','xpt_raw_d2Fdrr_lih','xpt_raw_d2Fdrdz_lih','xpt_raw_d2Fdzz_lih','coil_voltages')
     _required(net,*keys); _required(std,*keys)
     t = net['t'].reshape(-1); t_std = std['t'].reshape(-1)
     if not np.allclose(t,t_std): raise ValueError('FMag v2 runs do not have matching time vectors.')
@@ -23,7 +35,7 @@ def generate():
     obs_dr = 1e3*net['xpt_delta_r'].reshape(-1); obs_dz = 1e3*net['xpt_delta_z'].reshape(-1)
     lih_dr = 1e3*net['xpt_delta_r_lih'].reshape(-1); lih_dz = 1e3*net['xpt_delta_z_lih'].reshape(-1)
     obs_err = np.hypot(obs_dr-true_dr,obs_dz-true_dz); lih_err = np.hypot(lih_dr-true_dr,lih_dz-true_dz)
-    det_net = np.abs(net['xpt_hessian_det'].reshape(-1)); det_lih = np.abs(net['xpt_hessian_det_lih'].reshape(-1))
+    condition_net = _hessian_condition(net); condition_lih = _hessian_condition(net,'_lih')
     va_net = net['coil_voltages']; va_std = std['coil_voltages']
 
     plt.figure(figsize=(THESIS_W, 8.0))
@@ -50,9 +62,9 @@ def generate():
     plt.xlabel(r'Time $t$ [s]'); plt.ylabel('Observer error relative to FGE [mm]'); plt.legend()
 
     plt.subplot(3, 2, 6)
-    plt.semilogy(t[::dec],np.maximum(det_net[::dec],np.finfo(float).tiny),color=C1,label='Surrogate')
-    plt.semilogy(t[::dec],np.maximum(det_lih[::dec],np.finfo(float).tiny),'--',color=C3,label='LIH shadow')
-    plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'$|\det H_\psi|$ [$\mathrm{Wb}^2\,\mathrm{m}^{-4}$]'); plt.legend()
+    plt.plot(t[::dec],condition_net[::dec],color=C1,label='Surrogate')
+    plt.plot(t[::dec],condition_lih[::dec],'--',color=C3,label='LIH shadow')
+    plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'Hessian condition number $\kappa_2(H_\psi)$'); plt.legend()
 
     save_figure('fmag_control_simulation_v2.pdf')
     print(f'FMag v2 voltage-limit samples: surrogate={np.count_nonzero(net.get("voltage_at_limit",0))}, LIH={np.count_nonzero(std.get("voltage_at_limit",0))}')
