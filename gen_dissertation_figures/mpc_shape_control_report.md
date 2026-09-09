@@ -1,10 +1,10 @@
 # MPC shape-control comparison
 
-## Current v2 implementation and result
+## Current implementation and result
 
-The extended collector is `/home/mg/repos/hybrid/mpc_shape_liuqenn_comparison_v2.m`, and the corresponding figure script is `mpc_shape_control_simulation_v2.py`. The current script and copied MAT files use shot 79742. The v2 files save the complete decision vector and applied first move separately, an explicit optimizer-update mask, controller and estimator matrices, fixed and design parameters, channel names, Kalman-filter signals, actual E/F currents and constraint margins, hybrid and voltage commands, FGE diagnostics, and final equilibrium geometry.
+The extended collector is `/home/mg/repos/hybrid/mpc_shape_liuqenn_comparison.m`, and the corresponding figure script is `mpc_shape_control_simulation.py`. The current script and copied MAT files use shot 79742. The collected files save the complete decision vector and applied first move separately, an explicit optimizer-update mask, controller and estimator matrices, fixed and design parameters, channel names, Kalman-filter signals, actual E/F currents and constraint margins, hybrid and voltage commands, FGE diagnostics, and final equilibrium geometry.
 
-The latest six-panel figure shows all 14 active shape-error trajectories, the six largest components of the applied first QP move, the first-ten-channel RMS, solver iterations at saved update samples, minimum realized E/F-current margin, and the final FGE LCFS with limiter and control points. The LCFS is now obtained as the contour $\psi(R,Z)=\psi_B$ from the saved final flux grid. The earlier v2 panel attempted to use final scalar values of `LY.rB,LY.zB`, which are boundary-determining points and not an LCFS coordinate sequence. For the current data and $t\geq0.62$ s, the pooled first-ten-channel RMS is 2.57 mm for the surrogate and 3.03 mm for direct FGE interpolation. The minimum saved realized current margin is approximately 0.495 kA. The output is `dissertation_figures/mpc_shape_control_simulation_v2.pdf`.
+The latest six-panel figure shows all 14 active shape-error trajectories, the six largest components of the applied first QP move, the first-ten-channel RMS, solver iterations at saved update samples, minimum realized E/F-current margin, and the final FGE LCFS with limiter and control points. The LCFS is now obtained as the contour $\psi(R,Z)=\psi_B$ from the saved final flux grid. The earlier panel attempted to use final scalar values of `LY.rB,LY.zB`, which are boundary-determining points and not an LCFS coordinate sequence. For the current data and $t\geq0.62$ s, the pooled first-ten-channel RMS is 2.57 mm for the surrogate and 3.03 mm for direct FGE interpolation. The minimum saved realized current margin is approximately 0.495 kA. The output is `dissertation_figures/mpc_shape_control_simulation.pdf`.
 
 ## What the controller is and what this simulation tests
 
@@ -30,9 +30,9 @@ For $t\geq0.62$ s, the pooled RMS of the first ten errors is 2.57 mm for the sur
 
 The first-move panel deliberately does not call its entries SVD modes. It uses component indices and explains the selection criterion. This is less physically descriptive than named control directions, but it is correct for the available files and exposes the part of the solution that actually enters the controller.
 
-## Level 2: implemented v2 collection and remaining changes
+## Level 2: implemented collection and remaining changes
 
-The v2 collector implements the horizons, coordinate count, `svdtol`, transformations, fixed/design parameters, channel names, full decision vector, applied first move, hybrid and voltage commands, Kalman-filter arrays, actual current limits and margins, update mask, and final FGE flux-grid geometry proposed above. These additions support the current-margin and LCFS panels and make the first-move interpretation explicit.
+The collector implements the horizons, coordinate count, `svdtol`, transformations, fixed/design parameters, channel names, full decision vector, applied first move, hybrid and voltage commands, Kalman-filter arrays, actual current limits and margins, update mask, and final FGE flux-grid geometry proposed above. These additions support the current-margin and LCFS panels and make the first-move interpretation explicit.
 
 The current saved update mask contains 139 samples from 0.622 to 0.898 s, whereas the recorded QP iteration value changes at 0.620 s. The strict floating-point comparison used in the collector omits the first optimization cycle; this should be replaced by a tolerance-based test or an update event exported by the controller. QP exit flags, solver-reported constraint violation, active predicted constraints, predicted output trajectories, the complete objective including its constant term, and measured solve time remain unavailable because `shapectrl` does not expose them in its debug structure. The solver is the local interior-point `quadprog` path and should not be conflated with the fixed-budget implementation discussed in the cited experimental work.
 
@@ -42,12 +42,12 @@ For a stronger observer comparison, repeat the matched test with nonlinear FGE, 
 
 Explain the nested architecture first: MPC does not command coil voltages directly; it modifies references supplied to hybrid, which closes the fast magnetic loop. Then state the 2 ms update period, 15-step prediction horizon, three-step control horizon, Kalman-filter warm-up, and the distinction between the switch-on time and optimizer start.
 
-The v2 figure discussion should proceed from all active regulated errors to the applied first move, aggregate regulation, solver behavior, realized constraint margin, and final LCFS. State that the displayed decision entries are controller-coordinate indices and not retained SVD modes in this `svdtol = 0` configuration. Use the first-ten-channel RMS to connect the trajectories to the existing table and identify the broader 14-channel selection in the trajectory panel. The supported conclusion is that replacing direct FGE interpolation with the surrogate leads to similar regulation and a QP requiring the same four-to-five iteration range in this deterministic linear simulation. The data do not provide real-time solver latency or a test with active constraints.
+The figure discussion should proceed from all active regulated errors to the applied first move, aggregate regulation, solver behavior, realized constraint margin, and final LCFS. State that the displayed decision entries are controller-coordinate indices and not retained SVD modes in this `svdtol = 0` configuration. Use the first-ten-channel RMS to connect the trajectories to the existing table and identify the broader 14-channel selection in the trajectory panel. The supported conclusion is that replacing direct FGE interpolation with the surrogate leads to similar regulation and a QP requiring the same four-to-five iteration range in this deterministic linear simulation. The data do not provide real-time solver latency or a test with active constraints.
 
 ## Sources read
 
 - Dissertation section `Controller-level validation in FGE` in `/home/mg/repos/phd_thesis/2_eqrec.tex`.
 - A. Mele et al., *First Experimental Demonstration of Plasma Shape Control in a Tokamak through Model Predictive Control*, local file `/home/mg/repos/phd_thesis/material/mele_mpc.pdf`.
 - `/home/mg/repos/phd_thesis/guides/guides.md`, `hybrid_guide.md`, `fge_guide.md`, and `meq_infra_report.md`.
-- `/home/mg/repos/hybrid/mpc_shape_liuqenn_comparison.m`, `mpc_shape_liuqenn_comparison_v2.m`, `ctrls/shape/shapectrl.m`, `ctrls/shape/MPC/shapempc_step.m`, `build_mpc_tunable_params.m`, and `utils/plot/shape_ctrl_plot.m`.
+- `/home/mg/repos/hybrid/mpc_shape_liuqenn_comparison.m`, `mpc_shape_liuqenn_comparison.m`, `ctrls/shape/shapectrl.m`, `ctrls/shape/MPC/shapempc_step.m`, `build_mpc_tunable_params.m`, and `utils/plot/shape_ctrl_plot.m`.
 - `/home/mg/repos/meq/meqpdom.m` and `meqpost.m`, used to verify the meaning of `rB,zB`.

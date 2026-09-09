@@ -1,10 +1,10 @@
 # FMag controller comparison
 
-## Current v2 implementation and result
+## Current implementation and result
 
-The extended collector is `/home/mg/repos/hybrid/fmag_liuqenn_comparison_v2.m`, and the corresponding figure script is `fmag_control_simulation_v2.py`. The intended comparison, currently copied v2 MAT files, and generated PDF use shot 79742 over 0.6--1.1999 s.
+The extended collector is `/home/mg/repos/hybrid/fmag_liuqenn_comparison.m`, and the corresponding figure script is `fmag_control_simulation.py`. The intended comparison, the copied MAT files, and generated PDF use shot 79742 over 0.6--1.1999 s.
 
-The v2 files save the six raw local X-point quantities from the active observer and the LIH shadow, the exact plasma-current reference used to scale displacement errors, design and FGE X-point coordinates, controller matrices and state, observer masks and names, actuator signals, Hessian diagnostics, boundary-flux provenance, and FGE convergence diagnostics. The latest six-panel figure shows radial and vertical controller errors, their Euclidean norm, surrogate and LIH-shadow local displacements against the FGE X-point displacement, Euclidean observer error relative to FGE, and the Hessian condition number $\kappa_2(H_\psi)$ on a linear axis. The output is `dissertation_figures/fmag_control_simulation_v2.pdf`.
+The collected files save the six raw local X-point quantities from the active observer and the LIH shadow, the exact plasma-current reference used to scale displacement errors, design and FGE X-point coordinates, controller matrices and state, observer masks and names, actuator signals, Hessian diagnostics, boundary-flux provenance, and FGE convergence diagnostics. The latest six-panel figure shows radial and vertical controller errors, their Euclidean norm, surrogate and LIH-shadow local displacements against the FGE X-point displacement, Euclidean observer error relative to FGE, and the Hessian condition number $\kappa_2(H_\psi)$ on a linear axis. The output is `dissertation_figures/fmag_control_simulation.pdf`.
 
 ## What the controller is and what this simulation tests
 
@@ -31,9 +31,9 @@ Over the full saved window, the RMS Euclidean control error is 2.06 mm with the 
 
 The shadow-observer panel is included to expose what is actually changed inside FMag, but it must not be read as observer error against ground truth. The saved data do not contain the FGE X-point trajectory needed for that comparison. The voltage-vector norm also summarizes actuation magnitude; it does not identify which coils account for the difference.
 
-## Level 2: implemented v2 collection and remaining changes
+## Level 2: implemented collection and remaining changes
 
-The v2 collector implements the FGE and design X-point coordinates, fluxes, active-X-point mask, six raw local flux quantities for both observers, Hessian determinant and exact-zero flags, LIH boundary flux used by the nonlinear path, observer metadata, controller matrices and state, channel names, current derivatives, currents, voltages, references, feedforwards, and FGE convergence diagnostics proposed above. The Python script computes the spectral condition number from the three independent entries of the saved symmetric Hessian.
+The collector implements the FGE and design X-point coordinates, fluxes, active-X-point mask, six raw local flux quantities for both observers, Hessian determinant and exact-zero flags, LIH boundary flux used by the nonlinear path, observer metadata, controller matrices and state, channel names, current derivatives, currents, voltages, references, feedforwards, and FGE convergence diagnostics proposed above. The Python script computes the spectral condition number from the three independent entries of the saved symmetric Hessian.
 
 Exact internal saturation flags, anti-windup scaling, feedback and feedforward current-derivative components, per-cycle execution time, and broader observer-validity criteria are not exposed by the current wrapper and remain absent. Repeat the experiment with X-point reference steps, multiple equilibria and topologies, noise, and perturbations. A matched 2 cm X-point step would be informative if its reference and purpose are recorded explicitly.
 
@@ -47,11 +47,11 @@ The neural path should also be tested with an independently obtained boundary-fl
 
 Describe FMag's common and changed paths before presenting trajectories. The common path contains linear current and position observers and the complete PID/actuator chain; only six local quantities entering the nonlinear X-point solve change, while the boundary-flux subtraction remains LIH-based. This makes the isolation claim precise.
 
-Read the v2 figure from controller perception to external geometric verification: component feedback errors, their Euclidean aggregate, local radial and vertical estimates against the FGE X-point, Euclidean observer error, and Hessian conditioning. State that the 2.06 mm and 2.11 mm values include the activation transient and are observer-defined controller errors, not geometric errors against FGE. The supported conclusion is that the two controllers reduce their respective perceived X-point residuals with similar full-window RMS in this nonlinear simulation. The current data do not show equivalent tracking of the actual FGE X-point and do not establish observer accuracy over other configurations or active TCV operation.
+Read the figure from controller perception to external geometric verification: component feedback errors, their Euclidean aggregate, local radial and vertical estimates against the FGE X-point, Euclidean observer error, and Hessian conditioning. State that the 2.06 mm and 2.11 mm values include the activation transient and are observer-defined controller errors, not geometric errors against FGE. The supported conclusion is that the two controllers reduce their respective perceived X-point residuals with similar full-window RMS in this nonlinear simulation. The current data do not show equivalent tracking of the actual FGE X-point and do not establish observer accuracy over other configurations or active TCV operation.
 
 ## Sources read
 
 - Dissertation section `Controller-level validation in FGE` in `/home/mg/repos/phd_thesis/2_eqrec.tex`.
 - `/home/mg/repos/phd_thesis/guides/guides.md`, `hybrid_guide.md`, `fge_guide.md`, and `meq_infra_report.md`.
-- `/home/mg/repos/hybrid/fmag_liuqenn_comparison.m`, `fmag_liuqenn_comparison_v2.m`, `ctrls/SCDalgofmag/FMag_step.m`, `FMag_control.m`, `FMag_observer_linearization.m`, and `Examples/build_RZIp_Xpoint_controller.m`.
+- `/home/mg/repos/hybrid/fmag_liuqenn_comparison.m`, `fmag_liuqenn_comparison.m`, `ctrls/SCDalgofmag/FMag_step.m`, `FMag_control.m`, `FMag_observer_linearization.m`, and `Examples/build_RZIp_Xpoint_controller.m`.
 - The FGE references in `ref.bib` were checked. Their `localfile` fields are `-`, so no local FGE paper or thesis was available to read.

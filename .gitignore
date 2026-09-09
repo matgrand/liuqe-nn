@@ -12,6 +12,7 @@ test/*
 net.pt
 libtorch*
 build/*
+gen_dissertation_figures/build/
 net_forward_standalone*
 onnxruntime*
 net.onnx
