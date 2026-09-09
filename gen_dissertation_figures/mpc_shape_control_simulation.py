@@ -1,82 +1,55 @@
+from matplotlib.lines import Line2D
+
 from ._common import *
 from ._common import _cmap
 
 
 def generate():
-    # %% ## MPC shape control simulation
-    ## MPC shape control simulation
-    CTRL_SIM_SMALL = 'data/mpc_shape_net.mat'
-    CTRL_SIM_STD = 'data/mpc_shape_std.mat'
-    # 'shape_errs', 'shape_errs2', 'Fx', 'Fx2', 'Br', 'Bz', 'Br2', 'Bz2', 't', 'currs', 'rz', 'niter', 'mpc_cost', 'duopt'
+    """Compare MPC regulation, its applied first move, and QP iteration counts."""
+    sim_net = loadmat('data/mpc_shape_net.mat')
+    sim_std = loadmat('data/mpc_shape_std.mat')
+    t = sim_net['t'].reshape(-1)
+    ctrl_start, opt_start, dec, n_metric, n_move = 0.6, 0.62, 5, 10, 16
 
-    ctrl_start = 0.6 # controller start time
-    vlinec = 'gray'
-    vlines = '--'
-    n_svd = 6 
+    se_net = sim_net['shape_errs'][:n_metric].T * 1e3
+    se_std = sim_std['shape_errs'][:n_metric].T * 1e3
+    du_net = sim_net['duopt'][:n_move].T
+    du_std = sim_std['duopt'][:n_move].T
+    post = t >= opt_start
+    score = np.sqrt(np.mean(du_net[post]**2, axis=0) + np.mean(du_std[post]**2, axis=0))
+    shown = np.sort(np.argsort(score)[-6:])
+    rms_t_net = np.sqrt(np.mean(se_net**2, axis=1)); rms_t_std = np.sqrt(np.mean(se_std**2, axis=1))
+    rms_net = np.sqrt(np.mean(se_net[post]**2)); rms_std = np.sqrt(np.mean(se_std[post]**2))
+    updates = np.r_[True, np.any(np.diff(du_net, axis=0) != 0, axis=1)] & post
 
-    sim_net = loadmat(CTRL_SIM_SMALL)
-    sim_std = loadmat(CTRL_SIM_STD)
+    plt.figure(figsize=(THESIS_W, 5.6))
+    plt.subplot(2, 2, 1)
+    colors = _cmap(np.linspace(0, 1, n_metric))
+    for i, color in enumerate(colors):
+        plt.plot(t[::dec], se_net[::dec, i], color=color, label='Surrogate' if i == 0 else None)
+        plt.plot(t[::dec], se_std[::dec, i], '--', color=color, label='FGE/qintmex' if i == 0 else None)
+    plt.axvline(ctrl_start, color='gray', linestyle=':'); plt.axvline(opt_start, color='gray', linestyle='--')
+    plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'Shape error $e_i$ [mm]'); plt.legend()
 
-    FxN, BrN, BzN, IaN, peN, seN = sim_net['Fx'], sim_net['Br'], sim_net['Bz'], sim_net['currs'], sim_net['duopt'][-n_svd:,:], sim_net['shape_errs']
-    FxL, BrL, BzL, IaL, peL, seL = sim_std['Fx'], sim_std['Br'], sim_std['Bz'], sim_std['currs'], sim_std['duopt'][-n_svd:,:], sim_std['shape_errs']
-    FxNL, BrNL, BzNL, IaNL, peNL, seNL = sim_net['Fx2'], sim_net['Br2'], sim_net['Bz2'], sim_net['currs'], sim_net['duopt'][-n_svd:,:], sim_net['shape_errs2']
-    t = loadmat(CTRL_SIM_SMALL)['t'].reshape(-1)
+    plt.subplot(2, 2, 2)
+    colors = _cmap(np.linspace(0, 1, len(shown)))
+    for i, mode in enumerate(shown):
+        plt.plot(t[::dec], du_net[::dec, mode], color=colors[i], label=rf'$j={mode + 1}$')
+        plt.plot(t[::dec], du_std[::dec, mode], '--', color=colors[i])
+    style_handles = [Line2D([0], [0], color='black', label='Surrogate'), Line2D([0], [0], color='black', linestyle='--', label='FGE/qintmex')]
+    mode_legend = plt.legend(title='Largest saved components', ncol=2, loc='upper right'); plt.gca().add_artist(mode_legend)
+    plt.legend(handles=style_handles, loc='lower right')
+    plt.axvline(opt_start, color='gray', linestyle='--'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'First QP move $\Delta u_{k|k,j}$ [stored units]')
 
-    # print shapes of all the variables
-    print(f'FxN:{FxN.shape}, BrN:{BrN.shape}, BzN:{BzN.shape}, IaN:{IaN.shape}, peN:{peN.shape}, seN:{seN.shape}')
-    print(f'FxL:{FxL.shape}, BrL:{BrL.shape}, BzL:{BzL.shape}, IaL:{IaL.shape}, peL:{peL.shape}, seL:{seL.shape}')
-    print(f'FxNL:{FxNL.shape}, BrNL:{BrNL.shape}, BzNL:{BzNL.shape}, t:{t.shape}')
+    plt.subplot(2, 2, 3)
+    plt.plot(t[::dec], rms_t_net[::dec], color=C1, label=rf'Surrogate ({rms_net:.2f} mm)')
+    plt.plot(t[::dec], rms_t_std[::dec], '--', color=C3, label=rf'FGE/qintmex ({rms_std:.2f} mm)')
+    plt.axvline(ctrl_start, color='gray', linestyle=':'); plt.axvline(opt_start, color='gray', linestyle='--')
+    plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'Instantaneous RMS [mm]'); plt.legend(title=r'RMS for $t\geq0.62$ s')
 
-    # analyze Ia, pe, se, to remove the 0 raws
-    μIaN, μpeN, μseN = np.mean(IaN, axis=1), np.mean(peN, axis=1), np.mean(seN, axis=1)
-    μIaL, μpeL, μseL = np.mean(IaL, axis=1), np.mean(peL, axis=1), np.mean(seL, axis=1)
-    idxIaN = np.where(np.abs(μIaN) > 0)[0]
-    idxpeN = np.where(np.abs(μpeN) > 0)[0]
-    idxseN = np.where(np.abs(μseN) > 0)[0]
-    idxIaL = np.where(np.abs(μIaL) > 0)[0]
-    idxpeL = np.where(np.abs(μpeL) > 0)[0]
-    idxseL = np.where(np.abs(μseL) > 0)[0]
-    assert np.array_equal(idxIaN, idxIaL), f'idxIaN: {idxIaN}, idxIaL: {idxIaL}'
-    assert np.array_equal(idxpeN, idxpeL), f'idxpeN: {idxpeN}, idxpeL: {idxpeL}'
-    assert np.array_equal(idxseN, idxseL), f'idxseN: {idxseN}, idxseL: {idxseL}'
-    print(f'Non-zero rows indices: Ia: {idxIaN}, pe: {idxpeN}, se: {idxseN}')
-    IaN, peN, seN, IaL, peL, seL = IaN[idxIaN], peN[idxpeN], seN[idxseN], IaL[idxIaL], peL[idxpeL], seL[idxseL]
-
-    dec = 5
-    n_ctrl_pts = 10
-    t = t[::dec]
-    FxN, BrN, BzN, FxL, BrL, BzL, FxNL, BrNL, BzNL = map(lambda x: x[:n_ctrl_pts,::dec].T, [FxN, BrN, BzN, FxL, BrL, BzL, FxNL, BrNL, BzNL])
-    IaN, peN, seN, IaL, peL, seL, IaNL, peNL, seNL = map(lambda x: x[:,::dec].T, [IaN, peN, seN, IaL, peL, seL, IaNL, peNL, seNL])
-
-    color_cycle = _cmap(np.linspace(0, 1, n_ctrl_pts))
-    α = 0.7
-    spl, fs = (1,2), (THESIS_W, 2.8)
-
-    plt.figure(figsize=fs)
-    std_style = '--'
-
-    plt.subplot(*spl, 1)
-    colors = _cmap(np.linspace(0, 1, seN.shape[1]))
-    for i in range(seN.shape[1]):
-        plt.plot(t, seN[:, i], color=colors[i], label='Surrogate' if i==0 else None)
-        plt.plot(t, seL[:, i], std_style, color=colors[i], label='LIUQE-RT' if i==0 else None)
-    plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-    plt.xlabel(r'Time $t$ [s]'), plt.ylabel(r'Shape error [m]'), plt.legend()
-
-    plt.subplot(*spl, 2)
-    colors = _cmap(np.linspace(0, 1, peN.shape[1]))
-    for i in range(peN.shape[1]):
-        plt.plot(t, peN[:, i], color=colors[i], label='Surrogate' if i==0 else None)
-        plt.plot(t, peL[:, i], std_style, color=colors[i], label='LIUQE-RT' if i==0 else None)
-    plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-    plt.xlabel(r'Time $t$ [s]'), plt.ylabel(r'Optimized $\Delta U$ [kA/s]'), plt.legend(title='6 SVD modes')
-
-    # plt.subplot(*spl, 3)
-    # colors = _cmap(np.linspace(0, 1, IaN.shape[1]))
-    # for i in range(IaN.shape[1]):
-    #     plt.plot(t, IaN[:, i], color=colors[i], label='Surrogate' if i==0 else None, lw=lw)
-    #     plt.plot(t, IaL[:, i], std_style, color=colors[i], label='Liuqe-RT' if i==0 else None, lw=lw)
-    # plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-    # plt.ylabel(r'Currents $[\mathrm{kA}]$'), plt.legend()
+    plt.subplot(2, 2, 4)
+    plt.step(t[updates], sim_net['niter'].reshape(-1)[updates], where='post', color=C1, label='Surrogate')
+    plt.step(t[updates], sim_std['niter'].reshape(-1)[updates], where='post', linestyle='--', color=C3, label='FGE/qintmex')
+    plt.xlabel(r'Time $t$ [s]'); plt.ylabel('QP solver iterations'); plt.ylim(3.8, 5.2); plt.yticks([4, 5]); plt.legend(title='2 ms updates')
 
     save_figure('mpc_shape_control_simulation.pdf')

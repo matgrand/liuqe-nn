@@ -9,11 +9,21 @@ figures.configure(SHOW_PLOTS=True) # uncomment to show plots
 # figures.losses.generate()
 # figures.error_heatmaps.generate()
 # figures.control_simulation.generate()
-# figures.pid_shape_control_simulation.generate()
+figures.pid_shape_control_simulation.generate()
 # figures.mpc_shape_control_simulation.generate()
 # figures.fmag_control_simulation.generate()
-figures.net_example1.generate()
+# figures.tcv_geometry.generate()
+# figures.net_example1.generate()
 # figures.net_example2.generate()
 # figures.net_example3.generate()
-figures.comparison.generate()
+# figures.comparison.generate()
 
+figures.pid_shape_control_simulation_v2.generate()
+# figures.mpc_shape_control_simulation_v2.generate()
+# figures.fmag_control_simulation_v2.generate()
+
+
+# figures.tcv_geometry.generate()
+
+import matplotlib.pyplot as plt
+plt.show()

@@ -1,65 +1,63 @@
 from ._common import *
-from ._common import _cmap
 
 
 def generate():
-    # %% ## FMAG control simulation
-    ## FMAG control simulation
-    CTRL_SIM_SMALL = 'data/fmag_net.mat'
-    CTRL_SIM_STD = 'data/fmag_std.mat'
-    # expected keys: 't', 'rY', 'zY', 'Ip', 'Va', 'mixed_errors', 'observables', 'xpt_flux', 'xpt_flux_lih'
-    ctrl_start = 0.6  # controller start time
-    vlinec = 'gray'
-    vlines = '--'
-    std_style = '--'
+    """Compare FMag X-point regulation and its plant-level consequences."""
+    sim_net = loadmat('data/fmag_net.mat')
+    sim_std = loadmat('data/fmag_std.mat')
 
-    sim_net = loadmat(CTRL_SIM_SMALL)
-    sim_std = loadmat(CTRL_SIM_STD)
+    def vec(data, key): return np.asarray(data[key]).reshape(-1)
 
-    def _vec(x): return np.asarray(x).reshape(-1)
+    t = vec(sim_net, 't'); dec = 5
+    ip_net, ip_std = vec(sim_net, 'Ip'), vec(sim_std, 'Ip')
+    dr_net = 1e3 * vec(sim_net, 'xpt_err_delta_r') / ip_net
+    dr_std = 1e3 * vec(sim_std, 'xpt_err_delta_r') / ip_std
+    dz_net = 1e3 * vec(sim_net, 'xpt_err_delta_z') / ip_net
+    dz_std = 1e3 * vec(sim_std, 'xpt_err_delta_z') / ip_std
+    enorm_net = np.hypot(dr_net, dz_net); enorm_std = np.hypot(dr_std, dz_std)
+    rms_net = np.sqrt(np.mean(enorm_net**2)); rms_std = np.sqrt(np.mean(enorm_std**2))
+    obs_dr_net = 1e3 * vec(sim_net, 'xpt_delta_r'); obs_dr_lih = 1e3 * vec(sim_net, 'xpt_delta_r_lih')
+    obs_dz_net = 1e3 * vec(sim_net, 'xpt_delta_z'); obs_dz_lih = 1e3 * vec(sim_net, 'xpt_delta_z_lih')
+    dr_y = 1e3 * (vec(sim_net, 'rY') - vec(sim_std, 'rY'))
+    dz_y = 1e3 * (vec(sim_net, 'zY') - vec(sim_std, 'zY'))
+    dip = 1e-3 * (ip_net - ip_std)
+    va_net = np.asarray(sim_net['Va']); va_std = np.asarray(sim_std['Va'])
+    va_norm_net = np.linalg.norm(va_net, axis=0); va_norm_std = np.linalg.norm(va_std, axis=0)
+    va_diff = np.linalg.norm(va_net - va_std, axis=0)
 
-    def _ch_time(x):
-        """Return array shaped (n_channels, n_time)."""
-        a = np.asarray(x)
-        if a.ndim == 1:
-            return a.reshape(1, -1)
-        if a.shape[0] > a.shape[1]:
-            # likely time x channels -> transpose
-            return a.T
-        return a
+    plt.figure(figsize=(THESIS_W, 7.2))
+    plt.subplot(3, 2, 1)
+    plt.plot(t[::dec], dr_net[::dec], color=C1, label=r'$\Delta r$, surrogate')
+    plt.plot(t[::dec], dr_std[::dec], '--', color=C1, label=r'$\Delta r$, LIH')
+    plt.plot(t[::dec], dz_net[::dec], color=C3, label=r'$\Delta z$, surrogate')
+    plt.plot(t[::dec], dz_std[::dec], '--', color=C3, label=r'$\Delta z$, LIH')
+    plt.axhline(0, color='gray', linestyle=':'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel('X-point control error [mm]'); plt.legend(ncol=2)
 
-    tN = _vec(sim_net['t'])
-    tL = _vec(sim_std['t'])
-    IpN, IpL = _vec(sim_net['Ip']), _vec(sim_std['Ip'])
-    mixN = sim_net['mixed_errors'].T 
-    mixL = sim_std['mixed_errors'].T
-    err_dr_net = _vec(sim_net['xpt_err_delta_r'])
-    err_dr_std = _vec(sim_std['xpt_err_delta_r'])
-    err_dz_net = _vec(sim_net['xpt_err_delta_z'])
-    err_dz_std = _vec(sim_std['xpt_err_delta_z'])
+    plt.subplot(3, 2, 2)
+    plt.plot(t[::dec], enorm_net[::dec], color=C1, label=rf'Surrogate ({rms_net:.2f} mm)')
+    plt.plot(t[::dec], enorm_std[::dec], '--', color=C3, label=rf'LIH ({rms_std:.2f} mm)')
+    plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'Euclidean error $\|e_X\|_2$ [mm]'); plt.legend(title='Full-window RMS')
 
-    # Figure 4: Mixed errors (first 6 channels)
-    n_show = 6
-    plt.figure(figsize=(THESIS_W, 2.8))
+    plt.subplot(3, 2, 3)
+    plt.plot(t[::dec], obs_dr_net[::dec], color=C1, label=r'$\delta r$, surrogate')
+    plt.plot(t[::dec], obs_dr_lih[::dec], '--', color=C1, label=r'$\delta r$, LIH shadow')
+    plt.plot(t[::dec], obs_dz_net[::dec], color=C3, label=r'$\delta z$, surrogate')
+    plt.plot(t[::dec], obs_dz_lih[::dec], '--', color=C3, label=r'$\delta z$, LIH shadow')
+    plt.axhline(0, color='gray', linestyle=':'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel('Estimated X-point displacement [mm]'); plt.legend(ncol=2)
 
-    plt.subplot(1,2,1)
-    plt.plot(tN, 100*err_dr_net / IpN, color=C1, label=r'$\Delta r$, surrogate')
-    plt.plot(tL, 100*err_dr_std / IpL, '--', color=C1, label=r'$\Delta r$, LIH')
-    plt.plot(tN, -100*err_dz_net / IpN, color=C2, label=r'$\Delta z$, surrogate')
-    plt.plot(tL, -100*err_dz_std / IpL, '--', color=C2, label=r'$\Delta z$, LIH')
-    plt.axhline(y=0, color='k', linestyle=':')
-    plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-    plt.xlabel(r'Time $t$ [s]'), plt.ylabel(r'X-point error [cm]')
-    plt.legend(loc='best')
+    plt.subplot(3, 2, 4)
+    plt.plot(t[::dec], dr_y[::dec], color=C1, label=r'$r_Y$')
+    plt.plot(t[::dec], dz_y[::dec], color=C3, label=r'$z_Y$')
+    plt.axhline(0, color='gray', linestyle=':'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel('Surrogate-run minus LIH-run [mm]'); plt.legend(title='Current-centroid position')
 
-    plt.subplot(1,2,2)
-    colors = _cmap(np.linspace(0, 1, n_show))
-    print(f'max values: {np.max(mixN[:, :n_show], axis=0)}')
-    scalings = [2e3, 1e3, 1e1, 1e1, 1, 1] # scale first channel (shape error) to be visible
-    for i in range(n_show):
-        plt.plot(tN, mixN[:, i]/scalings[i], color=colors[i], label='Surrogate' if i==0 else None)
-        plt.plot(tL, mixL[:, i]/scalings[i], std_style, color=colors[i], label='LIH' if i==0 else None)
-    # plt.plot(tN, mixN[:, :n_show], lw=lw)
-    plt.xlabel(r'Time $t$ [s]'), plt.ylabel(r'Mixed error [a.u.]'), plt.legend(loc='best')
+    plt.subplot(3, 2, 5)
+    plt.plot(t[::dec], dip[::dec], color=C2)
+    plt.axhline(0, color='gray', linestyle=':'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'$I_p^{\mathrm{sur}}-I_p^{\mathrm{LIH}}$ [kA]')
+
+    plt.subplot(3, 2, 6)
+    plt.plot(t[::dec], va_norm_net[::dec], color=C1, label=r'$\|V_a^{\mathrm{sur}}\|_2$')
+    plt.plot(t[::dec], va_norm_std[::dec], '--', color=C3, label=r'$\|V_a^{\mathrm{LIH}}\|_2$')
+    plt.plot(t[::dec], va_diff[::dec], ':', color=C2, label=r'$\|V_a^{\mathrm{sur}}-V_a^{\mathrm{LIH}}\|_2$')
+    plt.xlabel(r'Time $t$ [s]'); plt.ylabel('Coil-voltage vector norm [V]'); plt.legend()
 
     save_figure('fmag_control_simulation.pdf')

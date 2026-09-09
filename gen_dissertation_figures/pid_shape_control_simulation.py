@@ -3,79 +3,46 @@ from ._common import _cmap
 
 
 def generate():
-    # %% ## PID shape control simulation 
-    ## PID shape control simulation
-    CTRL_SIM_SMALL = 'data/pid_shape_net.mat'
-    CTRL_SIM_STD = 'data/pid_shape_std.mat'
-    # 'Br', 'Br2', 'Bz', 'Bz2', 'Fx', 'Fx2', 'currs', 'proj_errs', 'rz', 'shape_errs'
+    """Compare the PID closed loops using the ten channels in the reported RMS metric."""
+    sim_net = loadmat('data/pid_shape_net.mat')
+    sim_std = loadmat('data/pid_shape_std.mat')
+    t = sim_net['t'].reshape(-1)
+    ctrl_start, dec, n_metric = 0.6, 5, 10
 
-    ctrl_start = 0.6 # controller start time
-    vlinec = 'gray'
-    vlines = '--'
+    se_net = sim_net['shape_errs'][:n_metric].T * 1e3
+    se_std = sim_std['shape_errs'][:n_metric].T * 1e3
+    active_proj = np.flatnonzero(np.max(np.abs(sim_net['proj_errs']), axis=1) > 0)
+    pe_net = sim_net['proj_errs'][active_proj].T * 1e3
+    pe_std = sim_std['proj_errs'][active_proj].T * 1e3
+    post = t >= ctrl_start
+    rms_t_net = np.sqrt(np.mean(se_net**2, axis=1)); rms_t_std = np.sqrt(np.mean(se_std**2, axis=1))
+    rms_ch_net = np.sqrt(np.mean(se_net[post]**2, axis=0)); rms_ch_std = np.sqrt(np.mean(se_std[post]**2, axis=0))
+    rms_net = np.sqrt(np.mean(se_net[post]**2)); rms_std = np.sqrt(np.mean(se_std[post]**2))
 
-    sim_net = loadmat(CTRL_SIM_SMALL)
-    sim_std = loadmat(CTRL_SIM_STD)
+    plt.figure(figsize=(THESIS_W, 5.6))
+    plt.subplot(2, 2, 1)
+    colors = _cmap(np.linspace(0, 1, n_metric))
+    for i, color in enumerate(colors):
+        plt.plot(t[::dec], se_net[::dec, i], color=color, label='Surrogate' if i == 0 else None)
+        plt.plot(t[::dec], se_std[::dec, i], '--', color=color, label='FGE/qintmex' if i == 0 else None)
+    plt.axvline(ctrl_start, color='gray', linestyle=':'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'Shape error $e_i$ [mm]'); plt.legend()
 
-    FxN, BrN, BzN, IaN, peN, seN = sim_net['Fx'], sim_net['Br'], sim_net['Bz'], sim_net['currs'], sim_net['proj_errs'], sim_net['shape_errs']
-    FxL, BrL, BzL, IaL, peL, seL = sim_std['Fx'], sim_std['Br'], sim_std['Bz'], sim_std['currs'], sim_std['proj_errs'], sim_std['shape_errs']
-    FxNL, BrNL, BzNL, IaNL, peNL, seNL = sim_net['Fx2'], sim_net['Br2'], sim_net['Bz2'], sim_net['currs'], sim_net['proj_errs2'], sim_net['shape_errs2']
-    t = loadmat(CTRL_SIM_SMALL)['t'].reshape(-1)
+    plt.subplot(2, 2, 2)
+    colors = _cmap(np.linspace(0, 1, len(active_proj)))
+    for i, color in enumerate(colors):
+        plt.plot(t[::dec], pe_net[::dec, i], color=color, label=rf'Mode {active_proj[i] + 1}')
+        plt.plot(t[::dec], pe_std[::dec, i], '--', color=color)
+    plt.axvline(ctrl_start, color='gray', linestyle=':'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'Projected error [mm]'); plt.legend()
 
-    # print shapes of all the variables
-    print(f'FxN:{FxN.shape}, BrN:{BrN.shape}, BzN:{BzN.shape}, IaN:{IaN.shape}, peN:{peN.shape}, seN:{seN.shape}')
-    print(f'FxL:{FxL.shape}, BrL:{BrL.shape}, BzL:{BzL.shape}, IaL:{IaL.shape}, peL:{peL.shape}, seL:{seL.shape}')
-    print(f'FxNL:{FxNL.shape}, BrNL:{BrNL.shape}, BzNL:{BzNL.shape}, t:{t.shape}')
+    plt.subplot(2, 2, 3)
+    plt.plot(t[::dec], rms_t_net[::dec], color=C1, label=rf'Surrogate ({rms_net:.2f} mm)')
+    plt.plot(t[::dec], rms_t_std[::dec], '--', color=C3, label=rf'FGE/qintmex ({rms_std:.2f} mm)')
+    plt.axvline(ctrl_start, color='gray', linestyle=':'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'Instantaneous RMS [mm]'); plt.legend(title='Post-activation RMS')
 
-    # analyze Ia, pe, se, to remove the 0 raws
-    μIaN, μpeN, μseN = np.mean(IaN, axis=1), np.mean(peN, axis=1), np.mean(seN, axis=1)
-    μIaL, μpeL, μseL = np.mean(IaL, axis=1), np.mean(peL, axis=1), np.mean(seL, axis=1)
-    idxIaN = np.where(np.abs(μIaN) > 0)[0]
-    idxpeN = np.where(np.abs(μpeN) > 0)[0]
-    idxseN = np.where(np.abs(μseN) > 0)[0]
-    idxIaL = np.where(np.abs(μIaL) > 0)[0]
-    idxpeL = np.where(np.abs(μpeL) > 0)[0]
-    idxseL = np.where(np.abs(μseL) > 0)[0]
-    assert np.array_equal(idxIaN, idxIaL), f'idxIaN: {idxIaN}, idxIaL: {idxIaL}'
-    assert np.array_equal(idxpeN, idxpeL), f'idxpeN: {idxpeN}, idxpeL: {idxpeL}'
-    assert np.array_equal(idxseN, idxseL), f'idxseN: {idxseN}, idxseL: {idxseL}'
-    print(f'Non-zero rows indices: Ia: {idxIaN}, pe: {idxpeN}, se: {idxseN}')
-    IaN, peN, seN, IaL, peL, seL = IaN[idxIaN], peN[idxpeN], seN[idxseN], IaL[idxIaL], peL[idxpeL], seL[idxseL]
-
-    dec = 5
-    n_ctrl_pts = 10
-    t = t[::dec]
-    FxN, BrN, BzN, FxL, BrL, BzL, FxNL, BrNL, BzNL = map(lambda x: x[:n_ctrl_pts,::dec].T, [FxN, BrN, BzN, FxL, BrL, BzL, FxNL, BrNL, BzNL])
-    IaN, peN, seN, IaL, peL, seL, IaNL, peNL, seNL = map(lambda x: x[:,::dec].T, [IaN, peN, seN, IaL, peL, seL, IaNL, peNL, seNL])
-
-    color_cycle = _cmap(np.linspace(0, 1, n_ctrl_pts))
-    α = 0.7
-    spl, fs = (1,2), (THESIS_W, 2.8)
-
-    plt.figure(figsize=fs)
-    std_style = '--'
-
-    plt.subplot(*spl, 1)
-    colors = _cmap(np.linspace(0, 1, seN.shape[1]))
-    for i in range(seN.shape[1]):
-        plt.plot(t, seN[:, i], color=colors[i], label='Surrogate' if i==0 else None)
-        plt.plot(t, seL[:, i], std_style, color=colors[i], label='LIUQE-RT' if i==0 else None)
-    plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-    plt.xlabel(r'Time $t$ [s]'), plt.ylabel(r'Shape error [m]'), plt.legend()
-
-    plt.subplot(*spl, 2)
-    colors = _cmap(np.linspace(0, 1, peN.shape[1]))
-    for i in range(peN.shape[1]):
-        plt.plot(t, peN[:, i], color=colors[i], label='Surrogate' if i==0 else None)
-        plt.plot(t, peL[:, i], std_style, color=colors[i], label='LIUQE-RT' if i==0 else None)
-    plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-    plt.xlabel(r'Time $t$ [s]'), plt.ylabel(r'Projection error [m]'), plt.legend()
-
-    # plt.subplot(*spl, 3)
-    # colors = _cmap(np.linspace(0, 1, IaN.shape[1]))
-    # for i in range(IaN.shape[1]):
-    #     plt.plot(t, IaN[:, i], color=colors[i], label='Surrogate' if i==0 else None, lw=lw)
-    #     plt.plot(t, IaL[:, i], std_style, color=colors[i], label='Liuqe-RT' if i==0 else None, lw=lw)
-    # plt.axvline(x=ctrl_start, color=vlinec, linestyle=vlines)
-    # plt.ylabel(r'Currents $[\mathrm{kA}]$'), plt.legend()
+    plt.subplot(2, 2, 4)
+    channels = np.arange(1, n_metric + 1)
+    plt.plot(channels, rms_ch_net, 'o-', color=C1, label='Surrogate')
+    plt.plot(channels, rms_ch_std, 's--', color=C3, label='FGE/qintmex')
+    plt.xticks(channels); plt.xlabel('Saved shape-error channel'); plt.ylabel(r'Post-activation RMS [mm]'); plt.legend()
 
     save_figure('pid_shape_control_simulation.pdf')
