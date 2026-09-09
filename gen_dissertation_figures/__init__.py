@@ -3,6 +3,7 @@ from importlib import import_module
 from pkgutil import iter_modules
 
 from . import _common
+from ._common import compile_inspection_pdf
 
 
 def configure(SHOW_PLOTS=True, WAIT_FOR_PLOTS=False):
@@ -11,9 +12,8 @@ def configure(SHOW_PLOTS=True, WAIT_FOR_PLOTS=False):
     _common.WAIT_FOR_PLOTS = WAIT_FOR_PLOTS
 
 
-__all__ = ['configure']
+__all__ = ['compile_inspection_pdf', 'configure']
 for _module_info in iter_modules(__path__):
     if _module_info.name.startswith('_'): continue
     globals()[_module_info.name] = import_module(f'{__name__}.{_module_info.name}')
     __all__.append(_module_info.name)
-

@@ -10,7 +10,7 @@ def _required(data, *keys):
 
 
 def generate():
-    """Plot regulation, applied MPC moves, solver work, constraints, and geometry."""
+    """Compare surrogate and FGE/qintmex MPC regulation, moves, solver work, constraints, and geometry; use C1, C2, and C3 in series order where at most three colors are needed."""
     net = loadmat('data/mpc_shape_net.mat')
     std = loadmat('data/mpc_shape_std.mat')
     keys = ('t','controller_on','optimizer_on','shape_errs','active_shape_mask','qp_first_move','qp_iterations','mpc_update_mask','ief_upper_margin','ief_lower_margin','fge_grid_r','fge_grid_z','fge_final_flux','fge_final_boundary_flux','limiter_r','limiter_z','sc_t','sc_r','sc_z')
@@ -49,17 +49,17 @@ def generate():
 
     plt.subplot(3, 2, 3)
     plt.plot(t[::dec],rms_net_t[::dec],color=C1,label=rf'Surrogate ({rms_net:.2f} mm)')
-    plt.plot(t[::dec],rms_std_t[::dec],'--',color=C3,label=rf'FGE/qintmex ({rms_std:.2f} mm)')
+    plt.plot(t[::dec],rms_std_t[::dec],'--',color=C2,label=rf'FGE/qintmex ({rms_std:.2f} mm)')
     plt.axvline(opt_on,color='gray',linestyle='--'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel('Ten-channel RMS [mm]'); plt.legend(title=rf'RMS for $t\geq{opt_on:.2f}$ s')
 
     plt.subplot(3, 2, 4)
     plt.step(t[updates],net['qp_iterations'].reshape(-1)[updates],where='post',color=C1,label='Surrogate')
-    plt.step(t[updates],std['qp_iterations'].reshape(-1)[updates],where='post',linestyle='--',color=C3,label='FGE/qintmex')
+    plt.step(t[updates],std['qp_iterations'].reshape(-1)[updates],where='post',linestyle='--',color=C2,label='FGE/qintmex')
     plt.xlabel(r'Time $t$ [s]'); plt.ylabel('QP solver iterations'); plt.legend(title='Explicit 2 ms update mask')
 
     plt.subplot(3, 2, 5)
     plt.plot(t[::dec],np.min(margin_net,axis=0)[::dec]/1e3,color=C1,label='Surrogate')
-    plt.plot(t[::dec],np.min(margin_std,axis=0)[::dec]/1e3,'--',color=C3,label='FGE/qintmex')
+    plt.plot(t[::dec],np.min(margin_std,axis=0)[::dec]/1e3,'--',color=C2,label='FGE/qintmex')
     plt.axhline(0,color='gray',linestyle=':'); plt.axvline(opt_on,color='gray',linestyle='--'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel('Minimum E/F-current margin [kA]'); plt.legend()
 
     plt.subplot(3, 2, 6)
@@ -69,9 +69,9 @@ def generate():
     i_sc = np.argmin(np.abs(net['sc_t'].reshape(-1)-t[-1])); rc,zc = net['sc_r'][:,i_sc],net['sc_z'][:,i_sc]; valid = (rc>0) & net['active_shape_mask'].reshape(-1).astype(bool)
     plt.plot(net['limiter_r'].reshape(-1),net['limiter_z'].reshape(-1),color='gray',linewidth=0.8,label='Limiter')
     plt.contour(grid_r,grid_z,flux_net,levels=[boundary_flux_net],colors=[C1],linewidths=1.4)
-    plt.contour(grid_r,grid_z,flux_std,levels=[boundary_flux_std],colors=[C3],linewidths=1.4,linestyles='--')
-    plt.plot(rc[valid],zc[valid],'x',color=C2,label='Control points')
-    boundary_handles=[Line2D([0],[0],color=C1,label='Surrogate LCFS'),Line2D([0],[0],color=C3,linestyle='--',label='FGE/qintmex LCFS')]
+    plt.contour(grid_r,grid_z,flux_std,levels=[boundary_flux_std],colors=[C2],linewidths=1.4,linestyles='--')
+    plt.plot(rc[valid],zc[valid],'x',color=C3,label='Control points')
+    boundary_handles=[Line2D([0],[0],color=C1,label='Surrogate LCFS'),Line2D([0],[0],color=C2,linestyle='--',label='FGE/qintmex LCFS')]
     handles,labels=plt.gca().get_legend_handles_labels(); plt.xlabel(r'Radial coordinate $R$ [m]'); plt.ylabel(r'Vertical coordinate $Z$ [m]'); plt.axis('equal')
     geometry_axis=plt.gca(); limiter_r=net['limiter_r'].reshape(-1); limiter_z=net['limiter_z'].reshape(-1)
     vertical_span=np.ptp(limiter_z); horizontal_span=max(1.25*vertical_span,1.10*np.ptp(limiter_r))

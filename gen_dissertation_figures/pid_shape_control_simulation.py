@@ -10,7 +10,7 @@ def _required(data, *keys):
 
 
 def generate():
-    """Plot the extended PID dataset produced by pid_shape_liuqenn_comparison.m."""
+    """Compare surrogate and FGE/qintmex PID shape-control errors, channel-wise post-activation RMS with grouped bars, final geometry, and voltage norms; use C1, C2, and C3 in series order where at most three colors are needed."""
     net = loadmat('data/pid_shape_net.mat')
     std = loadmat('data/pid_shape_std.mat')
     geometry_keys = ('fge_grid_r', 'fge_grid_z', 'fge_final_flux', 'fge_final_boundary_flux', 'limiter_r', 'limiter_z')
@@ -49,13 +49,14 @@ def generate():
 
     plt.subplot(3, 2, 3)
     plt.plot(t[::dec], rms_net_t[::dec], color=C1, label=rf'Surrogate ({rms_net:.2f} mm)')
-    plt.plot(t[::dec], rms_std_t[::dec], '--', color=C3, label=rf'FGE/qintmex ({rms_std:.2f} mm)')
+    plt.plot(t[::dec], rms_std_t[::dec], '--', color=C2, label=rf'FGE/qintmex ({rms_std:.2f} mm)')
     plt.axvline(on, color='gray', linestyle=':'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel('Ten-channel RMS [mm]'); plt.legend(title='Post-activation RMS')
 
     plt.subplot(3, 2, 4)
     channels = metric + 1
-    plt.plot(channels, rms_net_ch, 'o-', color=C1, label='Surrogate')
-    plt.plot(channels, rms_std_ch, 's--', color=C3, label='FGE/qintmex')
+    width = 0.38
+    plt.bar(channels-width/2, rms_net_ch, width, color=C1, label='Surrogate')
+    plt.bar(channels+width/2, rms_std_ch, width, color=C2, label='FGE/qintmex')
     plt.xticks(channels); plt.xlabel('Saved shape-error channel'); plt.ylabel('Post-activation RMS [mm]'); plt.legend()
 
     plt.subplot(3, 2, 5)
@@ -66,9 +67,9 @@ def generate():
     valid = (rc > 0) & net['active_shape_mask'].reshape(-1).astype(bool)
     plt.plot(net['limiter_r'].reshape(-1), net['limiter_z'].reshape(-1), color='gray', linewidth=0.8, label='Limiter')
     plt.contour(grid_r, grid_z, flux_net, levels=[boundary_flux_net], colors=[C1], linewidths=1.4)
-    plt.contour(grid_r, grid_z, flux_std, levels=[boundary_flux_std], colors=[C3], linewidths=1.4, linestyles='--')
-    plt.plot(rc[valid], zc[valid], 'x', color=C2, label='Control points')
-    boundary_handles = [Line2D([0],[0],color=C1,label='Surrogate LCFS'), Line2D([0],[0],color=C3,linestyle='--',label='FGE/qintmex LCFS')]
+    plt.contour(grid_r, grid_z, flux_std, levels=[boundary_flux_std], colors=[C2], linewidths=1.4, linestyles='--')
+    plt.plot(rc[valid], zc[valid], 'x', color=C3, label='Control points')
+    boundary_handles = [Line2D([0],[0],color=C1,label='Surrogate LCFS'), Line2D([0],[0],color=C2,linestyle='--',label='FGE/qintmex LCFS')]
     handles, labels = plt.gca().get_legend_handles_labels(); plt.xlabel(r'Radial coordinate $R$ [m]'); plt.ylabel(r'Vertical coordinate $Z$ [m]'); plt.axis('equal')
     geometry_axis = plt.gca(); limiter_r = net['limiter_r'].reshape(-1); limiter_z = net['limiter_z'].reshape(-1)
     vertical_span = np.ptp(limiter_z); horizontal_span = max(1.25*vertical_span, 1.10*np.ptp(limiter_r))
@@ -80,8 +81,8 @@ def generate():
 
     plt.subplot(3, 2, 6)
     plt.plot(t[::dec], np.linalg.norm(va_net,axis=0)[::dec], color=C1, label=r'$\|V_a^{\mathrm{sur}}\|_2$')
-    plt.plot(t[::dec], np.linalg.norm(va_std,axis=0)[::dec], '--', color=C3, label=r'$\|V_a^{\mathrm{base}}\|_2$')
-    plt.plot(t[::dec], np.linalg.norm(va_net-va_std,axis=0)[::dec], ':', color=C2, label=r'$\|\Delta V_a\|_2$')
+    plt.plot(t[::dec], np.linalg.norm(va_std,axis=0)[::dec], '--', color=C2, label=r'$\|V_a^{\mathrm{base}}\|_2$')
+    plt.plot(t[::dec], np.linalg.norm(va_net-va_std,axis=0)[::dec], ':', color=C3, label=r'$\|\Delta V_a\|_2$')
     plt.axvline(on, color='gray', linestyle=':'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel('Coil-voltage vector norm [V]'); plt.legend()
 
     save_figure('pid_shape_control_simulation.pdf')

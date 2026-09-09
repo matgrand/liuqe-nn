@@ -8,7 +8,7 @@ def plot_network_outputs_dissertation(ds:LiuqeDataset, model:liuqeML, idxs=[0], 
     model.to(CPU)
     n_plt = len(idxs)
 
-    def prep_plot_tcv(ax, cols=['black','black','gray'], lw=1.5, alpha=0.5):
+    def prep_plot_tcv(ax, cols=['black','black','gray'], lw=plt.rcParams['lines.linewidth'], alpha=0.5):
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_aspect('equal', adjustable='box')

@@ -19,7 +19,7 @@ def _hessian_condition(data, suffix=''):
 
 
 def generate():
-    """Plot FMag regulation, observer truth comparison, conditioning, and actuation."""
+    """Compare FMag surrogate and LIH control, displacement, observer error, and conditioning; use C1, C2, and C3 in series order where at most three colors are needed."""
     net = loadmat('data/fmag_net.mat')
     std = loadmat('data/fmag_std.mat')
     keys = ('t','ip_scaling_reference','xpt_err_delta_r','xpt_err_delta_z','xpt_delta_r','xpt_delta_z','xpt_delta_r_lih','xpt_delta_z_lih','design_xpoint_r','design_xpoint_z','fge_active_xpoint_r','fge_active_xpoint_z','xpt_raw_d2Fdrr','xpt_raw_d2Fdrdz','xpt_raw_d2Fdzz','xpt_raw_d2Fdrr_lih','xpt_raw_d2Fdrdz_lih','xpt_raw_d2Fdzz_lih','coil_voltages')
@@ -41,29 +41,29 @@ def generate():
     plt.figure(figsize=(THESIS_W, 8.0))
     plt.subplot(3, 2, 1)
     plt.plot(t[::dec],dr_net[::dec],color=C1,label=r'$\Delta r$, surrogate'); plt.plot(t[::dec],dr_std[::dec],'--',color=C1,label=r'$\Delta r$, LIH')
-    plt.plot(t[::dec],dz_net[::dec],color=C3,label=r'$\Delta z$, surrogate'); plt.plot(t[::dec],dz_std[::dec],'--',color=C3,label=r'$\Delta z$, LIH')
+    plt.plot(t[::dec],dz_net[::dec],color=C2,label=r'$\Delta z$, surrogate'); plt.plot(t[::dec],dz_std[::dec],'--',color=C2,label=r'$\Delta z$, LIH')
     plt.axhline(0,color='gray',linestyle=':'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel('X-point control error [mm]'); plt.legend(ncol=2)
 
     plt.subplot(3, 2, 2)
     plt.plot(t[::dec],ctrl_norm_net[::dec],color=C1,label=rf'Surrogate ({np.sqrt(np.mean(ctrl_norm_net**2)):.2f} mm)')
-    plt.plot(t[::dec],ctrl_norm_std[::dec],'--',color=C3,label=rf'LIH ({np.sqrt(np.mean(ctrl_norm_std**2)):.2f} mm)')
+    plt.plot(t[::dec],ctrl_norm_std[::dec],'--',color=C2,label=rf'LIH ({np.sqrt(np.mean(ctrl_norm_std**2)):.2f} mm)')
     plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'Euclidean control error $\|e_X\|_2$ [mm]'); plt.legend(title='Full-window RMS')
 
     plt.subplot(3, 2, 3)
-    plt.plot(t[::dec],true_dr[::dec],color='gray',label='FGE truth'); plt.plot(t[::dec],obs_dr[::dec],color=C1,label='Surrogate')
+    plt.plot(t[::dec],true_dr[::dec],color=C1,label='FGE truth'); plt.plot(t[::dec],obs_dr[::dec],color=C2,label='Surrogate')
     plt.plot(t[::dec],lih_dr[::dec],'--',color=C3,label='LIH shadow'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'X-point radial displacement $\delta r$ [mm]'); plt.legend()
 
     plt.subplot(3, 2, 4)
-    plt.plot(t[::dec],true_dz[::dec],color='gray',label='FGE truth'); plt.plot(t[::dec],obs_dz[::dec],color=C1,label='Surrogate')
+    plt.plot(t[::dec],true_dz[::dec],color=C1,label='FGE truth'); plt.plot(t[::dec],obs_dz[::dec],color=C2,label='Surrogate')
     plt.plot(t[::dec],lih_dz[::dec],'--',color=C3,label='LIH shadow'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'X-point vertical displacement $\delta z$ [mm]'); plt.legend()
 
     plt.subplot(3, 2, 5)
-    plt.plot(t[::dec],obs_err[::dec],color=C1,label='Surrogate'); plt.plot(t[::dec],lih_err[::dec],'--',color=C3,label='LIH shadow')
+    plt.plot(t[::dec],obs_err[::dec],color=C1,label='Surrogate'); plt.plot(t[::dec],lih_err[::dec],'--',color=C2,label='LIH shadow')
     plt.xlabel(r'Time $t$ [s]'); plt.ylabel('Observer error relative to FGE [mm]'); plt.legend()
 
     plt.subplot(3, 2, 6)
     plt.plot(t[::dec],condition_net[::dec],color=C1,label='Surrogate')
-    plt.plot(t[::dec],condition_lih[::dec],'--',color=C3,label='LIH shadow')
+    plt.plot(t[::dec],condition_lih[::dec],'--',color=C2,label='LIH shadow')
     plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'Hessian condition number $\kappa_2(H_\psi)$'); plt.legend()
 
     save_figure('fmag_control_simulation.pdf')

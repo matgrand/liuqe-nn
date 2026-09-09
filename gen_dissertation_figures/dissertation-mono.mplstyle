@@ -1,0 +1,22 @@
+# Dissertation plotting style -- monospace labels
+figure.figsize: 6.30, 3.50
+lines.linewidth: 1.2
+
+axes.grid: True
+grid.alpha: 0.7
+image.cmap: inferno
+
+text.usetex: True
+font.family: monospace
+font.monospace: Computer Modern Typewriter
+font.size: 10
+axes.labelsize: 9
+axes.titlesize: 9
+xtick.labelsize: 8
+ytick.labelsize: 8
+legend.fontsize: 8
+figure.titlesize: 10
+text.latex.preamble: \usepackage{amsmath} \usepackage{bm}
+
+savefig.format: pdf
+savefig.dpi: 300

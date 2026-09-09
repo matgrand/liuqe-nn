@@ -11,6 +11,11 @@
 These rules apply to figures intended for the dissertation. They override the generic plotting rules above when there is a conflict.
 Note: if, in the context of dissertation figures, the agent is asked to read "the guides" or a specific "guide" read `/home/mg/repos/phd_thesis/guides/guides.md` and the relative "specific guide/s" afterward, for additional context. 
 
+Dissertation figures scripts live inside gen_dissertation_figures dir, when the user asks to modify/create a new figure, always add a detailed figure description/purpose based on the given information. Then always update gen_dissertation_figures.py by uncommenting/adding the relative figure. 
+Finally run the specific figure script, every figure script should have a `__main__` function that just calls generate to quickly test the figure.
+
+Note: BL = bottom left, MR = middle right, and every other combination.
+
 ### Style
 
 Use the dissertation Matplotlib style for all dissertation figures:
@@ -37,6 +42,7 @@ The default dissertation style is `dissertation-mono`:
     ```
 * PDF as the preferred output format;
 * 300 DPI for rasterized content embedded in figures.
+* when less or equal to 4 colors are needed for a panel use C1 C2 C3 C4
 
 Do not manually duplicate or override style settings inside individual plotting scripts unless required by a specific figure.
 
