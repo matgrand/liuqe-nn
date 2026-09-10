@@ -86,3 +86,6 @@ def generate():
     plt.axvline(on, color='gray', linestyle=':'); plt.xlabel(r'Time $t$ [s]'); plt.ylabel('Coil-voltage vector norm [V]'); plt.legend()
 
     save_figure('pid_shape_control_simulation.pdf')
+
+
+if __name__ == '__main__': generate(); compile_inspection_pdf()

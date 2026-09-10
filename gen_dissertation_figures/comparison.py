@@ -49,3 +49,5 @@ def generate():
     save_figure('comparison1.pdf')
 
     if _common.SHOW_PLOTS: plt.show()
+
+if __name__ == '__main__': generate(); compile_inspection_pdf()

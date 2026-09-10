@@ -20,3 +20,5 @@ def generate():
     plt.yscale('log'), plt.xlabel('Epoch'), plt.ylabel(r'Magnetic-field loss'), plt.legend(), plt.ylim(4e-4, 1e-2)#plt.ylim(1e-3, 1e-2)
 
     save_figure('losses.pdf')
+
+if __name__ == '__main__': generate(); compile_inspection_pdf()

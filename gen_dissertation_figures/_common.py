@@ -96,8 +96,6 @@ print(f"C1: {[int(C1[i]*255) for i in range(3)]}, C2: {[int(C2[i]*255) for i in 
 DATA_DIR_TEST = 'data/3535303/' # best with L1 loss (small) (3.5 mil ds) <-
 # DATA_DIR_TEST = 'data/3884413/' # recent only mag
 
-# %% ## load data
-## load data
-ds = LiuqeDataset(EVAL_DS_PATH)
+# %% ## load model
+## load model
 lnn = load_net_from_data(data_dir=DATA_DIR_TEST)
-N = len(ds.fg)

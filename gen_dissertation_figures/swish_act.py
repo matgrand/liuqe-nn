@@ -32,3 +32,6 @@ def generate(n_betas=N_BETAS, beta_range=BETA_RANGE):
     plt.xlabel(r'Input $x$'); plt.ylabel(r'$\mathrm{d}\operatorname{Swish}_\beta/\mathrm{d}x$'); plt.title(r'(b) Analytical derivative'); plt.ylim(-0.15, 1.15); #plt.legend(ncol=2)
 
     save_figure('swish_act.pdf')
+
+
+if __name__ == '__main__': generate(); compile_inspection_pdf()

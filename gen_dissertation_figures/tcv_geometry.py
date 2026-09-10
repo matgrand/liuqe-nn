@@ -47,6 +47,4 @@ def generate():
     plt.figtext(0.5, 0.035, 'Active points at the final PID simulation instant.\n' + r'The inference interface accepts dynamic $(r,z)$ coordinates.', ha='center')
     save_figure('tcv_geometry.pdf', rect=(0, 0.075, 1, 1))
 
-if __name__ == '__main__':
-    generate()
-    compile_inspection_pdf()
+if __name__ == '__main__': generate(); compile_inspection_pdf()

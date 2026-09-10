@@ -1,12 +1,30 @@
 from ._common import *
 
+
+def predict_network_output_fields(x, model):
+    """Evaluate flux and its field/current derivatives on the full LIUQE grid."""
+    model.to(CPU)
+    x = torch.as_tensor(x, dtype=torch.float32, device=CPU)
+    p = torch.stack([torch.tensor(RRD.reshape(-1), dtype=torch.float32), torch.tensor(ZZD.reshape(-1), dtype=torch.float32)], dim=1)
+    r = p.clone()[:,0]; p.requires_grad = True
+    fx, _, _ = model(x.unsqueeze(0), p.unsqueeze(0))
+    dfx_drz = torch.autograd.grad(outputs=fx.sum(), inputs=p, create_graph=True)[0].unsqueeze(0)
+    dfx_dr, dfx_dz = dfx_drz[:,:,0], dfx_drz[:,:,1]
+    br = -dfx_dz/(2*torch.pi*r); bz = dfx_dr/(2*torch.pi*r)
+    d2fx_dr2 = torch.autograd.grad(outputs=dfx_dr.sum(), inputs=p, create_graph=True)[0][:,0].unsqueeze(0)
+    d2fx_dz2 = torch.autograd.grad(outputs=dfx_dz.sum(), inputs=p, create_graph=True)[0][:,1].unsqueeze(0)
+    iy = -(d2fx_dz2/(2*torch.pi*r) + d2fx_dr2/(2*torch.pi*r) - dfx_dr/(2*torch.pi*r**2))
+    return tuple(value.squeeze(0).detach().cpu().numpy().reshape(RRD.shape) for value in (fx, iy, br, bz))
+
+
 # %% ## Plot network outputs for the dissertation
 ## Plot network outputs for the dissertation
-def plot_network_outputs_dissertation(ds:LiuqeDataset, model:liuqeML, idxs=[0], ylab=[''], save_name='net_example.pdf'):
-    assert ds.fg is not None, "Dataset does not have full grid data (fg)"
-    assert len(idxs) == len(ylab), "Length of idxs and ylab must be the same"
+def plot_network_output_samples_dissertation(samples, model:liuqeML, ylab=None, save_name='net_example.pdf'):
+    """Plot preprocessed ``(x, full_grid)`` samples as reference, prediction, and percentage-error panels."""
+    ylab = ['']*len(samples) if ylab is None else ylab
+    assert len(samples) == len(ylab), "Length of samples and ylab must be the same"
     model.to(CPU)
-    n_plt = len(idxs)
+    n_plt = len(samples)
 
     def prep_plot_tcv(ax, cols=['black','black','gray'], lw=plt.rcParams['lines.linewidth'], alpha=0.5):
         ax.set_xticks([])
@@ -27,27 +45,13 @@ def plot_network_outputs_dissertation(ds:LiuqeDataset, model:liuqeML, idxs=[0], 
     from matplotlib.colors import Normalize
     plt.figure(figsize=(THESIS_W, 4*n_plt))
     gs = plt.GridSpec(n_plt, 1)
-    for pi, i in enumerate(idxs):
-        x, p, fx, iy, br, bz = ds[i]
-        x, p, fx, iy, br, bz = map(lambda x: x.to(CPU), [x, p, fx, iy, br, bz])
+    for pi, (x, fg) in enumerate(samples):
         μ0 = 4e-7 * np.pi  # Permeability of free space
-        p = torch.stack([torch.tensor(RRD.reshape(-1), dtype=torch.float32), torch.tensor(ZZD.reshape(-1), dtype=torch.float32)], dim=1)  # shape (n, 2)
-        fx, iy, br, bz = [to_tensor(v.reshape(-1)) for v in ds.fg[i]] # reshape to (n,)
+        fx, iy, br, bz = [np.asarray(v).reshape(-1) for v in fg]
         iy = iy*μ0/GRA # workaround, on grid points dont have the conversion applied
-        r = p.clone()[:,0]; p.requires_grad = True # need r for PINN
         reverse_cmap = iy.mean() < 0  # reverse cmap if current density is negative
-        fxp, _, _ = model(x.unsqueeze(0), p.unsqueeze(0))
-        dfx_drz = torch.autograd.grad(outputs=fxp.sum(), inputs=p, create_graph=True)[0].unsqueeze(0) # compute gradients wrt p
-        π = torch.pi
-        dfx_dr, dfx_dz = dfx_drz[:,:,0], dfx_drz[:,:,1]  # shape (1, n)
-        brp = -dfx_dz / (2*π*r) # Br from derivative
-        bzp = dfx_dr / (2*π*r)  # Bz from derivative
-        d2fx_dr2 = torch.autograd.grad(outputs=dfx_dr.sum(), inputs=p, create_graph=True)[0][:,0].unsqueeze(0)
-        d2fx_dz2 = torch.autograd.grad(outputs=dfx_dz.sum(), inputs=p, create_graph=True)[0][:,1].unsqueeze(0)
-        iyp = - (1/(2*π*r) * d2fx_dz2 + 1/(2*π*r) * d2fx_dr2 - 1/(2*π*r**2) * dfx_dr)
-
-        fxp, iyp, brp, bzp = map(lambda t: t.squeeze(0), [fxp, iyp, brp, bzp]) # remove batch dimension
-        p, fx, iy, br, bz, fxp, iyp, brp, bzp = map(lambda t: t.detach().cpu().numpy(), [p, fx, iy, br, bz, fxp, iyp, brp, bzp]) # move to CPU and numpy
+        fxp, iyp, brp, bzp = [value.reshape(-1) for value in predict_network_output_fields(x, model)]
+        p = np.stack((RRD, ZZD), axis=-1).reshape(-1, 2)
         iv = inpoly(p) # inside vessel indices
         # mfx, Mfx = np.min([fx[iv], fxp[iv]]), np.max([fx[iv], fxp[iv]]) # both maps
         # miy, Miy = np.min([iy[iv], iyp[iv]]), np.max([iy[iv], iyp[iv]])
@@ -89,6 +93,13 @@ def plot_network_outputs_dissertation(ds:LiuqeDataset, model:liuqeML, idxs=[0], 
 
     save_figure(save_name)
     return
+
+
+def plot_network_outputs_dissertation(ds:LiuqeDataset, model:liuqeML, idxs=[0], ylab=[''], save_name='net_example.pdf'):
+    """Compatibility wrapper for plotting samples from a ``LiuqeDataset``."""
+    assert ds.fg is not None, "Dataset does not have full grid data (fg)"
+    samples = [(ds[i][0], ds.fg[i]) for i in idxs]
+    return plot_network_output_samples_dissertation(samples, model, ylab=ylab, save_name=save_name)
 
 
 # interesting_idxs = [297, 250, 317, 28, 347, 12, 65]

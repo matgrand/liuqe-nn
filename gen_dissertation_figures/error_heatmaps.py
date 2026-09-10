@@ -3,6 +3,7 @@ from ._common import _cmap
 
 
 def generate():
+    ds = LiuqeDataset(EVAL_DS_PATH); N = len(ds.fg)
     # %% ## Average relative accuracy
     ## Average relative accuracy
     def get_pred_on_grid(ds, lnn):
@@ -81,3 +82,6 @@ def generate():
     prep_plot_tcv(plt.gca(), c='black', alpha=.5), plt.colorbar(label=fr'Mean error{error_unit}')
     plt.xlabel(r'$R$ [m]'), plt.ylabel(r'$Z$ [m]'), plt.title(fr'$I_y$: {title}')
     save_figure('error_heatmaps.pdf')
+
+
+if __name__ == '__main__': generate(); compile_inspection_pdf()

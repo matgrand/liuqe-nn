@@ -82,3 +82,6 @@ def generate():
     plt.legend(boundary_handles+handles,[h.get_label() for h in boundary_handles]+labels,loc='center right')
 
     save_figure('mpc_shape_control_simulation.pdf')
+
+
+if __name__ == '__main__': generate(); compile_inspection_pdf()

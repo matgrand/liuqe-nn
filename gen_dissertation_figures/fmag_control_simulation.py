@@ -69,3 +69,6 @@ def generate():
     save_figure('fmag_control_simulation.pdf')
     print(f'FMag voltage-limit samples: surrogate={np.count_nonzero(net.get("voltage_at_limit",0))}, LIH={np.count_nonzero(std.get("voltage_at_limit",0))}')
     print(f'FMag maximum voltage-vector difference: {np.max(np.linalg.norm(va_net-va_std,axis=0)):.3f} V')
+
+
+if __name__ == '__main__': generate(); compile_inspection_pdf()
