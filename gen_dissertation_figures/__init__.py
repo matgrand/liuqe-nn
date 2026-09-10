@@ -14,6 +14,6 @@ def configure(SHOW_PLOTS=True, WAIT_FOR_PLOTS=False):
 
 __all__ = ['compile_inspection_pdf', 'configure']
 for _module_info in iter_modules(__path__):
-    if _module_info.name.startswith('_') or _module_info.name == 'find_shapes': continue
+    if _module_info.name.startswith('_') or _module_info.name in ('explore_raw_ds', 'find_shapes'): continue
     globals()[_module_info.name] = import_module(f'{__name__}.{_module_info.name}')
     __all__.append(_module_info.name)

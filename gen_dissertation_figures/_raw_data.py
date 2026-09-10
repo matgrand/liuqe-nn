@@ -38,13 +38,15 @@ def raw_valid_mask(data):
     return iy_ok & ip_ok & fx_ok & np.isfinite(flat_fx).all(axis=0)
 
 
-def flux_to_full_grid_fields(fx, k_finer=7):
-    """Reproduce the notebook's fine-grid differentiation and interpolation for $B_r$ and $B_z$."""
+def flux_to_full_grid_fields(fx, k_finer=7, interp_method=INTERP_METHOD):
+    """Derive $B_r$ and $B_z$ on a configurable intermediate grid; defaults reproduce the notebook."""
     if fx.shape != RRD.shape: raise ValueError(f'Flux shape must be {RRD.shape}, got {fx.shape}.')
+    if k_finer < 1: raise ValueError(f'k_finer must be at least 1, got {k_finer}.')
+    if k_finer == 1: return tuple(value.reshape(RRD.shape).astype(DTYPE) for value in meqBrBz(fx))
     rf = np.linspace(RRD[0, 0], RRD[0, -1], (RRD.shape[1]-1)*k_finer+1)
     zf = np.linspace(ZZD[0, 0], ZZD[-1, 0], (ZZD.shape[0]-1)*k_finer+1)
     rrf, zzf = np.meshgrid(rf, zf); fine_pts = np.stack((rrf, zzf), axis=-1)
-    fine_fx = interp_pts(fx, fine_pts.reshape(-1, 2)).reshape(rrf.shape)
+    fine_fx = interp_pts(fx, fine_pts.reshape(-1, 2), method=interp_method).reshape(rrf.shape)
     fine_br, fine_bz = [value.reshape(rrf.shape) for value in meqBrBz(fine_fx, rr=rrf, zz=zzf)]
     grid_pts = np.stack((RRD, ZZD), axis=-1).reshape(-1, 2)
     br = interp_pts(fine_br, grid_pts, gr=rf, gz=zf, method='linear').reshape(RRD.shape)
@@ -52,7 +54,7 @@ def flux_to_full_grid_fields(fx, k_finer=7):
     return br.astype(DTYPE), bz.astype(DTYPE)
 
 
-def preprocess_raw_sample(data, shot, time_index, require_valid=True):
+def preprocess_raw_sample(data, shot, time_index, require_valid=True, field_k_finer=7, field_interp_method=INTERP_METHOD):
     """Convert one loaded raw time slice to a network input and notebook-equivalent full-grid maps."""
     nt = np.asarray(data['t']).size
     if not -nt <= time_index < nt: raise IndexError(f'Time index {time_index} is outside a shot with {nt} samples.')
@@ -63,19 +65,19 @@ def preprocess_raw_sample(data, shot, time_index, require_valid=True):
         if not np.isfinite(value).all(): raise ValueError(f'Shot {shot}, time index {time_index}: {name!r} contains non-finite values.')
     x = np.concatenate([values[name].reshape(-1) for name in INPUT_NAMES]).astype(DTYPE)
     iy = np.zeros_like(values[FX]); iy[1:-1,1:-1] = values[IY]
-    br, bz = flux_to_full_grid_fields(values[FX])
+    br, bz = flux_to_full_grid_fields(values[FX], k_finer=field_k_finer, interp_method=field_interp_method)
     return RawSample(str(shot), time_index, float(np.asarray(data['t']).reshape(-1)[time_index]), x, (values[FX], iy, br, bz))
 
 
-def load_raw_sample(path, time_index, require_valid=True):
+def load_raw_sample(path, time_index, require_valid=True, field_k_finer=7, field_interp_method=INTERP_METHOD):
     """Load and preprocess one time slice directly from a raw MATLAB shot file."""
     path = Path(path)
     if not path.is_file(): raise FileNotFoundError(f'Raw shot file not found: {path}')
     data = loadmat(path, variable_names=['t', *RAW_NAMES])
-    return preprocess_raw_sample(data, path.stem, time_index, require_valid=require_valid)
+    return preprocess_raw_sample(data, path.stem, time_index, require_valid=require_valid, field_k_finer=field_k_finer, field_interp_method=field_interp_method)
 
 
-def load_raw_samples(raw_dir, selections, require_valid=True):
+def load_raw_samples(raw_dir, selections, require_valid=True, field_k_finer=7, field_interp_method=INTERP_METHOD):
     """Load ``(shot, time_index)`` selections from ``raw_dir`` in the requested order."""
     raw_dir = Path(raw_dir)
-    return [load_raw_sample(raw_dir/f'{shot}.mat', time_index, require_valid=require_valid) for shot, time_index in selections]
+    return [load_raw_sample(raw_dir/f'{shot}.mat', time_index, require_valid=require_valid, field_k_finer=field_k_finer, field_interp_method=field_interp_method) for shot, time_index in selections]

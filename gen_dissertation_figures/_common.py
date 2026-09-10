@@ -98,4 +98,4 @@ DATA_DIR_TEST = 'data/3535303/' # best with L1 loss (small) (3.5 mil ds) <-
 
 # %% ## load model
 ## load model
-lnn = load_net_from_data(data_dir=DATA_DIR_TEST)
+def load_dissertation_net(): return load_net_from_data(data_dir=DATA_DIR_TEST)

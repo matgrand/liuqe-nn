@@ -3,7 +3,7 @@ from ._common import _cmap
 
 
 def generate():
-    ds = LiuqeDataset(EVAL_DS_PATH); N = len(ds.fg)
+    ds = LiuqeDataset(EVAL_DS_PATH); N = len(ds.fg); lnn = load_dissertation_net()
     # %% ## Average relative accuracy
     ## Average relative accuracy
     def get_pred_on_grid(ds, lnn):
