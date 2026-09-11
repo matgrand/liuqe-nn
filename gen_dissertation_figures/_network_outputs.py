@@ -75,7 +75,7 @@ def plot_network_output_samples_dissertation(samples, model:liuqeML, ylab=None, 
         lvls = [20, 12, 16, 16]
         lw, shrink = 0.75, 0.9
         group = gs[pi].subgridspec(2, 4)
-        plt.subplot(gs[pi], frameon=False); plt.axis('off'); plt.title(ylab[pi].capitalize())
+        plt.subplot(gs[pi], frameon=False); plt.axis('off'); plt.title(ylab[pi])
         for j, ((v, vp), l, n) in enumerate(zip(vals, limits, names)):
             row, col = j//2, 2*(j % 2)
             plt.subplot(group[row, col])

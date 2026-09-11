@@ -1,10 +1,10 @@
 """Network-output examples loaded directly from raw LIUQE shot files.
 
-The figure reproduces the six evaluation examples and panel styling of the original dataset-backed implementation while bypassing ``LiuqeDataset``. Each raw time slice is filtered and preprocessed as in ``prepare_dataset.ipynb``: diagnostic vectors are concatenated in training order, current density is padded onto the full grid, and magnetic-field targets are reconstructed through fine-grid flux differentiation. The row titles identify the source shot, making each example traceable to the original measurements.
+The figures compare LIUQE reference fields with the neural-network predictions and show their pointwise percentage errors for selected, traceable raw-dataset snapshots. Each raw time slice is filtered and preprocessed as in ``prepare_dataset.ipynb``: diagnostic vectors are concatenated in training order, current density is padded onto the full grid, and magnetic-field targets are reconstructed through fine-grid flux differentiation. Each row title reports the TCV discharge, physical time, and raw time index using the same provenance convention as ``raw_ds_example``. The first two selection groups produce the main-text and appendix examples while preserving identical field ordering, contour conventions, error scales, and vessel geometry.
 """
 from pathlib import Path
 
-from ._common import load_dissertation_net
+from ._common import compile_inspection_pdf, load_dissertation_net
 from ._network_outputs import plot_network_output_samples_dissertation
 from ._raw_data import load_raw_samples
 
@@ -23,7 +23,8 @@ def generate(raw_dir=RAW_DIR, model=None):
     for i, selections in enumerate(SELECTION_GROUPS, start=1):
         samples = load_raw_samples(raw_dir, selections)
         plot_samples = [(sample.x, sample.fg) for sample in samples]
-        plot_network_output_samples_dissertation(plot_samples, model, ylab=[sample.shot for sample in samples], save_name=f'net_example{i}.pdf')
+        titles = [rf'TCV \#{sample.shot}, $t={sample.time:.3f}\,$s (index {sample.time_index})' for sample in samples]
+        plot_network_output_samples_dissertation(plot_samples, model, ylab=titles, save_name=f'net_example{i}.pdf')
 
 
-if __name__ == '__main__': generate()
+if __name__ == '__main__': generate(); compile_inspection_pdf()

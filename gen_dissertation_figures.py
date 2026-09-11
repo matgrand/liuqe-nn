@@ -13,10 +13,10 @@ figures.tcv_geometry.generate()
 # figures.sched_losses.generate()
 
 # figures.error_heatmaps.generate()
-# figures.mag_meas.generate()
+figures.mag_meas.generate()
 figures.raw_ds_example.generate()
 figures.final_ds_example.generate()
-# figures.net_example.generate()
+figures.net_example.generate()
 
 # figures.comparison.generate()
 
