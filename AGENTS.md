@@ -12,7 +12,7 @@ These rules apply to figures intended for the dissertation. They override the ge
 Note: if, in the context of dissertation figures, the agent is asked to read "the guides" or a specific "guide" read `/home/mg/repos/phd_thesis/guides/guides.md` and the relative "specific guide/s" afterward, for additional context. 
 
 Dissertation figures scripts live inside gen_dissertation_figures dir, when the user asks to modify/create a new figure, always add a detailed figure description/purpose based on the given information. Then always update gen_dissertation_figures.py by uncommenting/adding the relative figure. 
-Finally run the specific figure script, every figure script should have a `__main__` function that just calls generate to quickly test the figure.
+Finally run the specific figure script, every figure script should have a `__main__` function that just calls generate and compile_inspection_pdf to quickly test the figure.
 
 Note: BL = bottom left, MR = middle right, and every other combination.
 

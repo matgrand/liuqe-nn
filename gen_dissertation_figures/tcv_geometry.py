@@ -1,4 +1,4 @@
-# Figure description: This three-panel figure introduces the TCV geometry and the spatial interface used by the equilibrium surrogate. Panel (a) shows the native 28-by-65 FGE reconstruction grid inside the first-wall vessel outline. Panel (b) shows the final surrogate equilibrium from the baseline PID shape-control simulation as a poloidal-flux map, with the corresponding last closed flux surface identified by the saved boundary-flux value. Panel (c) overlays that LCFS with the active PID shape-control points from the same final simulation instant, showing where the controller queries the surrogate relative to the target plasma boundary.
+# Figure description: This three-panel figure introduces the spatial quantities connecting LIUQE to the control-oriented surrogate. Panel (a) shows the native 28-by-65 equilibrium-reconstruction grid relative to the TCV vessel. Panel (b) gives an example poloidal-flux map on that grid and identifies the last closed flux surface (LCFS). Panel (c) overlays example shape-control evaluation points on the LCFS, illustrating the arbitrary spatial queries supplied to the surrogate. Together, the panels connect LIUQE's grid-based equilibrium reconstruction to the arbitrary spatial evaluations required for shape control. The equilibrium and control-point arrays remain the existing saved example and are presented generically here rather than as a comparison of controllers.
 from ._common import *
 
 
@@ -21,30 +21,28 @@ def generate():
     i_sc = np.argmin(np.abs(data['sc_t'].reshape(-1)-data['t'].reshape(-1)[-1]))
     rc, zc = data['sc_r'][:,i_sc], data['sc_z'][:,i_sc]
     valid = (rc > 0) & data['active_shape_mask'].reshape(-1).astype(bool)
+    points = np.stack((rr, zz), axis=-1); inside = inpoly(points)
     assert flux.shape == rr.shape == zz.shape == (65, 28), 'Full-grid arrays must use (z, r) ordering'
 
     plt.figure(figsize=(THESIS_W, 5.0))
 
     plt.subplot(1, 3, 1)
-    plot_vessel(); plt.scatter(rr, zz, s=2, marker='.', rasterized=True)
-    plt.title(r'(a) Native grid' + '\n' + r'$28\times65$ points')
+    plot_vessel(c='k', lw=0.7, alpha=0.8); plt.scatter(rr, zz, s=2, marker='.', rasterized=True)
+    plt.title(r'(a) LIUQE grid')
     _format_panel()
 
     plt.subplot(1, 3, 2)
-    flux_map = plt.pcolormesh(rr, zz, flux, shading='nearest', cmap=plt.rcParams['image.cmap'] + '_r', rasterized=True)
+    plt.scatter(rr[inside], zz[inside], c=flux[inside], s=16, marker='s', cmap=plt.rcParams['image.cmap'] + '_r', rasterized=True)
     plt.contour(grid_r, grid_z, flux, levels=[boundary_flux], linestyles='--', linewidths=1.2)
-    plot_vessel(); colorbar_axis = plt.gca().inset_axes([1.04, 0.0, 0.08, 1.0])
-    plt.colorbar(flux_map, cax=colorbar_axis, label=r'Poloidal flux $\psi$ [Wb]')
-    plt.title(r'(b) PID equilibrium' + '\n' + r'last closed flux surface')
+    plot_vessel(c='k', lw=0.7, alpha=0.8); plt.title(r'(b) Poloidal flux $\psi$' + '\n' + r'and LCFS')
     _format_panel()
 
     plt.subplot(1, 3, 3)
-    plot_vessel(); plt.contour(grid_r, grid_z, flux, levels=[boundary_flux], linestyles='--', linewidths=1.2, alpha=0.5)
+    plot_vessel(c='k', lw=0.7, alpha=0.8); plt.contour(grid_r, grid_z, flux, levels=[boundary_flux], linestyles='--', linewidths=1.2, alpha=0.5)
     plt.scatter(rc[valid], zc[valid], s=34, marker='x', color=C2)
-    plt.title(r'(c) Shape control' + '\n' + rf'${valid.sum()}$ active points')
+    plt.title(r'(c) Shape-control' + '\n' + r'example points')
     _format_panel()
 
-    plt.figtext(0.5, 0.035, 'Active points at the final PID simulation instant.\n' + r'The inference interface accepts dynamic $(r,z)$ coordinates.', ha='center')
-    save_figure('tcv_geometry.pdf', rect=(0, 0.075, 1, 1))
+    save_figure('tcv_geometry.pdf')
 
 if __name__ == '__main__': generate(); compile_inspection_pdf()

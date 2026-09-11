@@ -23,6 +23,20 @@ def save_figure(filename, rect=None):
     else: plt.close()
 
 
+def plot_approx_lcfs(flux, current, axis=None, flux_offset=0.005, **kwargs):
+    r"""Estimate the LCFS flux, offset it by a fraction of the map span, and plot its $\psi$ contour."""
+    if flux.shape != RRD.shape or current.shape != RRD.shape: raise ValueError(f'Flux and current must both have shape {RRD.shape}, got {flux.shape} and {current.shape}.')
+    rq, zq = find_approx_lcfs(current)
+    if not rq.size: raise ValueError('Cannot estimate the LCFS from an empty current support.')
+    boundary = np.stack((rq, zq), axis=-1)
+    boundary_flux = np.mean(interp_pts(flux, boundary, method='linear')) + flux_offset*np.ptp(flux)
+    axis = plt.gca() if axis is None else axis
+    defaults = {'colors':'white', 'linestyles':':', 'linewidths':1.0, 'zorder':4}
+    # return axis.contour(RRD, ZZD, flux, levels=[boundary_flux], **(defaults | kwargs))
+    contour_levels = [boundary_flux - flux_offset*np.ptp(flux), boundary_flux, boundary_flux + flux_offset*np.ptp(flux)]
+    return axis.contour(RRD, ZZD, flux, levels=contour_levels, **(defaults | kwargs))
+
+
 def compile_inspection_pdf():
     """Compile a PDF that places every generated dissertation figure on its own page."""
     script_dir = Path(__file__).resolve().parent
@@ -58,14 +72,15 @@ def compile_inspection_pdf():
         encoding='utf-8',
     )
     if shutil.which('latexmk') is None:
-        print('Skipping figure inspection PDF compilation: latexmk is not installed.')
+        print('Figure inspection PDF: FAIL')
         return
     result = subprocess.run(
         ['latexmk', '-pdf', '-file-line-error', '-f', '-outdir=build', 'build/figs.tex'],
         cwd=script_dir,
+        capture_output=True,
+        text=True,
     )
-    if result.returncode: print(f'Figure inspection PDF compilation failed (exit code {result.returncode}).')
-    else: print(f'Saved {build_dir / "figs.pdf"}')
+    print(f'Figure inspection PDF: {"FAIL" if result.returncode else "SUCCESS"}')
 
 
 from matplotlib.colors import LinearSegmentedColormap
