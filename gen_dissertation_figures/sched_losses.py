@@ -17,7 +17,7 @@ def generate():
     lambda_psi = LAMBDA_PSI*np.ones_like(epochs); lambda_b = LAMBDA_B*np.ones_like(epochs)
     lambda_j = np.geomspace(LAMBDA_J_START, LAMBDA_J_END, len(epochs))
 
-    plt.figure(figsize=(THESIS_W, 5.2))
+    plt.figure(figsize=(THESIS_W, 4))
     plt.subplot(2, 2, 1)
     plt.plot(epochs, lr, color=C1)
     plt.yscale('log'); plt.xlabel('Epoch'); plt.ylabel(r'Learning rate $\eta$'); plt.title(r'(a) Learning-rate schedule')

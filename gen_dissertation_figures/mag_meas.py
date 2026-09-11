@@ -81,7 +81,7 @@ def generate():
     plot_vessel(); _plot_coils(hardware)
     plt.plot(probe_r, probe_z, color=C2, linewidth=1.6)
     plt.scatter(rf, zf, s=20, marker='x', color=C3)
-    plt.scatter(rc[valid], zc[valid], s=24, marker='o', color=C4)
+    plt.scatter(rc[valid], zc[valid], s=24, marker='o', color=C4, zorder=6)
     plt.xlim(0.35, 1.42); plt.ylim(-1.25, 1.25); plt.gca().set_aspect('equal', adjustable='box')
     plt.xlabel(r'$r$ [m]'); plt.ylabel(r'$z$ [m]'); _plot_legend()
     save_figure('mag_meas.pdf')

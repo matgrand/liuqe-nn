@@ -88,7 +88,7 @@ def plot_network_output_samples_dissertation(samples, model:liuqeML, ylab=None, 
             plt.ylabel(n)
             plt.subplot(group[row, col+1])
             ep = 100*np.abs(v[iv]-vp[iv])/(l[1]-l[0]) # error in %
-            plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=perc_max[j], marker='s', rasterized=True) # fixed bar but not for Iy
+            plt.scatter(p[iv,0], p[iv,1], c=ep, s=ms, vmin=0, vmax=perc_max[j], marker='s', rasterized=False) # fixed bar but not for Iy
             prep_plot_tcv(plt.gca(), cols=['k','k','gray']); plt.colorbar(shrink=shrink, fraction=0.08, pad=0.03); plt.ylabel(n + r' $\%$ err')
 
     save_figure(save_name)

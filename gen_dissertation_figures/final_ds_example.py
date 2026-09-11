@@ -57,8 +57,8 @@ def _colorbar(image, axis):
 def _plot_map(slot, panel, points, values, name, scale, unit, flux, current):
     plt.subplot(slot); axis = plt.gca()
     cmap = plt.rcParams['image.cmap'] + ('_r' if np.mean(values) < 0 else '')
-    image = plt.scatter(points[:,0], points[:,1], c=values*scale, s=4, marker='o', linewidths=0, cmap=cmap, rasterized=True)
-    plot_approx_lcfs(flux, current, axis)
+    plot_approx_lcfs(flux, current, axis, colors='gray', linestyles='-', alpha=1, zorder=0)
+    image = plt.scatter(points[:,0], points[:,1], c=values*scale, s=4, marker='o', linewidths=0, cmap=cmap, rasterized=False, zorder=5)
     prep_plot_tcv(axis, lw=0.7, alpha=0.8, c='k')
     plt.title(rf'({chr(96+panel)}) {name} [{unit}]'); _colorbar(image, axis)
 

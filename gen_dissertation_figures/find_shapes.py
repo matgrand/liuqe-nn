@@ -61,7 +61,7 @@ class ShapeBrowser:
             for row, (actual, predicted, name) in enumerate(zip((fx, br), predictions, (FX, BR))):
                 reference_row = row if self.skip_inference else 2*row
                 plt.subplot(nrows, self.n_times, reference_row*self.n_times+col+1)
-                if self.fast: plt.pcolormesh(RRD, ZZD, np.where(IV, actual, np.nan), shading='auto', rasterized=True)
+                if self.fast: plt.pcolormesh(RRD, ZZD, np.where(IV, actual, np.nan), shading='auto', rasterized=False)
                 else:
                     if predicted is not None: plt.contour(RRD, ZZD, predicted, levels=12, linestyles='solid', linewidths=0.6)
                     plt.contour(RRD, ZZD, actual, levels=12, linestyles='solid' if predicted is None else 'dashed', linewidths=0.6)
@@ -72,7 +72,7 @@ class ShapeBrowser:
                 if not self.skip_inference:
                     plt.subplot(nrows, self.n_times, (2*row+1)*self.n_times+col+1)
                     error = np.where(IV, relative_error(actual, predicted), np.nan)
-                    plt.pcolormesh(RRD, ZZD, error, shading='auto', vmin=0, vmax=ERROR_MAX[name], rasterized=True)
+                    plt.pcolormesh(RRD, ZZD, error, shading='auto', vmin=0, vmax=ERROR_MAX[name], rasterized=False)
                     plt.contour(RRD, ZZD, fx, levels=[lcfs_flux], colors='cyan', linewidths=1.0)
                     prep_plot_tcv(plt.gca(), lw=0.7, alpha=0.45, c='gray')
                     if col == 0: plt.ylabel((r'$\psi$' if name == FX else r'$B_r$') + r' err. [\%]')

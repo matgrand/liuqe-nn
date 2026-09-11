@@ -2,6 +2,19 @@
 from ._common import *
 
 
+def sample_uniform_vessel(n_points, rng=None):
+    """Uniformly sample points inside the TCV first-wall polygon."""
+    if n_points < 1: raise ValueError(f'n_points must be positive, got {n_points}.')
+    rng = np.random.default_rng() if rng is None else rng
+    points = np.empty((n_points, 2), dtype=DTYPE); n_sampled = 0
+    while n_sampled < n_points:
+        n_remaining = n_points-n_sampled
+        candidates = np.column_stack((rng.uniform(RRD[0,0], RRD[0,-1], 2*n_remaining), rng.uniform(ZZD[0,0], ZZD[-1,0], 2*n_remaining)))
+        selected = candidates[inpoly(candidates, VESS_CORNERS)][:n_remaining]
+        points[n_sampled:n_sampled+len(selected)] = selected; n_sampled += len(selected)
+    return points
+
+
 def sample_flux_importance(n_points, flux, rq, zq, sigma=0.3, rng=None):
     """Sample vessel points using the flux-distance acceptance rule from ``prepare_dataset.ipynb``."""
     if n_points < 1: raise ValueError(f'n_points must be positive, got {n_points}.')

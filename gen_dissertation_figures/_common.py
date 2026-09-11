@@ -31,10 +31,13 @@ def plot_approx_lcfs(flux, current, axis=None, flux_offset=0.005, **kwargs):
     boundary = np.stack((rq, zq), axis=-1)
     boundary_flux = np.mean(interp_pts(flux, boundary, method='linear')) + flux_offset*np.ptp(flux)
     axis = plt.gca() if axis is None else axis
-    defaults = {'colors':'white', 'linestyles':':', 'linewidths':1.0, 'zorder':4}
+    defaults = {'colors':'white', 'linestyles':[(0, (0, 2.5))], 'linewidths':1.0, 'zorder':4}
     # return axis.contour(RRD, ZZD, flux, levels=[boundary_flux], **(defaults | kwargs))
-    contour_levels = [boundary_flux - flux_offset*np.ptp(flux), boundary_flux, boundary_flux + flux_offset*np.ptp(flux)]
-    return axis.contour(RRD, ZZD, flux, levels=contour_levels, **(defaults | kwargs))
+    # contour_levels = [boundary_flux - flux_offset*np.ptp(flux), boundary_flux, boundary_flux + flux_offset*np.ptp(flux)]
+    contour_levels = [boundary_flux - flux_offset*np.ptp(flux), boundary_flux + flux_offset*np.ptp(flux)]
+    contours = axis.contour(RRD, ZZD, flux, levels=contour_levels, **(defaults | kwargs))
+    contours.set_capstyle('round')
+    return contours
 
 
 def compile_inspection_pdf():

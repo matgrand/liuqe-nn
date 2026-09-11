@@ -1,8 +1,9 @@
-# Figure description: This three-panel figure introduces the spatial quantities connecting LIUQE to the control-oriented surrogate. Panel (a) shows the native 28-by-65 equilibrium-reconstruction grid relative to the TCV vessel. Panel (b) gives an example poloidal-flux map on that grid and identifies the last closed flux surface (LCFS). Panel (c) overlays example shape-control evaluation points on the LCFS, illustrating the arbitrary spatial queries supplied to the surrogate. Together, the panels connect LIUQE's grid-based equilibrium reconstruction to the arbitrary spatial evaluations required for shape control. The equilibrium and control-point arrays remain the existing saved example and are presented generically here rather than as a comparison of controllers.
+# Figure description: This three-panel figure introduces the spatial quantities connecting LIUQE to the control-oriented surrogate. Panel (a) shows the native 28-by-65 equilibrium-reconstruction grid relative to the TCV vessel. Panel (b) gives an example poloidal-flux map on that grid using translucent filled contours and matching contour lines, and identifies the last closed flux surface (LCFS). Panel (c) overlays example shape-control evaluation points on the LCFS, illustrating the arbitrary spatial queries supplied to the surrogate. Together, the panels connect LIUQE's grid-based equilibrium reconstruction to the arbitrary spatial evaluations required for shape control. The equilibrium and control-point arrays remain the existing saved example and are presented generically here rather than as a comparison of controllers.
 from ._common import *
 
 
 PID_DATA_PATH = 'data/pid_shape_net.mat'
+MAP_LEVELS, MAP_FILL_ALPHA, MAP_LINE_ALPHA = 16, 0.85, 1
 
 
 def _format_panel():
@@ -27,12 +28,14 @@ def generate():
     plt.figure(figsize=(THESIS_W, 5.0))
 
     plt.subplot(1, 3, 1)
-    plot_vessel(c='k', lw=0.7, alpha=0.8); plt.scatter(rr, zz, s=2, marker='.', rasterized=True)
+    plot_vessel(c='k', lw=0.7, alpha=0.8); plt.scatter(rr, zz, s=2, marker='.', rasterized=False)
     plt.title(r'(a) LIUQE grid')
     _format_panel()
 
     plt.subplot(1, 3, 2)
-    plt.scatter(rr[inside], zz[inside], c=flux[inside], s=16, marker='s', cmap=plt.rcParams['image.cmap'] + '_r', rasterized=True)
+    field = np.ma.masked_where(~inside, flux); cmap = plt.rcParams['image.cmap'] + '_r'
+    contours = plt.contourf(grid_r, grid_z, field, levels=MAP_LEVELS, cmap=cmap, alpha=MAP_FILL_ALPHA)
+    plt.contour(grid_r, grid_z, field, levels=contours.levels, cmap=cmap, linewidths=0.45, alpha=MAP_LINE_ALPHA)
     plt.contour(grid_r, grid_z, flux, levels=[boundary_flux], linestyles='--', linewidths=1.2)
     plot_vessel(c='k', lw=0.7, alpha=0.8); plt.title(r'(b) Poloidal flux $\psi$' + '\n' + r'and LCFS')
     _format_panel()

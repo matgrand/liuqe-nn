@@ -41,7 +41,7 @@ The default dissertation style is `dissertation-mono`:
     C1, C2, C3, C4 = _cmap(32/255), _cmap(140/255), _cmap(200/255), _cmap(254/255)
     ```
 * PDF as the preferred output format;
-* 300 DPI for rasterized content embedded in figures.
+* 300 DPI for rasterized content embedded in figures, but avoid rasterizing at all cost
 * when less or equal to 4 colors are needed for a panel use C1 C2 C3 C4
 
 Do not manually duplicate or override style settings inside individual plotting scripts unless required by a specific figure.

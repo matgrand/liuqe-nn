@@ -1,4 +1,4 @@
-# Figure description: These figures show traceable snapshots of the raw LIUQE dataset before spatial point sampling and neural-network training. Each figure corresponds to one user-selected TCV discharge and the middle time slice that passes the dataset filters, unless an explicit time-index override is supplied; the shot and time provenance appear in the figure suptitle. The four-panel upper row follows cell 7 of ``prepare_dataset.ipynb``: it shows the stored poloidal-flux map $\psi$ and plasma-current distribution $I_y$, together with the radial and vertical magnetic fields $B_r$ and $B_z$ reconstructed from the flux map by finite differences. The dashed LCFS overlay is the $\psi$ contour whose value is estimated by interpolating the flux at the boundary of the nonzero-current support and applying a positive correction equal to 5% of the full flux-map span. The three wider panels in the lower row show the stored magnetic-probe measurements $B_m$, flux-loop measurements $F_f$, and fitted poloidal-field-coil currents $I_a$. The first selected shot is written to ``raw_ds_example.pdf`` for the main narrative, while every subsequent selection is written to a numbered PDF for appendix use.
+# Figure description: These figures show traceable snapshots of the raw LIUQE dataset before spatial point sampling and neural-network training. Each figure corresponds to one user-selected TCV discharge and the middle time slice that passes the dataset filters, unless an explicit time-index override is supplied; the shot and time provenance appear in the figure suptitle. The four-panel upper row follows cell 7 of ``prepare_dataset.ipynb``: it shows the stored poloidal-flux map $\psi$ and plasma-current distribution $I_y$, together with the radial and vertical magnetic fields $B_r$ and $B_z$ reconstructed from the flux map by finite differences. Each field is rendered with translucent filled contours and matching contour lines inside the vessel, suppressing the visual grid while retaining the raw gridded values and their spatial structure. The dashed LCFS overlay is the $\psi$ contour whose value is estimated by interpolating the flux at the boundary of the nonzero-current support and applying a positive correction equal to 5% of the full flux-map span. The three wider panels in the lower row show the stored magnetic-probe measurements $B_m$, flux-loop measurements $F_f$, and fitted poloidal-field-coil currents $I_a$. The first selected shot is written to ``raw_ds_example.pdf`` for the main narrative, while every subsequent selection is written to a numbered PDF for appendix use.
 from pathlib import Path
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -10,6 +10,7 @@ RAW_DIR = Path('raw_ds')
 SHOTS = (86168, 83825, 80265)  # First shot is the main-text figure; the others are appendix figures.
 TIME_INDICES = {}  # Optional overrides, for example: {86168: 120}.
 FIGURE_HEIGHT = 4.7  # [in]
+MAP_LEVELS, MAP_FILL_ALPHA, MAP_LINE_ALPHA = 16, 0.9, 1
 MAP_NAMES = (r'$\psi$'+' (Fx)', r'$j$'+' (Iy)', r'$B_r$', r'$B_z$')
 MAP_SCALES = (1.0, 1e-3, 1.0, 1.0)
 MAP_UNITS = ('Wb', 'kA', 'T', 'T')
@@ -34,8 +35,10 @@ def _plot_map(slot, panel, values, name, scale, unit, flux, current):
     plt.subplot(slot)
     axis = plt.gca()
     cmap = plt.rcParams['image.cmap'] + ('_r' if np.mean(values[IV]) < 0 else '')
-    image = plt.pcolormesh(RRD, ZZD, np.ma.masked_where(~IV, values)*scale, shading='auto', cmap=cmap, rasterized=True)
-    plot_approx_lcfs(flux, current, axis)
+    field = np.ma.masked_where(~IV, values)*scale
+    image = plt.contourf(RRD, ZZD, field, levels=MAP_LEVELS, cmap=cmap, alpha=MAP_FILL_ALPHA)
+    plt.contour(RRD, ZZD, field, levels=image.levels, cmap=cmap, linewidths=0.45, alpha=MAP_LINE_ALPHA)
+    plot_approx_lcfs(flux, current, axis, colors='white', linestyles='-')
     # prep_plot_tcv(plt.gca(), lw=0.7, alpha=0.4, c='gray')
     # prep_plot_tcv(plt.gca(), lw=0.7, alpha=0.9, c='gray')
     prep_plot_tcv(plt.gca(), lw=0.7, alpha=0.8, c='k')
@@ -49,7 +52,7 @@ def _plot_map(slot, panel, values, name, scale, unit, flux, current):
         return position.shrunk(1, 0.9).anchored('C', position)
     colorbar_locator.get_subplotspec = locator.get_subplotspec
     color_axis.set_axes_locator(colorbar_locator)
-    plt.colorbar(image, cax=color_axis, ); plt.sca(axis)
+    colorbar = plt.colorbar(image, cax=color_axis); colorbar.solids.set_edgecolor('face'); colorbar.ax.grid(False); plt.sca(axis)
 
 
 def _plot_vector(slot, panel, values, name, scale, unit):
