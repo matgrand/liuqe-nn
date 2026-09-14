@@ -10,7 +10,7 @@ def _required(data, *keys):
 
 
 def generate():
-    """Compare surrogate and FGE/qintmex PID shape-control errors, channel-wise post-activation RMS with grouped bars, final geometry, and voltage norms; use C1, C2, and C3 in series order where at most three colors are needed."""
+    """Plot PID shape-control errors, post-activation RMS, final geometry, and voltage demand for the neural and direct-FGE observer configurations."""
     net = loadmat('data/pid_shape_net.mat')
     std = loadmat('data/pid_shape_std.mat')
     geometry_keys = ('fge_grid_r', 'fge_grid_z', 'fge_final_flux', 'fge_final_boundary_flux', 'limiter_r', 'limiter_z')

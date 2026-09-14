@@ -19,7 +19,7 @@ def _hessian_condition(data, suffix=''):
 
 
 def generate():
-    """Compare FMag surrogate and LIH control, displacement, observer error, and conditioning; use C1, C2, and C3 in series order where at most three colors are needed."""
+    """Plot FMag control errors, X-point displacement, observer accuracy, and Hessian conditioning for the neural and LIH observer configurations."""
     net = loadmat('data/fmag_net.mat')
     std = loadmat('data/fmag_std.mat')
     keys = ('t','ip_scaling_reference','xpt_err_delta_r','xpt_err_delta_z','xpt_delta_r','xpt_delta_z','xpt_delta_r_lih','xpt_delta_z_lih','design_xpoint_r','design_xpoint_z','fge_active_xpoint_r','fge_active_xpoint_z','xpt_raw_d2Fdrr','xpt_raw_d2Fdrdz','xpt_raw_d2Fdzz','xpt_raw_d2Fdrr_lih','xpt_raw_d2Fdrdz_lih','xpt_raw_d2Fdzz_lih','coil_voltages')

@@ -10,7 +10,7 @@ def _required(data, *keys):
 
 
 def generate():
-    """Compare surrogate and FGE/qintmex MPC regulation, moves, solver work, constraints, and geometry; use C1, C2, and C3 in series order where at most three colors are needed."""
+    """Plot MPC regulation, applied moves, solver work, current margins, and final geometry for the neural and direct-FGE observer configurations."""
     net = loadmat('data/mpc_shape_net.mat')
     std = loadmat('data/mpc_shape_std.mat')
     keys = ('t','controller_on','optimizer_on','shape_errs','active_shape_mask','qp_first_move','qp_iterations','mpc_update_mask','ief_upper_margin','ief_lower_margin','fge_grid_r','fge_grid_z','fge_final_flux','fge_final_boundary_flux','limiter_r','limiter_z','sc_t','sc_r','sc_z')
