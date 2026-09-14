@@ -266,3 +266,9 @@ When a figure is crowded, fix the composition rather than shrinking its typograp
 The invariant for dissertation figures is:
 
 > **Create the figure at its final physical width, keep text sizes fixed in points, use consistent LaTeX notation, save as PDF, and avoid substantial post-export scaling.**
+
+
+
+
+
+IMPORTANT: NEVER EVER ACCESS SSH OR USE SSH COMMAND

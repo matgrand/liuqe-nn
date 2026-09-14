@@ -6,6 +6,13 @@ def _required(data, *keys):
     if missing: raise KeyError(f'Missing FMag fields: {missing}. Run fmag_liuqenn_comparison.m and copy both MAT files into data/.')
 
 
+def _validate_schema(data):
+    version = int(np.asarray(data.get('schema_version', 0)).reshape(-1)[0])
+    if version < 3: raise ValueError('FMag MAT data predates the LiuqeNN E-F-G-OH coil-order fix. Rerun fmag_liuqenn_comparison.m.')
+    permutation = np.asarray(data['nn_coil_permutation']).reshape(-1).astype(int)
+    if not np.array_equal(permutation, np.r_[np.arange(1,17),19,17,18]): raise ValueError(f'Unexpected LiuqeNN coil permutation: {permutation}.')
+
+
 def _hessian_condition(data, suffix=''):
     drr = data[f'xpt_raw_d2Fdrr{suffix}'].reshape(-1)
     drz = data[f'xpt_raw_d2Fdrdz{suffix}'].reshape(-1)
@@ -22,6 +29,7 @@ def generate():
     """Plot FMag control errors, X-point displacement, observer accuracy, and Hessian conditioning for the neural and LIH observer configurations."""
     net = loadmat('data/fmag_net.mat')
     std = loadmat('data/fmag_std.mat')
+    _validate_schema(net); _validate_schema(std)
     keys = ('t','ip_scaling_reference','xpt_err_delta_r','xpt_err_delta_z','xpt_delta_r','xpt_delta_z','xpt_delta_r_lih','xpt_delta_z_lih','design_xpoint_r','design_xpoint_z','fge_active_xpoint_r','fge_active_xpoint_z','xpt_raw_d2Fdrr','xpt_raw_d2Fdrdz','xpt_raw_d2Fdzz','xpt_raw_d2Fdrr_lih','xpt_raw_d2Fdrdz_lih','xpt_raw_d2Fdzz_lih','coil_voltages')
     _required(net,*keys); _required(std,*keys)
     t = net['t'].reshape(-1); t_std = std['t'].reshape(-1)
