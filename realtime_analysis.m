@@ -128,8 +128,25 @@ for shot = shots
     % [Lrt,LXrt,LYrt] = liuqe(shot,t,'itert',1);
     % LYrt = liut(L,LX, 'itert', 1); % double check that itert=1 is the same as rtliuqe (too good like this)
     % [Lrt,LXrt,LYrt] = liuqe(shot,t, 'LX', LX, 'itert',1); % not 100% correct
-    Lrt = liuqe(shot, [], 'itert', 1); LYrt = liut(Lrt, LX); % better version
-    [Fx_lrt, Br_lrt, Bz_lrt] = interp_liuqe(r,z, Lrt, LX, LYrt, INTERP_METHOD);
+    % Lrt = liuqe(shot, [], 'itert', 1); LYrt = liut(Lrt, LX, 'itert', 1); % better version
+
+    % MATLAB emulation of RT-LIUQE using the parameters deployed for this shot.
+    [Lrt,LXrt] = liuqe(shot,t, 'psrc','RTLIUQE', 'slx',1, 'bslvdprec',true);
+    assert(Lrt.P.itert > 0, 'RT-LIUQE parameters did not enable itert');
+    assert(Lrt.P.ivesm && startsWith(Lrt.P.selu, 's'), 'Expected RT-LIUQE to use measured segment currents');
+    LXrt.Bm = rt_lx.Bm;
+    LXrt.Ff = rt_lx.Ff;
+    LXrt.Ia = rt_lx.Ia;
+    LXrt.Uf = rt_lx.Uf;
+    LXrt.Iu = LXrt.Uf ./ (-Lrt.G.Ru(:));
+    Is = LXrt.Uf ./ (-Lrt.G.Rs(:));
+    LXrt.Ip = Lrt.G.Ipm*LXrt.Bm + Lrt.Ipa*LXrt.Ia + Lrt.Ips*Is;
+    % Keep the measured LXrt.rBt instead of replacing it with the artificial zeros in rt_lx.rBt.
+    LXrt = liux(Lrt,LXrt);
+
+    Lrt.liurtemu = true;
+    LYrt = liut(Lrt,LXrt, 'rst',true, 'slx',false);
+    [Fx_lrt, Br_lrt, Bz_lrt] = interp_liuqe(r,z, Lrt, LXrt, LYrt, INTERP_METHOD);
     
     % lih
     [Lih,LXih,LYih] = lih('tcv', shot, t, 'debug', 1);
