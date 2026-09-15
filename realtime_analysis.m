@@ -127,8 +127,9 @@ for shot = shots
     % rtliuqe (approx)
     % [Lrt,LXrt,LYrt] = liuqe(shot,t,'itert',1);
     % LYrt = liut(L,LX, 'itert', 1); % double check that itert=1 is the same as rtliuqe (too good like this)
-    [Lrt,LXrt,LYrt] = liuqe(shot,t, 'LX', LX, 'itert',1); % double check that this is correct (seems correct)
-    [Fx_lrt, Br_lrt, Bz_lrt] = interp_liuqe(r,z, L, LX, LYrt, INTERP_METHOD);
+    % [Lrt,LXrt,LYrt] = liuqe(shot,t, 'LX', LX, 'itert',1); % not 100% correct
+    Lrt = liuqe(shot, [], 'itert', 1); LYrt = liut(Lrt, LX); % better version
+    [Fx_lrt, Br_lrt, Bz_lrt] = interp_liuqe(r,z, Lrt, LX, LYrt, INTERP_METHOD);
     
     % lih
     [Lih,LXih,LYih] = lih('tcv', shot, t, 'debug', 1);
