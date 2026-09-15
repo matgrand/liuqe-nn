@@ -123,14 +123,8 @@ for shot = shots
     [L,LX] = liuqe(shot,t);
     LX.Bm=rt_lx.Bm; LX.Ff=rt_lx.Ff; LX.Uf=rt_lx.Uf; LX.Ia=rt_lx.Ia;% LX.rBt=rt_lx.rBt; % use phys_RT inputs
     LX_liuqe = LX; % save for later
-    
-    % rtliuqe (approx)
-    % [Lrt,LXrt,LYrt] = liuqe(shot,t,'itert',1);
-    % LYrt = liut(L,LX, 'itert', 1); % double check that itert=1 is the same as rtliuqe (too good like this)
-    % [Lrt,LXrt,LYrt] = liuqe(shot,t, 'LX', LX, 'itert',1); % not 100% correct
-    % Lrt = liuqe(shot, [], 'itert', 1); LYrt = liut(Lrt, LX, 'itert', 1); % better version
 
-    % MATLAB emulation of RT-LIUQE using the parameters deployed for this shot.
+    % MATLAB emulation of RT-LIUQE using the parameters deployed for this shot -> CORRECT LIUQE-RT
     [Lrt,LXrt] = liuqe(shot,t, 'psrc','RTLIUQE', 'slx',1, 'bslvdprec',true);
     assert(Lrt.P.itert > 0, 'RT-LIUQE parameters did not enable itert');
     assert(Lrt.P.ivesm && startsWith(Lrt.P.selu, 's'), 'Expected RT-LIUQE to use measured segment currents');
