@@ -8,7 +8,7 @@ The data collector is `/home/mg/repos/hybrid/fmag_liuqenn_comparison.m`, the fig
 
 FGE is the simulated plant. At each time step it evolves the plasma and coil state, then produces simulated magnetic measurements $M$. FMag does not receive the FGE equilibrium geometry directly. Its observer maps $M$ to estimated controlled quantities $U_C$, FMag compares $U_C$ with its references, and the resulting control law produces coil-voltage commands. FGE then applies those commands and produces the next plant state and measurements. The FGE equilibrium quantities $Y_C$, including the actual X-point coordinates, are saved only as external truth for evaluating the closed loop.
 
-The LiuqeNN measurement input is ordered as magnetic probes, flux loops, active-coil currents, flux-loop voltages, and toroidal-field signal: `Bm,Ff,Ia(E,F,G,OH),Uf,rBt`. FMag stores its active-coil currents in `E-F-OH-G` order, whereas LiuqeNN was trained with `E-F-G-OH`. The neural path must therefore apply the permutation `[FP.iE; FP.iF; FP.iG; FP.iOH]` before inference. Feeding the unpermuted FMag current vector to LiuqeNN assigns the OH currents to the G input and the G current to an OH input, invalidating every neural flux derivative and the resulting control comparison. The collector records both the permutation and reordered coil names, and the plotting script refuses data that do not contain the corrected ordering.
+The LiuqeNN measurement input is ordered as magnetic probes, flux loops, active-coil currents, flux-loop voltages, and toroidal-field signal: `Bm,Ff,Ia(E,F,G,OH),Uf,rBt`. FMag stores its active-coil currents in `E-F-OH-G` order, whereas LiuqeNN was trained with `E-F-G-OH`. The neural path must therefore apply the permutation `[FP.iE; FP.iF; FP.iG; FP.iOH]` before inference.
 
 The LIH and LiuqeNN simulations begin from the same plant initialization, controller matrices, references, feedforwards, and timing. Once their observer estimates cause different voltage commands, their FGE trajectories and later measurement vectors are no longer identical; this is the intended closed-loop consequence of changing the observer. Within each trajectory, both observer outputs are recorded from the same measurements while only the selected observer enters feedback, allowing the other observer to act as a passive same-$M$ shadow.
 
@@ -50,11 +50,7 @@ The central and bottom-left panels answer the separate question of where the sys
 
 The bottom-left panel reduces the FGE radial and vertical offsets to the physical distance from the target. It is the direct closed-loop capability metric: it confirms that the absence of drift seen in the central panels corresponds to convergence, and that the LiuqeNN-controlled plant settles closer to the intended X-point than the LIH-controlled plant. The bottom-right panel is different in purpose: it compares the coil-voltage vector norms and therefore shows the actuator consequence of substituting the observer rather than the achieved X-point position.
 
-The color meaning is invariant across the six panels: C1 denotes LIH, C2 denotes LiuqeNN, and C3 denotes the FGE physical reference. FGE appears explicitly only where plant truth and observer estimates are shown on the same trajectory; in the physical-error panel, each curve is already calculated from the FGE X-point of its corresponding closed-loop run.
-
-## Scope
-
-This is a deterministic single-shot, single-X-point test with fixed target geometry. It tests the causal effect of replacing the X-point displacement observer in the controller while retaining the existing plant and other observer paths. It does not test boundary-flux feedback, multiple X-points, different plasma topologies, measurement noise, reference changes, profile perturbations, or broad operating-domain robustness.
+FGE appears explicitly only where plant truth and observer estimates are shown on the same trajectory; in the physical-error panel, each curve is already calculated from the FGE X-point of its corresponding closed-loop run.
 
 ## Sources
 

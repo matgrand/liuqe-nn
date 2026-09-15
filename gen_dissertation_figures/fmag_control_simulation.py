@@ -36,7 +36,7 @@ def _validate(data, name):
 
 
 def generate():
-    """Compare perceived control error, observer estimates, physical X-point regulation, and actuator demand."""
+    '''Compare perceived control error, observer estimates, physical X-point regulation, and actuator demand.'''
     net = loadmat('data/fmag_net.mat'); std = loadmat('data/fmag_std.mat')
     keys = ('schema_version','t','ip_scaling_reference','xpt_err_delta_r','xpt_err_delta_z','xpt_delta_r','xpt_delta_z','xpt_delta_r_lih','xpt_delta_z_lih','xpt_delta_r_nn','xpt_delta_z_nn','design_xpoint_r','design_xpoint_z','fge_active_xpoint_r','fge_active_xpoint_z','coil_voltages','nn_coil_permutation','is_boundary_flux_observer','nonlin_obs_type','Tpre','controller_error_code','fmag_checks_error_code','fge_isconverged')
     _required(net,*keys); _required(std,*keys); _validate(net,'fmag_net.mat'); _validate(std,'fmag_std.mat')
@@ -72,21 +72,22 @@ def generate():
     plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'Perceived error $\|\bm e_X\|_2$ [mm]'); plt.legend(title='Control RMS')
 
     plt.subplot(3,2,3)
-    plt.plot(t[::dec],lih_net_r[::dec],color=C1,label=r'LIH, $\delta R_X$'); plt.plot(t[::dec],lih_net_z[::dec],'--',color=C1,label=r'LIH, $\delta Z_X$')
-    plt.plot(t[::dec],nn_r[::dec],color=C2,label=r'NN, $\delta R_X$'); plt.plot(t[::dec],nn_z[::dec],'--',color=C2,label=r'NN, $\delta Z_X$')
-    plt.plot(t[::dec],fge_r_net[::dec],color=C3,label=r'FGE, $\delta R_X$'); plt.plot(t[::dec],fge_z_net[::dec],'--',color=C3,label=r'FGE, $\delta Z_X$')
+    ALPHA_SHADOW, ALPHA_FGE = 0.6, 0.9
+    plt.plot(t[::dec],nn_r[::dec],color=C1,label=r'NN, $\delta R_X$'); plt.plot(t[::dec],nn_z[::dec],color=C2,label=r'NN, $\delta Z_X$')
+    plt.plot(t[::dec],fge_r_net[::dec],'--',color=C1,label=r'FGE, $\delta R_X$',alpha=ALPHA_FGE); plt.plot(t[::dec],fge_z_net[::dec],'--',color=C2,label=r'FGE, $\delta Z_X$',alpha=ALPHA_FGE)
+    plt.plot(t[::dec],lih_net_r[::dec],':',color=C1,label=r'LIH, $\delta R_X$',alpha=ALPHA_SHADOW); plt.plot(t[::dec],lih_net_z[::dec],':',color=C2,label=r'LIH, $\delta Z_X$',alpha=ALPHA_SHADOW)
     plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'X-point displacement [mm]'); plt.ylim(central_ylim); plt.legend(ncol=2,title='NN control')
 
     plt.subplot(3,2,4)
-    plt.plot(t[::dec],lih_r[::dec],color=C1,label=r'LIH, $\delta R_X$'); plt.plot(t[::dec],lih_z[::dec],'--',color=C1,label=r'LIH, $\delta Z_X$')
-    plt.plot(t[::dec],nn_std_r[::dec],color=C2,label=r'NN, $\delta R_X$'); plt.plot(t[::dec],nn_std_z[::dec],'--',color=C2,label=r'NN, $\delta Z_X$')
-    plt.plot(t[::dec],fge_r_std[::dec],color=C3,label=r'FGE, $\delta R_X$'); plt.plot(t[::dec],fge_z_std[::dec],'--',color=C3,label=r'FGE, $\delta Z_X$')
+    plt.plot(t[::dec],lih_r[::dec],color=C1,label=r'LIH, $\delta R_X$'); plt.plot(t[::dec],lih_z[::dec],color=C2,label=r'LIH, $\delta Z_X$')
+    plt.plot(t[::dec],fge_r_std[::dec],'--',color=C1,label=r'FGE, $\delta R_X$', alpha=ALPHA_FGE); plt.plot(t[::dec],fge_z_std[::dec],'--',color=C2,label=r'FGE, $\delta Z_X$', alpha=ALPHA_FGE)
+    plt.plot(t[::dec],nn_std_r[::dec],':',color=C1,label=r'NN, $\delta R_X$', alpha=ALPHA_SHADOW); plt.plot(t[::dec],nn_std_z[::dec],':',color=C2,label=r'NN, $\delta Z_X$',alpha=ALPHA_SHADOW)
     plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'X-point displacement [mm]'); plt.ylim(central_ylim); plt.legend(ncol=2,title='LIH control')
 
     plt.subplot(3,2,5)
     plt.plot(t[::dec],physical_std[::dec],color=C1,label=rf'LIH control ({np.sqrt(np.mean(physical_std**2)):.2f} mm)')
     plt.plot(t[::dec],physical_net[::dec],color=C2,label=rf'NN control ({np.sqrt(np.mean(physical_net**2)):.2f} mm)')
-    plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'Physical error $\|\bm x_X-\bm x_X^{\mathrm{ref}}\|_2$ [mm]'); plt.legend(title='Physical RMS')
+    plt.xlabel(r'Time $t$ [s]'); plt.ylabel(r'Physical error $\|\bm x_X-\bm x_X^{\mathrm{fge}}\|_2$ [mm]'); plt.legend(title='Physical RMS')
 
     plt.subplot(3,2,6)
     plt.plot(t[::dec],va_std[::dec],color=C1,label='LIH'); plt.plot(t[::dec],va_net[::dec],color=C2,label='NN')
@@ -96,7 +97,7 @@ def generate():
     condition_nn = _hessian_condition(net); condition_lih = _hessian_condition(std)
     print(f'FMag active-observer error RMS: NN={np.sqrt(np.mean(observer_error_nn**2)):.2f} mm, LIH={np.sqrt(np.mean(observer_error_lih**2)):.2f} mm')
     print(f'FMag Hessian condition range: NN={np.min(condition_nn):.3f}-{np.max(condition_nn):.3f}, LIH={np.min(condition_lih):.3f}-{np.max(condition_lih):.3f}')
-    print(f'FMag voltage-limit samples: NN={np.count_nonzero(net.get("voltage_at_limit",0))}, LIH={np.count_nonzero(std.get("voltage_at_limit",0))}')
+    print(f'FMag voltage-limit samples: NN={np.count_nonzero(net.get('voltage_at_limit',0))}, LIH={np.count_nonzero(std.get('voltage_at_limit',0))}')
 
 
 if __name__ == '__main__': generate(); compile_inspection_pdf()

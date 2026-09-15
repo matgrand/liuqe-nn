@@ -6,20 +6,18 @@ import gen_dissertation_figures as figures
 
 # Comment out completed figures while working on the remaining ones.
 
-
-# figures.color_palette.generate()
-figures.tcv_geometry.generate()
-figures.swish_act.generate()
-figures.sched_losses.generate()
-
 # figures.error_heatmaps.generate()
-figures.mag_meas.generate()
-figures.raw_ds_example.generate()
-figures.final_ds_example.generate()
-figures.importance_sampling.generate()
-figures.net_example.generate()
+# figures.color_palette.generate()
 
-figures.comparison.generate()
+# figures.tcv_geometry.generate()
+# figures.swish_act.generate()
+# figures.sched_losses.generate()
+# figures.mag_meas.generate()
+# figures.raw_ds_example.generate()
+# figures.final_ds_example.generate()
+# figures.importance_sampling.generate()
+# figures.net_example.generate()
+# figures.comparison.generate()
 
 figures.pid_shape_control_simulation.generate()
 figures.mpc_shape_control_simulation.generate()
