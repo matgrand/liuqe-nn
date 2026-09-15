@@ -1,18 +1,50 @@
 # MPC shape control
 
+## Background and control objective
+
+In an axisymmetric tokamak, the plasma boundary is the last closed magnetic-flux surface (LCFS). Its position and shape affect plasma-wall clearance, divertor strike-point placement, vertical stability, and confinement, so discrepancies between a nominal equilibrium design and the realized discharge must be corrected in feedback. Shape feedback has two coupled tasks: an equilibrium observer must infer the poloidal flux $\psi$ and field $(B_R,B_Z)$ from magnetic diagnostics, and a controller must alter the coil actuation so that the reconstructed boundary approaches the requested one. The simulation studied here isolates the effect of replacing direct interpolation of the simulated flux map with a neural magnetic observer while holding the plant, target, and MPC design fixed.
+
+The target is formulated through isoflux constraints. Control points are placed on the desired boundary; for a diverted configuration, the controller drives the flux differences $\psi_i-\psi_X$ between those points and the primary X-point toward zero, while $B_R$ and $B_Z$ at the requested X-point are driven toward zero. Satisfying these local flux and field conditions makes a common flux contour pass through the requested locations and places the magnetic null, thereby controlling the LCFS without explicitly tracking a sampled boundary curve. In the implementation, `STP.SC2FB` converts the observer queries into a shape-feedback vector $y_{\mathrm{sh}}$, and the regulated error is
+
+$$e_{\mathrm{sh}}=r_{\mathrm{sh}}-y_{\mathrm{sh}}.$$
+
+This makes the equilibrium observer part of the closed loop rather than a passive diagnostic: an observer error changes the control move and can therefore change the subsequent plasma trajectory.
+
+## Model-predictive control formulation
+
+Model-predictive control (MPC) is a receding-horizon feedback method. Instead of applying a fixed gain to the present error, it uses a dynamic model to predict how candidate control moves will affect future outputs, chooses the sequence that best balances tracking and actuation objectives while satisfying explicit constraints, applies only the first move, and repeats the optimization at the next sample using new measurements. Re-optimizing makes the strategy feedback rather than open-loop trajectory planning; predicting over several samples lets it coordinate strongly coupled actuators and anticipate limits before they are reached.
+
+The TCV MPC is an outer shape loop around the faster inner `hybrid` magnetic controller. Its prediction plant is not merely the open-loop plasma response: a linearized FGE plasma-and-circuit model is interconnected with a state-space model of `hybrid`, so the MPC predicts the response from modifications of the hybrid references to both shape quantities and E/F-coil currents. This preserves the established inner loop for fast vertical stabilization, current and position control, and voltage generation, while the MPC coordinates the slower shape task. The continuous combined model is discretized at the shape-controller period and reduced by Hankel balanced truncation to 30 states to make estimation and optimization tractable in real time.
+
+Because the reduced dynamic state is not directly measured, a Kalman filter combines the model, the applied hybrid-reference correction, and the available shape, current, and magnetic measurements to estimate it. The filter is initialized from outputs sampled when shape control activates and is allowed to run for several samples before optimization begins. The controller uses a velocity-form model in the increments $\Delta x_k=x_k-x_{k-1}$ and $\Delta u_k=u_k-u_{k-1}$. Stacking predictions over a horizon gives the affine relation
+
+$$Y_k=\Psi\Delta\hat x_k+\Phi\Delta U_k+\Omega y_{k-1}=\widehat Y_k+\Phi\Delta U_k,$$
+
+where $Y_k$ contains the predicted outputs, $\Delta U_k$ contains the planned hybrid-reference increments over the control horizon, and $\widehat Y_k$ is the no-new-move prediction. The incremental formulation embeds the previous measured output in the prediction and provides integral-like, offset-free tracking for constant references and disturbances under the usual steady-state assumptions.
+
+At each update the controller solves a quadratic program of the form
+
+$$\min_{\Delta U_k}\;(R_k-Y_k)^{\mathsf T}W_y(R_k-Y_k)+\Delta U_k^{\mathsf T}W_{\Delta u}\Delta U_k \quad \text{subject to}\quad \underline I_{EF}\leq I_{EF,j}\leq\overline I_{EF},$$
+
+for every predicted sample $j$ in the horizon. The first term penalizes predicted shape-tracking error and the second discourages abrupt or excessive changes to the hybrid references; optional weights can also trade shape accuracy against coil-current magnitude. Substituting the prediction equation produces the standard convex QP stored through the Hessian and linear term in the MAT files. The E/F-coil-current limits are represented directly as constraints on the predicted outputs rather than by clipping a command after it has been computed.
+
+Only the first optimized increment is used,
+
+$$u_k=u_{k-1}+\Delta u_{k|k},$$
+
+and all later planned increments are discarded when the next measurement arrives. For the present controller, the prediction horizon is 15 samples and the control horizon is three samples. At a 2 ms update period these correspond to 30 ms of prediction and 6 ms of independently optimized moves; inputs are held constant after the third planned move. With 16 control coordinates, the QP therefore has 48 decision variables. The paper reports that this horizon was chosen as a practical compromise between anticipation and real-time computational cost.
+
+Unlike the generalized PID design, this simulation sets `svdtol = 0`: `build_mpc_tunable_params.m` uses identity pre/post maps instead of truncating the control space to dominant singular modes. Consequently, the 16 entries in the applied first move are controller coordinates passed to hybrid, and `duopt` has 48 rows arranged as three consecutive 16-component increments. The optimization supports a hard iteration budget and current constraints, but the local simulation uses MATLAB's interior-point `quadprog`, not the fixed-budget primal-dual solver used in the experimental demonstration; its iteration count is therefore only a diagnostic of this offline solve.
+
 ## Purpose and outputs
 
 The data collector is `/home/mg/repos/hybrid/mpc_shape_liuqenn_comparison.m`, the figure script is `mpc_shape_control_simulation.py`, and the generated figure is `dissertation_figures/mpc_shape_control_simulation.pdf`. The collector performs matched closed-loop simulations using a neural magnetic observer and direct interpolation of the FGE flux map. It records the controller and estimator models, shape errors, complete QP decision vector, applied first move, optimizer timing, realized current margins, actuator signals, and final FGE geometry.
 
 The six-panel figure shows all active shape errors, the six largest components of the applied first QP move, the first-ten-channel RMS, QP iteration counts at controller updates, the minimum realized E/F-coil-current margin, and the final LCFS with the limiter and control points. Solid curves denote the neural observer and dashed curves denote direct FGE interpolation with `qintmex`.
 
-## Controller architecture
+## Controller dimensions in this simulation
 
-The MPC is an outer shape-control loop around TCV's inner hybrid magnetic controller. Its prediction model couples a linearized FGE plasma-and-circuit model to a state-space representation of hybrid and reduces the combined state to 30 variables. A Kalman filter estimates that state from the available magnetic and actuator signals.
-
-The controller uses a velocity-form quadratic program. At each shape-control update it chooses increments to the outer-loop control vector over a prediction horizon of 15 samples and a control horizon of three samples. With a 2 ms shape period, these horizons correspond to 30 ms and 6 ms. The objective penalizes predicted shape error and control increments and supports E/F-coil-current constraints. Only the first move $\Delta u_{k|k}$ is applied to the hybrid references; the complete horizon is recomputed at the next update.
-
-This configuration sets `svdtol = 0`, so `build_mpc_tunable_params.m` uses identity pre/post mappings rather than an SVD-truncated input basis. The controller has 16 input coordinates, and `duopt` contains 48 rows because it stores 16 increments for each of the three control-horizon moves. Rows 1--16 form the applied first move, while rows 17--48 are planned future moves.
+The controller has 16 input coordinates, and `duopt` contains 48 rows because it stores 16 increments for each of the three control-horizon moves. Rows 1--16 form the applied first move, while rows 17--48 are planned future moves.
 
 ## Simulation configuration
 

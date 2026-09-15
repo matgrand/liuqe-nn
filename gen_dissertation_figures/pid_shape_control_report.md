@@ -1,16 +1,46 @@
 # PID shape control
 
+## Background and control objective
+
+In an axisymmetric tokamak, the plasma boundary is the last closed magnetic-flux surface (LCFS). Its position and shape affect plasma-wall clearance, divertor strike-point placement, vertical stability, and confinement, so errors in the programmed poloidal-field-coil currents cannot in general be left to feedforward control alone. Shape feedback has two coupled tasks: an equilibrium observer must infer the poloidal flux $\psi$ and field $(B_R,B_Z)$ from magnetic diagnostics, and a controller must alter the coil actuation so that the reconstructed boundary approaches the requested one. The simulation studied here isolates the effect of replacing the direct FGE flux-map interpolation used as its baseline observer with a neural magnetic observer while leaving the plant, target, and controller design unchanged.
+
+The target is expressed through the isoflux principle rather than through a direct parametrization of the LCFS. A set of control points is placed on the desired boundary. For a diverted plasma, the primary X-point supplies the reference flux $\psi_X$, and boundary or divertor-leg points are controlled by driving $\psi_i-\psi_X$ to zero; the X-point itself is positioned by driving $B_R$ and $B_Z$ to zero at its requested location. For a limited plasma, flux differences between boundary points play the corresponding role. If all these conditions are satisfied locally, the same flux contour passes through the requested points and therefore approximates the desired boundary. The controller feedback vector $y_{\mathrm{sh}}$ is assembled from the observer queries as
+
+$$y_{\mathrm{sh}} = T_{\mathrm{SC}\rightarrow\mathrm{FB}}\begin{bmatrix}\psi & B_R & B_Z\end{bmatrix}^{\mathsf T}, \qquad e_{\mathrm{sh}} = r_{\mathrm{sh}}-y_{\mathrm{sh}},$$
+
+where $T_{\mathrm{SC}\rightarrow\mathrm{FB}}$ is stored as `STP.SC2FB`. This construction turns flux and field values with different geometrical roles into a single vector of shape errors. It also makes the observer an integral part of the feedback loop: an observer error changes the error seen by the controller and can consequently change the entire closed-loop plasma trajectory.
+
+## Generalized multivariable PID formulation
+
+A tokamak shape controller is intrinsically multiple-input, multiple-output: every E/F-coil combination changes the flux at many control points, and each shape error can require several actuators. Applying an independent PID directly to every physical error would therefore ignore strong cross-coupling and would attempt to control directions to which the plant may respond only weakly. Following Anand et al., the generalized controller uses a linearized response about a reference equilibrium to identify well-conditioned joint directions in error and actuation space before applying scalar feedback laws.
+
+Let $G_0$ denote the static response from corrections to the inner hybrid-controller references to the shape-feedback vector, and let $W_y$ and $W_u$ weight the importance of shape quantities and the availability of actuation directions. The controller design forms the weighted sensitivity and takes its singular-value decomposition,
+
+$$W_yG_0W_u = U\Sigma V^{\mathsf T}.$$
+
+The left singular vectors describe orthogonal combinations of shape errors, the right singular vectors give the corresponding combinations of hybrid-reference corrections, and each singular value measures how effectively that input direction changes its paired output direction. Retaining the $n_r$ largest singular directions rejects weakly controllable combinations that would demand disproportionate actuator effort or amplify reconstruction and modelling errors. In the present implementation the transformations are, schematically,
+
+$$e_m = T_{\mathrm{pre}}e_{\mathrm{sh}}, \qquad T_{\mathrm{pre}}=U_r^{\mathsf T}W_y, \qquad \Delta r_h=T_{\mathrm{post}}c, \qquad T_{\mathrm{post}}=W_uV_r,$$
+
+with zero padding for discarded directions. Unlike a literal static pseudoinverse, the current implementation deliberately does not include $\Sigma_r^{-1}$ in these transformations; the modal loop gains are tuned from the dynamics of each transformed channel instead. For this simulation `svdtol = 4` means that four dominant singular directions are retained. The resulting projected errors are not individual geometrical displacements: each is a weighted linear combination of the physical isoflux and field errors.
+
+Each retained modal error is first low-pass filtered and then acted on by a diagonal discrete-time PID law. For mode $j$ the implemented update can be written as
+
+$$I_{j,k}=I_{j,k-1}+K_{i,j}\bar e_{j,k}, \qquad c_{j,k}=K_{p,j}\bar e_{j,k}+I_{j,k}+K_{d,j}(\bar e_{j,k}-\bar e_{j,k-1}),$$
+
+where $\bar e_{j,k}$ is the filtered projected error; the stored discrete gains already contain the appropriate sampling-period factors. The proportional term reacts to the current error, the integral state accumulates persistent error and removes steady offsets, and the derivative term reacts to changes in the error and can add damping. The gains are obtained by tuning the diagonalized loop to the requested crossover frequency and phase margin. Although the Anand et al. paper presents a PI realization of the same generalized architecture, the repository implementation calls MATLAB's PID tuner and supports nonzero derivative gains, so “PID” is the accurate name for the controller simulated here.
+
+The mapped correction $\Delta r_h=T_{\mathrm{post}}c$ is applied to the references of TCV's faster inner `hybrid` magnetic controller. The outer loop therefore does not directly command arbitrary coil voltages: `hybrid` continues to regulate plasma current and position and to generate actuator requests, while the shape controller biases its reference channels. This nesting preserves the established fast magnetic-control layer and separates it from the slower equilibrium-based shape loop. Low-pass filtering suppresses poorly modelled high-frequency dynamics, while reference blending and integral-state initialization provide bumpless activation. The controller code also supports saturation-aware anti-windup, although this particular call does not pass component-wise saturation bounds to `PID_step`; the allocator is disabled as well, so the present simulation should not be interpreted as a test of current-limit handling.
+
 ## Purpose and outputs
 
 The data collector is `/home/mg/repos/hybrid/pid_shape_liuqenn_comparison.m`, the figure script is `pid_shape_control_simulation.py`, and the generated figure is `dissertation_figures/pid_shape_control_simulation.pdf`. The collector performs matched closed-loop simulations using a neural magnetic observer and direct interpolation of the FGE flux map. It saves controller configuration and timing, point definitions and masks, observer signals, shape errors, projected PID coordinates, actuator signals, and FGE geometry and convergence diagnostics.
 
 The figure contains six panels: all active shape-error trajectories, the active projected controller errors, the first-ten-channel RMS history, the post-activation RMS of each metric channel, the final FGE last closed flux surface (LCFS) and control points, and the norm of the coil-voltage vector. Solid curves denote the neural observer and dashed curves denote direct FGE interpolation with `qintmex`.
 
-## Controller architecture
+## Controller dimensions in this simulation
 
-The generalized TCV shape controller is an outer loop around the fast hybrid magnetic controller. The plasma boundary target is represented by control points. Flux and poloidal-field values at those points are transformed by `STP.SC2FB` into the shape-feedback vector, and subtracting this feedback from `SC.ref` gives `shapeErrs`. `STP.Tpre` projects the physical errors into controllable directions, diagonal PID laws act on the filtered projected errors, and `STP.Tpost` maps the controller outputs into corrections to the hybrid references. The inner hybrid controller converts those corrected references into coil actuation.
-
-The pre/post transformation is constructed from the controlled plant response and retains four active PID directions in this configuration. Eleven of the 25 allocated shape-error rows are active. The metric uses the first ten saved rows, matching the declared dissertation statistic, while the trajectory panel shows every active row identified by `active_shape_mask`.
+Eleven of the 25 allocated shape-error rows are active and the SVD retains four PID directions. The reported metric uses the first ten saved rows, matching the declared dissertation statistic, while the trajectory panel shows every active row identified by `active_shape_mask`.
 
 ## Simulation configuration
 
