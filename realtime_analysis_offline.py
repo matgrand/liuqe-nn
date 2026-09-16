@@ -31,8 +31,8 @@ PAPER_COLORS = PAPER_CMAP(np.array([32, 140, 200, 254]) / 255)
 DATA_DIR = Path(__file__).parent / "realtime_analysis"
 FILE_PATTERN = "rt_shot*.mat"
 SHOW_PLOTS = True
-FLAT_TOP_FRACTION = 0.85 #0.95
-IP_CHANGE_THRESHOLD = 1e3 # [A], minimum absolute change between consecutive Ip_map samples
+FLAT_TOP_FRACTION = 0.5 #0.85
+IP_CHANGE_THRESHOLD = 2e3 # [A], minimum absolute change between consecutive Ip_map samples
 MIN_ERROR = 1e-4 #5e-4
 MAX_FX, MAX_BR, MAX_BZ = 1e-1, 1e-1, 1e-1
 # MAX_FX, MAX_BR, MAX_BZ = 1e2, 1e2, 1e2
@@ -166,6 +166,7 @@ def main():
             print(f"{path}: {np.sum(after_high_ip_variation_mask)} samples after Ip changes above threshold {IP_CHANGE_THRESHOLD}")
             time_mask &= after_high_ip_variation_mask; print(f'HIGH VARIATION MASK: {np.sum(after_high_ip_variation_mask)} samples, {np.sum(time_mask)} comparison samples after filtering')
             # time_mask &= ~after_high_ip_variation_mask; print(f'LOW VARIATION MASK: {np.sum(after_high_ip_variation_mask)} samples, {np.sum(time_mask)} comparison samples after filtering')
+            # time_mask &= np.ones_like(time_mask); print(f'NO PLASMA CURR VARIATION FILTER: {np.sum(time_mask)} comparison samples after filtering')
 
             if not np.any(time_mask): raise ValueError(f"{path}: no flat-top samples after a large Ip change")
 
