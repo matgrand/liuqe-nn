@@ -32,6 +32,7 @@ DATA_DIR = Path(__file__).parent / "realtime_analysis"
 FILE_PATTERN = "rt_shot*.mat"
 SHOW_PLOTS = True
 FLAT_TOP_FRACTION = 0.85 #0.95
+IP_CHANGE_THRESHOLD = 1e3 # [A], minimum absolute change between consecutive Ip_map samples
 MIN_ERROR = 1e-4 #5e-4
 MAX_FX, MAX_BR, MAX_BZ = 1e-1, 1e-1, 1e-1
 # MAX_FX, MAX_BR, MAX_BZ = 1e2, 1e2, 1e2
@@ -148,23 +149,37 @@ def main():
     cumulative = {label: {field: [] for field in FIELDS} for label, _ in COMPARISONS}
     shots, stats, flux_maps = [], [], []
     for path in paths:
-        print(f"Running analysis for file {path.name}...")
-        data = loadmat(path, variable_names=(*VARIABLES, *MAP_VARIABLES))
-        missing = sorted(set((*VARIABLES, *MAP_VARIABLES)) - data.keys())
-        if missing: raise KeyError(f"{path}: missing variables: {', '.join(missing)}")
-        flat_top = flat_top_interval(data["t_map"], data["Ip_map"])
-        t = np.ravel(data["t"]); time_mask = (t >= flat_top[0]) & (t <= flat_top[1])
-        if not np.any(time_mask): raise ValueError(f"{path}: no comparison samples in flat-top interval {flat_top}")
-        errors = error_arrays(data, time_mask)
-        map_times = np.ravel(data["t_map"]); map_i = np.argmin(np.abs(map_times - np.mean(flat_top)))
-        flux_maps.append((data["Fx_map"][:, :, map_i].copy(), np.ravel(data["r_map"]), np.ravel(data["z_map"]), map_times[map_i], map_times, np.ravel(data["Ip_map"]), flat_top))
-        print(f"Flat top: {flat_top[0]:.5f}--{flat_top[1]:.5f} s ({np.sum(time_mask)} comparison samples)")
-        print_errors(errors)
-        shots.append(path.stem.rsplit("shot", 1)[-1]); stats.append(error_stats(errors))
-        for label, _ in COMPARISONS:
-            for field in FIELDS: cumulative[label][field].append(errors[label][field])
-        print()
+        try:
+            print(f"Running analysis for file {path.name}...")
+            data = loadmat(path, variable_names=(*VARIABLES, *MAP_VARIABLES))
+            missing = sorted(set((*VARIABLES, *MAP_VARIABLES)) - data.keys())
+            if missing: raise KeyError(f"{path}: missing variables: {', '.join(missing)}")
+            flat_top = flat_top_interval(data["t_map"], data["Ip_map"])
+            t = np.ravel(data["t"]); time_mask = (t >= flat_top[0]) & (t <= flat_top[1])
+            if not np.any(time_mask): raise ValueError(f"{path}: no comparison samples in flat-top interval {flat_top}")
 
+            ip_t, ip = np.ravel(data["t_map"]), np.ravel(data["Ip_map"])
+            change_i = np.searchsorted(t, ip_t[1:][np.abs(np.diff(ip)) >= IP_CHANGE_THRESHOLD])
+            after_high_ip_variation_mask = np.zeros(t.size, dtype=bool)
+            after_high_ip_variation_mask[change_i[change_i < t.size]] = True
+            assert np.any(after_high_ip_variation_mask), f"{path}: no Ip changes above threshold {IP_CHANGE_THRESHOLD}"
+            print(f"{path}: {np.sum(after_high_ip_variation_mask)} samples after Ip changes above threshold {IP_CHANGE_THRESHOLD}")
+            time_mask &= after_high_ip_variation_mask; print(f'HIGH VARIATION MASK: {np.sum(after_high_ip_variation_mask)} samples, {np.sum(time_mask)} comparison samples after filtering')
+            # time_mask &= ~after_high_ip_variation_mask; print(f'LOW VARIATION MASK: {np.sum(after_high_ip_variation_mask)} samples, {np.sum(time_mask)} comparison samples after filtering')
+
+            if not np.any(time_mask): raise ValueError(f"{path}: no flat-top samples after a large Ip change")
+
+            errors = error_arrays(data, time_mask)
+            map_times = np.ravel(data["t_map"]); map_i = np.argmin(np.abs(map_times - np.mean(flat_top)))
+            flux_maps.append((data["Fx_map"][:, :, map_i].copy(), np.ravel(data["r_map"]), np.ravel(data["z_map"]), map_times[map_i], map_times, np.ravel(data["Ip_map"]), flat_top))
+            print(f"Flat top: {flat_top[0]:.5f}--{flat_top[1]:.5f} s ({np.sum(time_mask)} comparison samples)")
+            print_errors(errors)
+            shots.append(path.stem.rsplit("shot", 1)[-1]); stats.append(error_stats(errors))
+            for label, _ in COMPARISONS:
+                for field in FIELDS: cumulative[label][field].append(errors[label][field])
+            print()
+        except Exception as e:
+            print(f"Error processing {path}: {e}\n")
     print(f"CUMULATIVE ACROSS ALL FILES ({len(paths)} files):")
     print_errors({label: {field: np.concatenate(values) for field, values in fields.items()} for label, fields in cumulative.items()})
     if SHOW_PLOTS: plot_errors(shots, stats, flux_maps)

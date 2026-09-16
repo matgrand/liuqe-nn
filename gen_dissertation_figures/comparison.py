@@ -45,7 +45,7 @@ def generate(moving_average_window=MOVING_AVERAGE_WINDOW):
             mean_error = moving_average(mean_error, moving_average_window); max_error = moving_average(max_error, moving_average_window)
             plt.plot(time, mean_error, color=color)
             plt.fill_between(time, mean_error, max_error, color=color, alpha=0.3)
-        plt.xlim(*TIME_LIMITS); plt.ylim(2e-4, 1e-1); plt.yscale('log'); plt.ylabel(ylabel)
+        plt.xlim(*TIME_LIMITS); plt.ylim(8e-5, 1e-1); plt.yscale('log'); plt.ylabel(ylabel)
         if panel == len(FIELDS): plt.xlabel(r'Time $t$ [s]')
         else: plt.tick_params(labelbottom=False)
     handles = [Line2D([], [], color=color, label=name) for _, name, color in OBSERVERS]
