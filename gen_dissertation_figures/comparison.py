@@ -1,6 +1,6 @@
-r"""Compare observer errors against offline LIUQE during TCV discharge 88564.
+r"""Compare surrogate, warm- and cold-start LIUQE-RT, and LIH errors against offline LIUQE during TCV discharge 88564.
 
-The three vertically stacked panels show the absolute poloidal-flux, radial-field, and vertical-field errors at 25 reference control points from $0.2$ to $1.6\,\mathrm{s}$. The LiuqeNN surrogate trace was evaluated in real time during the discharge, whereas LIUQE-RT and LIH were evaluated in post-processing; offline LIUQE supplies the common reference. Color identifies the observer, each solid line shows the moving-averaged spatial mean error, and its translucent band extends to the equivalently filtered maximum error across the 25 points. Logarithmic axes expose both the low surrogate and LIUQE-RT errors and the larger, comparatively steady LIH errors without merging the magnetic-field components.
+The three vertically stacked panels show the absolute poloidal-flux, radial-field, and vertical-field errors at 25 reference control points from $0.2$ to $1.6\,\mathrm{s}$. The LiuqeNN surrogate trace was evaluated in real time during the discharge, whereas warm-start LIUQE-RT, cold-start LIUQE-RT, and LIH were evaluated in post-processing; offline LIUQE supplies the common reference. Warm-start LIUQE-RT emulates the deployed observer parameters and advances from preceding equilibria, while cold-start LIUQE-RT independently initializes each reconstruction from offline-LIUQE inputs with one real-time iteration. Color identifies the observer, each solid line shows the moving-averaged spatial mean error, and its translucent band extends to the equivalently filtered maximum error across the 25 points. Logarithmic axes expose differences among the low-error surrogate and LIUQE-RT variants alongside the larger, comparatively steady LIH errors without merging the magnetic-field components.
 """
 from matplotlib.lines import Line2D
 
@@ -12,7 +12,7 @@ TIME_LIMITS = (0.2, 1.6)  # [s]
 MOVING_AVERAGE_WINDOW = 11  # [samples], with 1 ms between samples in this trace.
 FIELDS = ('Fx', 'Br', 'Bz')
 YLABELS = (r'$\lvert\Delta\psi\rvert$ [Wb]', r'$\lvert\Delta B_r\rvert$ [T]', r'$\lvert\Delta B_z\rvert$ [T]')
-OBSERVERS = (('online', 'Surrogate', C2), ('lrt', 'LIUQE-RT', C1), ('lih', 'LIH', C3))
+OBSERVERS = (('online', 'Surrogate', C2), ('lrtW', 'LIUQE-RT warm', C1), ('lrtC', 'LIUQE-RT cold', C4), ('lih', 'LIH', C3))
 
 
 def moving_average(values, window):
@@ -25,16 +25,16 @@ def moving_average(values, window):
 
 def generate(moving_average_window=MOVING_AVERAGE_WINDOW):
     """Generate the three-panel comparison against offline LIUQE."""
-    # %% ## Comparison with LIUQE LIUQE-RT and LIH
-    ## Comparison with LIUQE LIUQE-RT and LIH
+    # %% ## Comparison with LIUQE, warm- and cold-start LIUQE-RT, and LIH
+    ## Comparison with LIUQE, warm- and cold-start LIUQE-RT, and LIH
     # realtime_file_path = 'data/realtime_analysis_shot88903.mat'
     # realtime_file_path = 'data/realtime_analysis_shot88566.mat'
-    # 't_or', 'phys_or', 'Fx_or', 'Br_or', 'Bz_or', 'Fx_online', 'Br_online', 'Bz_online', 'Fx_lrt', 'Br_lrt', 'Bz_lrt', 'Fx_lih', 'Br_lih', 'Bz_lih', 'Fx_liu', 'Br_liu', 'Bz_liu', 'Fx_small', 'Br_small', 'Bz_small', 'Fx_small2', 'Br_small2', 'Bz_small2', 'Fx_turbo', 'Br_turbo', 'Bz_turbo', 'Fx_turbo2', 'Br_turbo2', 'Bz_turbo2', 't', 'phys', 'Fx_map', 'Iy_map', 't_map', 'Ip_map', 'r_map', 'z_map');
+    # 't_or', 'phys_or', 'Fx_or', 'Br_or', 'Bz_or', 'Fx_online', 'Br_online', 'Bz_online', 'Fx_lrtW', 'Br_lrtW', 'Bz_lrtW', 'Fx_lrtC', 'Br_lrtC', 'Bz_lrtC', 'Fx_lih', 'Br_lih', 'Bz_lih', 'Fx_liu', 'Br_liu', 'Bz_liu', 'Fx_small', 'Br_small', 'Bz_small', 'Fx_small2', 'Br_small2', 'Bz_small2', 'Fx_turbo', 'Br_turbo', 'Bz_turbo', 'Fx_turbo2', 'Br_turbo2', 'Bz_turbo2', 't', 'phys', 'Fx_map', 'Iy_map', 't_map', 'Ip_map', 'r_map', 'z_map');
     data = loadmat(REALTIME_DATA_PATH); time = data['t'].reshape(-1)
     # t_or = m['t_or'].reshape(-1)
     # phys_or = m['phys_or']
     # orig = (m['Fx_or'], m['Br_or'], m['Bz_or'])
-    # print(f'online: {online[0].shape}|{online[1].shape}, lrt: {lrt[0].shape}|{lrt[1].shape}, lih: {lih[0].shape}|{lih[1].shape}, liu: {liu[0].shape}|{liu[1].shape}')
+    # print(f'online: {online[0].shape}|{online[1].shape}, lrtW: {lrtW[0].shape}|{lrtW[1].shape}, lrtC: {lrtC[0].shape}|{lrtC[1].shape}, lih: {lih[0].shape}|{lih[1].shape}, liu: {liu[0].shape}|{liu[1].shape}')
     plt.figure(figsize=(THESIS_W, 5.5))
     for panel, (field, ylabel) in enumerate(zip(FIELDS, YLABELS), start=1):
         plt.subplot(3, 1, panel)
@@ -49,7 +49,7 @@ def generate(moving_average_window=MOVING_AVERAGE_WINDOW):
         if panel == len(FIELDS): plt.xlabel(r'Time $t$ [s]')
         else: plt.tick_params(labelbottom=False)
     handles = [Line2D([], [], color=color, label=name) for _, name, color in OBSERVERS]
-    plt.figlegend(handles=handles, loc='upper center', ncol=3, bbox_to_anchor=(0.5, 0.985))
+    plt.figlegend(handles=handles, loc='upper center', ncol=4, bbox_to_anchor=(0.5, 0.985))
     # plt.suptitle('Error wrt Offline LIUQE')
     save_figure('comparison1.pdf', rect=(0, 0, 1, 0.955))
 

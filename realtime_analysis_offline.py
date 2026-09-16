@@ -32,7 +32,7 @@ DATA_DIR = Path(__file__).parent / "realtime_analysis"
 FILE_PATTERN = "rt_shot*.mat"
 SHOW_PLOTS = True
 FLAT_TOP_FRACTION = 0.85 #0.95
-MIN_ERROR = 5e-4 #5e-4
+MIN_ERROR = 1e-4 #5e-4
 MAX_FX, MAX_BR, MAX_BZ = 1e-1, 1e-1, 1e-1
 # MAX_FX, MAX_BR, MAX_BZ = 1e2, 1e2, 1e2
 FIELDS = ("Fx", "Br", "Bz")
@@ -43,7 +43,8 @@ COMPARISONS = (
     # ("SMALL on phys_RT vs LIUQE", "small2"),
     ("TURBO vs LIUQE", "turbo"),
     # ("TURBO on phys_RT vs LIUQE", "turbo2"),
-    ("LIUQERT vs LIUQE", "lrt"),
+    ("WARM-START LIUQERT vs LIUQE", "lrtW"),
+    ("COLD-START LIUQERT vs LIUQE", "lrtC"),
     ("LIH vs LIUQE", "lih"),
 )
 VARIABLES = tuple(f"{field}_{version}" for field in FIELDS for version in ("liu", *(version for _, version in COMPARISONS)))

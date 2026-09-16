@@ -124,23 +124,27 @@ for shot = shots
     LX.Bm=rt_lx.Bm; LX.Ff=rt_lx.Ff; LX.Uf=rt_lx.Uf; LX.Ia=rt_lx.Ia;% LX.rBt=rt_lx.rBt; % use phys_RT inputs
     LX_liuqe = LX; % save for later
 
-    % MATLAB emulation of RT-LIUQE using the parameters deployed for this shot -> CORRECT LIUQE-RT
-    [Lrt,LXrt] = liuqe(shot,t, 'psrc','RTLIUQE', 'slx',1, 'bslvdprec',true);
-    assert(Lrt.P.itert > 0, 'RT-LIUQE parameters did not enable itert');
-    assert(Lrt.P.ivesm && startsWith(Lrt.P.selu, 's'), 'Expected RT-LIUQE to use measured segment currents');
-    LXrt.Bm = rt_lx.Bm;
-    LXrt.Ff = rt_lx.Ff;
-    LXrt.Ia = rt_lx.Ia;
-    LXrt.Uf = rt_lx.Uf;
-    LXrt.Iu = LXrt.Uf ./ (-Lrt.G.Ru(:));
-    Is = LXrt.Uf ./ (-Lrt.G.Rs(:));
-    LXrt.Ip = Lrt.G.Ipm*LXrt.Bm + Lrt.Ipa*LXrt.Ia + Lrt.Ips*Is;
-    % Keep the measured LXrt.rBt instead of replacing it with the artificial zeros in rt_lx.rBt.
-    LXrt = liux(Lrt,LXrt);
+    %% COLD START RT-LIUQE
+    [LrtC,LXrtC,LYrtC] = liuqe(shot,t, 'LX', LX, 'itert',1);
+    [Fx_lrtC, Br_lrtC, Bz_lrtC] = interp_liuqe(r,z, LrtC, LXrtC, LYrtC, INTERP_METHOD);
 
-    Lrt.liurtemu = true;
-    LYrt = liut(Lrt,LXrt, 'rst',true, 'slx',false);
-    [Fx_lrt, Br_lrt, Bz_lrt] = interp_liuqe(r,z, Lrt, LXrt, LYrt, INTERP_METHOD);
+    %% WARM START RT-LIUQE
+    % MATLAB emulation of RT-LIUQE using the parameters deployed for this shot
+    [LrtW,LXrtW] = liuqe(shot,t, 'psrc','RTLIUQE', 'slx',1, 'bslvdprec',true);
+    assert(LrtW.P.itert > 0, 'RT-LIUQE parameters did not enable itert');
+    assert(LrtW.P.ivesm && startsWith(LrtW.P.selu, 's'), 'Expected RT-LIUQE to use measured segment currents');
+    LXrtW.Bm = rt_lx.Bm;
+    LXrtW.Ff = rt_lx.Ff;
+    LXrtW.Ia = rt_lx.Ia;
+    LXrtW.Uf = rt_lx.Uf;
+    LXrtW.Iu = LXrtW.Uf ./ (-LrtW.G.Ru(:));
+    Is = LXrtW.Uf ./ (-LrtW.G.Rs(:));
+    LXrtW.Ip = LrtW.G.Ipm*LXrtW.Bm + LrtW.Ipa*LXrtW.Ia + LrtW.Ips*Is;
+    % Keep the measured LXrtW.rBt instead of replacing it with the artificial zeros in rt_lx.rBt.
+    LXrtW = liux(LrtW,LXrtW);
+    LrtW.liurtemu = true;
+    LYrtW = liut(LrtW,LXrtW, 'rst',true, 'slx',false);
+    [Fx_lrtW, Br_lrtW, Bz_lrtW] = interp_liuqe(r,z, LrtW, LXrtW, LYrtW, INTERP_METHOD);
     
     % lih
     [Lih,LXih,LYih] = lih('tcv', shot, t, 'debug', 1);
@@ -168,14 +172,23 @@ for shot = shots
     fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_online(:)), std(e_Br_online(:)), max(e_Br_online(:)));
     fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_online(:)), std(e_Bz_online(:)), max(e_Bz_online(:)));
     
-    % liuqert vs liuqe
-    e_Fx_lrt = abs(Fx_lrt - Fx_liu);
-    e_Br_lrt = abs(Br_lrt - Br_liu);
-    e_Bz_lrt = abs(Bz_lrt - Bz_liu);
-    fprintf('LIUQERT vs LIUQE:\n');
-    fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_lrt(:)), std(e_Fx_lrt(:)), max(e_Fx_lrt(:)));
-    fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_lrt(:)), std(e_Br_lrt(:)), max(e_Br_lrt(:)));
-    fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_lrt(:)), std(e_Bz_lrt(:)), max(e_Bz_lrt(:)));
+    % warm-start liuqert vs liuqe
+    e_Fx_lrtW = abs(Fx_lrtW - Fx_liu);
+    e_Br_lrtW = abs(Br_lrtW - Br_liu);
+    e_Bz_lrtW = abs(Bz_lrtW - Bz_liu);
+    fprintf('WARM-START LIUQERT vs LIUQE:\n');
+    fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_lrtW(:)), std(e_Fx_lrtW(:)), max(e_Fx_lrtW(:)));
+    fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_lrtW(:)), std(e_Br_lrtW(:)), max(e_Br_lrtW(:)));
+    fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_lrtW(:)), std(e_Bz_lrtW(:)), max(e_Bz_lrtW(:)));
+
+    % cold-start liuqert vs liuqe
+    e_Fx_lrtC = abs(Fx_lrtC - Fx_liu);
+    e_Br_lrtC = abs(Br_lrtC - Br_liu);
+    e_Bz_lrtC = abs(Bz_lrtC - Bz_liu);
+    fprintf('COLD-START LIUQERT vs LIUQE:\n');
+    fprintf('Fx: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Fx_lrtC(:)), std(e_Fx_lrtC(:)), max(e_Fx_lrtC(:)));
+    fprintf('Br: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Br_lrtC(:)), std(e_Br_lrtC(:)), max(e_Br_lrtC(:)));
+    fprintf('Bz: mean err: %.2e, std err: %.2e, max err: %.2e\n', mean(e_Bz_lrtC(:)), std(e_Bz_lrtC(:)), max(e_Bz_lrtC(:)));
     
     % lih vs liuqe
     e_Fx_lih = abs(Fx_lih - Fx_liu);
@@ -224,7 +237,8 @@ for shot = shots
 
     % save every numeric array as single precision
     save_names = {'t_or', 'phys_or', 'Fx_or', 'Br_or', 'Bz_or', 'Fx_online', 'Br_online', 'Bz_online', ...
-        'Fx_lrt', 'Br_lrt', 'Bz_lrt', 'Fx_lih', 'Br_lih', 'Bz_lih', 'Fx_liu', 'Br_liu', 'Bz_liu', ...
+        'Fx_lrtW', 'Br_lrtW', 'Bz_lrtW', 'Fx_lrtC', 'Br_lrtC', 'Bz_lrtC', ...
+        'Fx_lih', 'Br_lih', 'Bz_lih', 'Fx_liu', 'Br_liu', 'Bz_liu', ...
         'Fx_small', 'Br_small', 'Bz_small', 'Fx_small2', 'Br_small2', 'Bz_small2', ...
         'Fx_turbo', 'Br_turbo', 'Bz_turbo', 'Fx_turbo2', 'Br_turbo2', 'Bz_turbo2', 't', 'phys', ...
         'Fx_map', 'Iy_map', 't_map', 'Ip_map', 'r_map', 'z_map'};
@@ -253,17 +267,20 @@ plt_dec = 2; % number of points to plot
 figure;
 subplot(3,1,1); grid on; hold on;
 plot(t, Fx_online(:,1:plt_dec:end));
-% plot(t, Fx_lrt(:,1:plt_dec:end), '--');
+% plot(t, Fx_lrtW(:,1:plt_dec:end), '--');
+% plot(t, Fx_lrtC(:,1:plt_dec:end), '-.');
 plot(t, Fx_liu(:,1:plt_dec:end), ':');
 title('Fx'); xlabel('Time (s)');
 subplot(3,1,2); grid on; hold on;
 plot(t, Br_online(:,1:plt_dec:end));
-% plot(t, Br_lrt(:,1:plt_dec:end), '--');
+% plot(t, Br_lrtW(:,1:plt_dec:end), '--');
+% plot(t, Br_lrtC(:,1:plt_dec:end), '-.');
 plot(t, Br_liu(:,1:plt_dec:end), ':');
 title('Br'); xlabel('Time (s)');
 subplot(3,1,3); grid on; hold on;
 plot(t, Bz_online(:,1:plt_dec:end));
-% plot(t, Bz_lrt(:,1:plt_dec:end), '--');
+% plot(t, Bz_lrtW(:,1:plt_dec:end), '--');
+% plot(t, Bz_lrtC(:,1:plt_dec:end), '-.');
 plot(t, Bz_liu(:,1:plt_dec:end), ':');
 title('Bz'); xlabel('Time (s)');
 

@@ -17,7 +17,7 @@ import gen_dissertation_figures as figures
 # figures.final_ds_example.generate()
 # figures.importance_sampling.generate()
 # figures.net_example.generate()
-# figures.comparison.generate()
+figures.comparison.generate()
 
 figures.pid_shape_control_simulation.generate()
 figures.mpc_shape_control_simulation.generate()
