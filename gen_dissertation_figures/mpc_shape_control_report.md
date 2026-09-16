@@ -8,13 +8,13 @@ The target is formulated through isoflux constraints. Control points are placed 
 
 $$e_{\mathrm{sh}}=r_{\mathrm{sh}}-y_{\mathrm{sh}}.$$
 
-This makes the equilibrium observer part of the closed loop rather than a passive diagnostic: an observer error changes the control move and can therefore change the subsequent plasma trajectory.
+This makes the equilibrium observer part of the closed loop: an observer error changes the control move and can therefore change the subsequent plasma trajectory.
 
 ## Model-predictive control formulation
 
 Model-predictive control (MPC) is a receding-horizon feedback method. Instead of applying a fixed gain to the present error, it uses a dynamic model to predict how candidate control moves will affect future outputs, chooses the sequence that best balances tracking and actuation objectives while satisfying explicit constraints, applies only the first move, and repeats the optimization at the next sample using new measurements. Re-optimizing makes the strategy feedback rather than open-loop trajectory planning; predicting over several samples lets it coordinate strongly coupled actuators and anticipate limits before they are reached.
 
-The TCV MPC is an outer shape loop around the faster inner `hybrid` magnetic controller. Its prediction plant is not merely the open-loop plasma response: a linearized FGE plasma-and-circuit model is interconnected with a state-space model of `hybrid`, so the MPC predicts the response from modifications of the hybrid references to both shape quantities and E/F-coil currents. This preserves the established inner loop for fast vertical stabilization, current and position control, and voltage generation, while the MPC coordinates the slower shape task. The continuous combined model is discretized at the shape-controller period and reduced by Hankel balanced truncation to 30 states to make estimation and optimization tractable in real time.
+The TCV MPC is an outer shape loop around the faster inner `hybrid` magnetic controller. Its prediction plant is a linearized FGE plasma-and-circuit model is interconnected with a state-space model of `hybrid`, so the MPC predicts the response from modifications of the hybrid references to both shape quantities and E/F-coil currents. This preserves the established inner loop for fast vertical stabilization, current and position control, and voltage generation, while the MPC coordinates the slower shape task. The continuous combined model is discretized at the shape-controller period and reduced by Hankel balanced truncation to 30 states to make estimation and optimization tractable in real time.
 
 Because the reduced dynamic state is not directly measured, a Kalman filter combines the model, the applied hybrid-reference correction, and the available shape, current, and magnetic measurements to estimate it. The filter is initialized from outputs sampled when shape control activates and is allowed to run for several samples before optimization begins. The controller uses a velocity-form model in the increments $\Delta x_k=x_k-x_{k-1}$ and $\Delta u_k=u_k-u_{k-1}$. Stacking predictions over a horizon gives the affine relation
 
@@ -26,7 +26,7 @@ At each update the controller solves a quadratic program of the form
 
 $$\min_{\Delta U_k}\;(R_k-Y_k)^{\mathsf T}W_y(R_k-Y_k)+\Delta U_k^{\mathsf T}W_{\Delta u}\Delta U_k \quad \text{subject to}\quad \underline I_{EF}\leq I_{EF,j}\leq\overline I_{EF},$$
 
-for every predicted sample $j$ in the horizon. The first term penalizes predicted shape-tracking error and the second discourages abrupt or excessive changes to the hybrid references; optional weights can also trade shape accuracy against coil-current magnitude. Substituting the prediction equation produces the standard convex QP stored through the Hessian and linear term in the MAT files. The E/F-coil-current limits are represented directly as constraints on the predicted outputs rather than by clipping a command after it has been computed.
+for every predicted sample $j$ in the horizon. The first term penalizes predicted shape-tracking error and the second discourages abrupt or excessive changes to the hybrid references; optional weights can also trade shape accuracy against coil-current magnitude. Substituting the prediction equation produces the standard convex QP stored through the Hessian and linear term in the MAT files. The E/F-coil-current limits are represented directly as constraints on the predicted outputs.
 
 Only the first optimized increment is used,
 
@@ -34,7 +34,7 @@ $$u_k=u_{k-1}+\Delta u_{k|k},$$
 
 and all later planned increments are discarded when the next measurement arrives. For the present controller, the prediction horizon is 15 samples and the control horizon is three samples. At a 2 ms update period these correspond to 30 ms of prediction and 6 ms of independently optimized moves; inputs are held constant after the third planned move. With 16 control coordinates, the QP therefore has 48 decision variables. The paper reports that this horizon was chosen as a practical compromise between anticipation and real-time computational cost.
 
-Unlike the generalized PID design, this simulation sets `svdtol = 0`: `build_mpc_tunable_params.m` uses identity pre/post maps instead of truncating the control space to dominant singular modes. Consequently, the 16 entries in the applied first move are controller coordinates passed to hybrid, and `duopt` has 48 rows arranged as three consecutive 16-component increments. The optimization supports a hard iteration budget and current constraints, but the local simulation uses MATLAB's interior-point `quadprog`, not the fixed-budget primal-dual solver used in the experimental demonstration; its iteration count is therefore only a diagnostic of this offline solve.
+Unlike the generalized PID design, this simulation sets `svdtol = 0`: `build_mpc_tunable_params.m` uses identity pre/post maps instead of truncating the control space to dominant singular modes. Consequently, the 16 entries in the applied first move are controller coordinates passed to hybrid, and `duopt` has 48 rows arranged as three consecutive 16-component increments. The optimization supports a hard iteration budget and current constraints, but the local simulation uses MATLAB's interior-point `quadprog`; its iteration count is therefore only a diagnostic of this offline solve.
 
 ## Purpose and outputs
 
@@ -50,30 +50,24 @@ The controller has 16 input coordinates, and `duopt` contains 48 rows because it
 
 The simulation uses TCV shot 79742. FGE and hybrid execute with a $100\,\mu\mathrm{s}$ step, and the shape loop executes every 2 ms. Shape control switches on at 0.6 s. The Kalman filter then runs for ten shape samples before QP actuation begins at 0.62 s. The plant is a linearized FGE model, the isoflux reference is fixed and derived from FBT, and the allocator is disabled.
 
-In the neural run, the controller evaluates `liuqenn_inference` from synthetic magnetic measurements. In the direct-observer run, the controller evaluates the simulated FGE flux map with `qintmex`. This direct path uses the simulation state and is not a software-in-the-loop execution of LIUQE-RT. Both runs share the controller matrices, Kalman-filter design, QP parameters, plant initialization, and shape reference.
+In the neural run, the controller evaluates `liuqenn_inference` from synthetic magnetic measurements. In the direct-observer run, the controller evaluates the simulated FGE flux map with `qintmex`. Both runs share the controller matrices, Kalman-filter design, QP parameters, plant initialization, and shape reference.
 
 ## Saved data and interpretation
 
 - `shape_errs` contains the regulated shape errors produced by the active observer, and `active_shape_mask` identifies the 14 active rows. The reported scalar metric uses the first ten rows.
 - `qp_decision` contains all three planned moves. `qp_first_move` contains the 16-component move actually applied at each update. The figure selects the six components with the largest combined post-activation RMS across the two runs and labels them by controller-coordinate index because no physical channel scaling is defined for these stored coordinates.
-- `qp_iterations` and `qp_objective_reduced` record solver diagnostics. The reduced `quadprog` objective omits the constant term and can be negative, so it is not an absolute physical performance measure. Iteration count measures algorithmic work, not wall-clock execution time.
+- `qp_iterations` and `qp_objective_reduced` record solver diagnostics. 
 - `mpc_update_mask` identifies the 2 ms optimizer events on the $100\,\mu\mathrm{s}$ debug time base. Controller signals are otherwise held between shape-loop updates.
 - `kf_output_estimate`, `kf_reference_output`, and `kf_state` record the Kalman-filter trajectory. `MPC_Akf`, `MPC_Bkf`, `MPC_Ckf`, `MPC_Dkf`, and `MPC_Lkf` record its state-space model, while `MPC_Psi`, `MPC_Phi`, `MPC_H`, `MPC_f`, `MPC_FY`, and `MPC_FYPhi` record the optimization model.
 - `ief_currents`, `ief_upper_limit`, `ief_lower_limit`, `ief_upper_margin`, and `ief_lower_margin` describe the realized E/F-coil currents and their distance from the configured bounds. A positive minimum margin indicates that every saved realized current remains within its bound.
-- `fge_final_flux` is the final flux map on `fge_grid_r` and `fge_grid_z`; the LCFS is the contour $\psi(R,Z)=\psi_B$ using `fge_final_boundary_flux`. `fge_boundary_r` and `fge_boundary_z` identify the boundary-determining X-point or limiter point and are not LCFS coordinate sequences.
+- `fge_final_flux` is the final flux map on `fge_grid_r` and `fge_grid_z`; the LCFS is the contour $\psi(R,Z)=\psi_B$ using `fge_final_boundary_flux`. `fge_boundary_r` and `fge_boundary_z` identify the boundary-determining X-point or limiter point.
 - `coil_currents`, `coil_voltages`, `shape_hybrid`, `shape_current`, and `shape_voltage` record the nested controller's command and actuator signals. `fge_isconverged`, `fge_residual`, and `fge_iterations` record plant-solver diagnostics.
 
 ## Figure and quantitative result
 
-The first panel displays all 14 active regulated errors, with vertical markers distinguishing shape-loop activation from optimizer activation. The second panel shows the dominant components of the applied first move rather than future planned moves. The third gives the instantaneous ten-channel RMS and its pooled value after optimizer activation. The fourth shows QP iterations only at the saved optimizer events. The fifth shows the smallest realized distance to an E/F-current limit, and the sixth reconstructs the final LCFS from the saved boundary-flux contour.
+The first panel displays all 14 active regulated errors, with vertical markers distinguishing shape-loop activation from optimizer activation. The second panel shows the dominant components of the applied first move. The third gives the instantaneous ten-channel RMS and its pooled value after optimizer activation. The fourth shows QP iterations only at the saved optimizer events. The fifth shows the smallest realized distance to an E/F-current limit, and the sixth reconstructs the final LCFS from the saved boundary-flux contour.
 
 For $t\geq0.62$ s, the pooled RMS over the first ten shape-error rows is 2.57 mm with the neural observer and 3.03 mm with direct FGE interpolation. The QP uses four or five iterations in both runs, and the minimum saved realized current margin is approximately 0.495 kA. Thus both observer configurations regulate the fixed target to millimetre-scale residuals with similar solver iteration counts while remaining inside the realized E/F-current bounds in this deterministic linear simulation.
-
-## Scope and limitations
-
-The saved update mask begins at 0.622 s, while the recorded iteration signal changes at 0.620 s, so the first optimization cycle is absent from the event-only iteration panel. The controller debug interface does not expose QP exit flags, solver-reported constraint violation, active predicted constraints, predicted output trajectories, the objective's constant term, or solve time. The solver is the local interior-point `quadprog` implementation; iteration counts cannot be interpreted as real-time feasibility or equated with the fixed-budget solver used in experimental MPC work.
-
-The experiment covers one linearized equilibrium with a fixed reference, no diagnostic noise, no profile disturbance, and no deliberately active current constraint. It does not establish behavior for nonlinear FGE evolution, reference transients, active constraints, other equilibria, or other plasma topologies.
 
 ## Sources
 
