@@ -3,12 +3,13 @@
 The browser loads one random MATLAB shot at a time and displays ten equispaced valid time slices of the stored poloidal flux and plasma current density. It intentionally performs no interpolation, magnetic-field reconstruction, dataset construction, or neural-network loading, providing a minimal and responsive view of the raw equilibria.
 """
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 from ._common import *
 from ._raw_data import raw_valid_mask
 
-# RAW_DIR = Path('raw_ds')
-RAW_DIR = Path('ft_ds')
+RAW_DIR = Path('raw_ds')
+# RAW_DIR = Path('ft_ds')
 N_TIMES = 7
 
 
@@ -19,24 +20,27 @@ class RawDatasetBrowser:
         self.files = sorted(self.raw_dir.glob('*.mat')); self.rng = np.random.default_rng(seed)
         if not self.files: raise FileNotFoundError(f'No .mat files found in {self.raw_dir}.')
         self.current_path = None
+        self.loader = ThreadPoolExecutor(max_workers=1); self.next_shot = None
         self.figure = plt.figure(figsize=(18, 4)); self.figure.canvas.mpl_connect('key_press_event', self.on_key)
         try: self.figure.canvas.manager.set_window_title('Raw LIUQE browser — n: next, q: quit')
         except AttributeError: pass
 
-    def load_random_shot(self):
+    def load_random_shot(self, previous_path=None):
         """Load a random shot with enough valid samples and select equispaced time indices."""
         for path in self.rng.permutation(self.files):
-            if len(self.files) > 1 and path == self.current_path: continue
+            if len(self.files) > 1 and path == previous_path: continue
             data = loadmat(path, variable_names=['t', IP, FX, IY]); valid = np.flatnonzero(raw_valid_mask(data))
             if len(valid) < self.n_times: continue
             positions = np.rint(np.linspace(0, len(valid)-1, self.n_times)).astype(int)
-            self.current_path = path
             return path, data, valid[positions]
         raise RuntimeError(f'No raw shot contains {self.n_times} valid time slices.')
 
     def draw_random_shot(self):
         r"""Replace the current canvas with raw $\psi$ and $I_y$ maps from a new shot."""
-        path, data, indices = self.load_random_shot(); self.figure.clear()
+        shot = self.next_shot.result() if self.next_shot is not None else self.load_random_shot()
+        path, data, indices = shot; self.current_path = path
+        self.next_shot = self.loader.submit(self.load_random_shot, path)
+        self.figure.clear()
         nt = np.asarray(data['t']).size
         times = np.asarray(data['t']).reshape(-1)
         fx = np.asarray(data[FX]).reshape(*DS_SIZES[FX], nt)
@@ -62,7 +66,7 @@ class RawDatasetBrowser:
     def on_key(self, event):
         """Handle the browser controls."""
         if event.key and event.key.lower() == 'n': self.draw_random_shot()
-        elif event.key and event.key.lower() == 'q': plt.close(self.figure)
+        elif event.key and event.key.lower() == 'q': self.loader.shutdown(wait=False); plt.close(self.figure)
 
     def show(self):
         """Draw the first shot and start the GUI event loop."""
