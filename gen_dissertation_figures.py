@@ -22,6 +22,7 @@ figures.comparison.generate()
 figures.pid_shape_control_simulation.generate()
 figures.mpc_shape_control_simulation.generate()
 figures.fmag_control_simulation.generate()
+figures.magnetic_vertical_stability.generate()
 
 figures.compile_inspection_pdf()
 
