@@ -9,13 +9,15 @@ from scipy.ndimage import binary_dilation, binary_erosion, label
 from . import _common as common
 from ._common import THESIS_W, RRD, ZZD, VESSO, inpoly, plot_vessel, compile_inspection_pdf
 
-DATA_DIR = Path('data/tcv_shape_flexibility_draft')
+DATA_DIR = Path('data/tcv_shape_flexibility')
 FT_DATA_DIR = Path('ft_ds')
-OUTPUT_PATH = Path('dissertation_figures/tcv_shape_flexibility_draft.pdf')
+OUTPUT_PATH = Path('dissertation_figures/tcv_shape_flexibility.pdf')
 SHOW_PLOTS = False
 DOUBLET, DOUBLET_TIME = 87751, 0.687 
 # DOUBLET, DOUBLET_TIME = 87809, 0.495
 # DOUBLET, DOUBLET_TIME = 87869, 0.880
+
+FONTSZ = 7
 
 CASES = [
     (9849, 0.5, r'Limited' + '\n' + r'$\delta=0$, $I_p=230\,\mathrm{kA}$'),
@@ -23,8 +25,8 @@ CASES = [
     (5650, 0.8, r'SN lower' + '\n' + r'$I_p=335\,\mathrm{kA}$'),
     (8856, 0.29, r'DN' + '\n' + r'$I_p=325\,\mathrm{kA}$'),
     (11962, 1.0, r'Highest' + '\n' + r'squareness' + '\n' + r'$\lambda=0.5$'),
-    (11368, 0.65, r'Highest current' + '\n' + r'$I_p=1.06\,\mathrm{MA}$'),
-    (18548, 1.5, r'Highest fully' + '\n' + r'ECCD driven' + '\n' + r'current' + '\n' + r'$I_p=210\,\mathrm{kA}$'),
+    (11368, 0.65, r'Highest current' +  '\n' + r'$I_p=1.06\,\mathrm{MA}$'),
+    (18548, 1.5, r'Max purely' + '\n' +r'driven ECCD current' + '\n' + r'$I_p=210\,\mathrm{kA}$'),
     (6442, 0.5, r'Pear shape' + '\n' + r'$I_p=360\,\mathrm{kA}$'),
     (DOUBLET, DOUBLET_TIME, r'Doublet shape' + '\n' + r'$I_p=368\,\mathrm{kA}$'),
     (19373, 0.42, r'Highest elongation' + '\n' + r'$\kappa=2.80$'),
@@ -76,7 +78,7 @@ def _plot_equilibrium(path, shot, time):
 
 def generate(data_dir=DATA_DIR):
     """Plot the requested snapshots; leave labelled panels for missing exports."""
-    plt.figure(figsize=(THESIS_W, 11.0))
+    plt.figure(figsize=(THESIS_W, 7))
     missing = []
     for i, (shot, time, caption) in enumerate(CASES, start=1):
         plt.subplot(3, 4, i)
@@ -89,10 +91,11 @@ def generate(data_dir=DATA_DIR):
         plt.xlim(VESSO[:, 0].min()-0.02, VESSO[:, 0].max()+0.02)
         plt.ylim(VESSO[:, 1].min()-0.02, VESSO[:, 1].max()+0.02)
         plt.gca().set_aspect('equal', adjustable='box'); plt.axis('off')
-        plt.title(rf'\#{shot}, $t={time:g}\,\mathrm{{s}}$')
-        plt.text(0.5, -0.04, rf'({chr(96+i)}) ' + caption, ha='center', va='top', transform=plt.gca().transAxes)
+        # plt.title(rf'\#{shot}, $t={time:g}\,\mathrm{{s}}$', fontsize=FONTSZ)
+        titl = rf'\#{shot}, $t={time:g}\,\mathrm{{s}}$' 
+        plt.text(0.5, -0.04, rf'({chr(96+i)}) ' + titl + '\n' + caption, ha='center', va='top', transform=plt.gca().transAxes, fontsize=FONTSZ)
     OUTPUT_PATH.parent.mkdir(exist_ok=True)
-    plt.tight_layout(h_pad=2.3, w_pad=0.2)
+    plt.tight_layout()
     plt.savefig(OUTPUT_PATH); print(f'Saved {OUTPUT_PATH} ({len(CASES)-len(missing)}/{len(CASES)} equilibria)')
     if SHOW_PLOTS or common.SHOW_PLOTS: plt.show(block=common.WAIT_FOR_PLOTS)
     else: plt.close()

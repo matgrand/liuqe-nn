@@ -54,8 +54,8 @@ def _plot_legend():
         Line2D([], [], color=C2, linewidth=0.8, label=r'Flux contours $psi$'),
         Line2D([], [], color='k', linestyle='--', linewidth=1.5, label='LCFS'),
         Patch(facecolor=C1, edgecolor=C1, alpha=0.28, label='PF coils'),
-        Line2D([], [], color=C2, linewidth=1.6, label=r'$B_m$ probes'),
-        Line2D([], [], color=C3, marker='x', linestyle='none', markersize=6, label=r'$F_f$ loops'),
+        Line2D([], [], color=C2, linewidth=1.6, label=r'\texttt{Bm} probes'),
+        Line2D([], [], color=C3, marker='x', linestyle='none', markersize=6, label=r'\texttt{Ff} loops'),
         Line2D([], [], color=C4, marker='o', linestyle='none', markersize=5, label='Shape-control points'),
     ]
     plt.legend(handles=handles, loc='center left', bbox_to_anchor=(1.03, 0.5))
