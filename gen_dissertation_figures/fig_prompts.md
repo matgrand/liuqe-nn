@@ -11,3 +11,16 @@ Other mods:
 - drop the colorbar and the assciated Poloidal flux label
 - for the flux map, instead of showing all the samples, only show points inside the vessel (see how gen_dissertation_figures/net_example.py does it)
 - do not change data sources from the current panels, just pretend it's from liuqe. Complete the top level description accordingly. It should match the narrative
+
+
+## TCV shapes
+The goal is to recreate figure gen_dissertation_figures/fig_useful_material/tcv_shape_flexibility_draft.png, we need to recreate it exactly, the only difference will be the colortyle and layout (2x6 -> 3x4).
+Additional notes:
+- read the guides
+- I want you to create 2 scripts:
+    1. a matlab script that I will run myself in the tcv server that will load and save the data in mat files.
+    2. a python script that creates the final figure using the mat files, using the dissertation format, be inspired by gen_dissertation_figures/net_example.py for the layout (3x4 tough)
+- I want the same shots and instants.
+- call it tcv_shape_flexibility_draft.py
+- the shot numbers and instants are (in order): [(9849,0.5), (6010,0.8), (5650,0.8), (8856,0.29), (11962,1.0), (11368,0.65), (18548,1.5), (6442,0.5), (10159,0.01), (19373,0.42), (11928,0.67), (36151,0.457)]
+- in the m file, try to get the already saved eq first, re-run the eq as a backup. And do not interrupt the script if one of the eq doesnt load (there are some very old shots, Im not sure it will be very easy to load them)

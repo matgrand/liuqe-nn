@@ -7,7 +7,8 @@ from pathlib import Path
 from ._common import *
 from ._raw_data import raw_valid_mask
 
-RAW_DIR = Path('raw_ds')
+# RAW_DIR = Path('raw_ds')
+RAW_DIR = Path('ft_ds')
 N_TIMES = 7
 
 
